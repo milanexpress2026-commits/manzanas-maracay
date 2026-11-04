@@ -1,78 +1,112 @@
-# Arquitectura de la fase 1
+# Arquitectura de la fase 2
 
 ## Decisión principal
 
-Monolito modular con una API NestJS centralizada y una base PostgreSQL. Next.js presenta la interfaz y reenvía solicitudes del mismo origen; no decide reglas comerciales ni habla directamente con la base. Los procesos de interfaz y API pueden ejecutarse de forma independiente sin convertir el sistema en microservicios.
+Monolito modular con API NestJS centralizada y PostgreSQL. Next.js presenta la interfaz y reenvía solicitudes del mismo origen; no decide reglas comerciales ni accede directamente a la base. Los procesos web y API se ejecutan por separado sin convertir el sistema en microservicios.
 
 ```mermaid
 flowchart LR
-  U[Usuario: computadora o teléfono] --> W[Next.js / interfaz]
+  U[Usuario invitado] --> W[Next.js / interfaz responsive]
   W --> P[Proxy del mismo origen]
-  P --> A[NestJS / módulo Catálogo]
+  P --> G[Sesión + origen + clave interna]
+  G --> A[NestJS: catálogo e inventario]
   A --> D[Dominio y validación Zod]
-  A --> R[Drizzle / transacciones]
-  R --> DB[(PostgreSQL del proyecto)]
+  A --> R[Persistencia transaccional]
+  G --> DB[(PostgreSQL exclusivo)]
+  R --> DB
 ```
 
-`packages/domain` no depende de React, NestJS ni PostgreSQL. `packages/database` contiene el esquema tipado y sus migraciones; la interfaz utiliza solamente los tipos de catálogo del dominio. La API contiene controladores, servicio y persistencia del módulo Catálogo. Los módulos comerciales posteriores se añadirán con sus propios servicios, sin llevar reglas a componentes React.
+`packages/domain` no depende de React, NestJS ni PostgreSQL: contiene validaciones, tipos y reglas puras. `packages/database` mantiene esquema Drizzle y migraciones. Catálogo usa Drizzle; inventario y autenticación usan consultas SQL parametrizadas con el driver PostgreSQL para expresar bloqueos, sesiones y validaciones de historial. La interfaz importa contratos del dominio y no dispone de credenciales de base.
+
+## Acceso
+
+`AuthModule` instala un guard global. Salvo salud, las rutas requieren la clave interna del proxy. Las operaciones del negocio requieren además una sesión válida; login y logout admiten ausencia de sesión, pero mantienen validación de origen y clave interna. El identificador del actor proviene del usuario autenticado, nunca del cuerpo de una mutación.
+
+Las contraseñas se derivan con scrypt y sal aleatoria. El token de sesión es aleatorio; la base conserva su hash SHA-256. La sesión tiene un máximo de 8 horas y 30 minutos de inactividad, se revoca al salir y se invalida al restablecer la contraseña. Las cookies son `HttpOnly`, `SameSite=Strict`, con `Secure` y prefijo `__Host-` en staging. Login tiene presupuestos de intentos persistidos por usuario y globales.
+
+No hay registro público ni roles diferenciados. La preparación de usuarios se hace fuera de la API con `scripts/create-user.ts` y un archivo privado. El arranque local genera el acceso en `.local/auth-local.json`; staging exige provisión explícita. `MM_APP_ENV` distingue `local`, `test` y `staging`; `MM_APP_ORIGIN` debe ser HTTPS con dominio confirmado para staging. El proxy no expone la clave interna al navegador.
 
 ## Contrato HTTP
 
-| Método | Ruta                              | Comportamiento                                     |
-| ------ | --------------------------------- | -------------------------------------------------- |
-| GET    | `/api/health`                     | Comprueba conexión real a PostgreSQL               |
-| GET    | `/api/catalog`                    | Catálogo consistente en una transacción de lectura |
-| POST   | `/api/catalog/fruits`             | Crea fruta                                         |
-| POST   | `/api/catalog/varieties`          | Crea variedad de una fruta                         |
-| POST   | `/api/catalog/calibers`           | Crea calibre de una fruta                          |
-| POST   | `/api/catalog/configurations`     | Crea variante y empaque en una única transacción   |
-| PATCH  | `/api/catalog/configurations/:id` | Actualiza empaque verificando su versión           |
+| Método     | Ruta                                                                | Comportamiento                                                       |
+| ---------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| GET        | `/api/health`                                                       | Salud y conexión a PostgreSQL                                        |
+| POST       | `/api/auth/login`, `/api/auth/logout`                               | Iniciar o revocar sesión                                             |
+| GET        | `/api/auth/me`                                                      | Usuario y entorno de la sesión                                       |
+| GET        | `/api/catalog`                                                      | Catálogo en un snapshot consistente                                  |
+| POST       | `/api/catalog/fruits`, `/varieties`, `/calibers`, `/configurations` | Altas de catálogo; todas bajo `/api/catalog`                         |
+| PATCH      | `/api/catalog/configurations/:id`                                   | Editar empaque con versión                                           |
+| GET / POST | `/api/suppliers`                                                    | Listar o crear proveedores                                           |
+| PATCH      | `/api/suppliers/:id`                                                | Editar o desactivar con versión                                      |
+| POST       | `/api/receipts`                                                     | Recepción multilínea atómica; lote por línea                         |
+| GET        | `/api/inventory`                                                    | Resumen y lotes; filtros por fruta, variedad, calibre, lote y estado |
+| GET        | `/api/inventory/lots/:id`                                           | Lote, contenedores e historial                                       |
+| POST       | `/api/inventory/lots/:id/open-box`                                  | Abrir caja según su empaque histórico                                |
+| POST       | `/api/inventory/lots/:id/withdraw-blisters`                         | Retiro interno priorizando cajas abiertas                            |
+| POST       | `/api/inventory/lots/:id/open-blister`                              | Abrir blíster con conteo físico                                      |
+| POST       | `/api/inventory/lots/:id/prepare-half`                              | Preparar media caja y conservar remanente                            |
+| POST       | `/api/inventory/lots/:id/adjust`                                    | Ajustar cantidad/conteo con motivo                                   |
+| POST       | `/api/inventory/movements/:id/reverse`                              | Reversa compensatoria del último movimiento admisible                |
 
-Las mutaciones requieren `Idempotency-Key` UUID. Se bloquea la clave en PostgreSQL, se compara una huella SHA-256 del comando y se conserva la respuesta. La auditoría se inserta dentro de la misma transacción. Las actualizaciones bloquean la fila y comparan `version`; una edición desactualizada devuelve 409. Los nombres duplicados se detectan sin distinguir mayúsculas y espacios exteriores.
+Las mutaciones de negocio requieren `Idempotency-Key` UUID. Una clave idéntica con los mismos datos y actor devuelve la respuesta guardada; con distinto contenido produce conflicto. Catálogo y proveedores comprueban la versión en sus ediciones. Los cuerpos de inventario están en `packages/domain/src/inventory.ts`; [inventory-model.md](inventory-model.md) explica sus efectos físicos.
 
-La lectura agrupa cuatro consultas dentro de un snapshot `repeatable read`. Se ejecutan secuencialmente porque comparten una conexión. No hay consultas por cada fila ni exposición de clientes de base al navegador.
+## Transacciones de inventario
+
+La recepción bloquea proveedor y configuración y copia el empaque, su versión y el costo en cada lote. Cada caja recibida tiene identidad propia; su cantidad de fruta queda desconocida. Abrirla crea los blíster de la configuración histórica sin añadir un saldo duplicado del recipiente abierto.
+
+Los comandos bloquean en orden clave idempotente → árbol de inventario → lote → saldos por ID. El bloqueo global del árbol es una protección conservadora de esta fase y limita concurrencia entre lotes. No se hacen llamadas externas dentro de las transacciones. Los conflictos transitorios permiten reintentar el mismo comando y clave.
+
+Una sola transacción inserta movimiento y entradas, actualiza contenedores/proyección y versión del lote, registra auditoría y conserva la respuesta. Las restricciones diferidas comprueban sumas de entradas por unidad, estado de la proyección, árbol físico y cadena de versiones antes de confirmar. Los movimientos contienen estados anteriores/posteriores para reversas; solo se revierte el último movimiento del lote, una vez, sin borrar registros.
+
+Las lecturas de catálogo e inventario usan snapshots consistentes. No se exponen clientes de base al navegador ni se hace una consulta por cada fila. Los pools son acotados; las consultas de inventario tienen límites de espera de conexión, bloqueo y ejecución.
 
 ## Modelo PostgreSQL
 
-24 tablas y una vista de cuentas por cobrar:
+27 tablas y una vista de cuentas por cobrar:
 
 | Área                 | Tablas / vista                                                                           |
 | -------------------- | ---------------------------------------------------------------------------------------- |
 | Catálogo             | `fruits`, `varieties`, `calibers`, `product_variants`, `packing_rules`                   |
 | Abastecimiento       | `suppliers`, `purchases`, `purchase_lines`, `lots`                                       |
 | Inventario           | `warehouses`, `containers`, `stock_balances`, `inventory_movements`, `inventory_entries` |
-| Comercial            | `clients`, `price_lists`, `price_items`, `sales`, `sale_lines`                           |
-| Cobranza             | `payments`, `payment_applications`, vista `receivables`                                  |
+| Acceso               | `app_users`, `auth_sessions`, `auth_login_buckets`                                       |
+| Comercial futuro     | `clients`, `price_lists`, `price_items`, `sales`, `sale_lines`                           |
+| Cobranza futura      | `payments`, `payment_applications`, vista `receivables`                                  |
 | Tasas y trazabilidad | `bcv_rates`, `audit_events`, `command_receipts`                                          |
 
-Se usan UUID, timestamps con zona horaria, claves foráneas, índices para relaciones y búsquedas, unicidad y restricciones de cantidades. Las claves compuestas impiden combinar una variedad/calibre de otra fruta y vincular un lote a una regla de otra variante. Las aplicaciones relacionan pago y venta del mismo cliente. Almacenes se modelan desde el inicio, sin interfaz ni lógica compleja de sucursales.
+Se usan UUID, timestamps con zona horaria, claves foráneas, índices, unicidad y restricciones de cantidades. Las claves compuestas impiden mezclar frutas entre variedad/calibre o vincular un lote con una regla de otra variante. Los costos usan `numeric` y cadenas decimales en TypeScript; el calibre permanece como etiqueta de texto.
 
-Las 17 tablas de los demás módulos comerciales son fundamentos: no tienen endpoints operativos ni permisos de escritura concedidos a la aplicación. Auditoría e idempotencia sí están habilitadas para acompañar las operaciones del catálogo. Ventas y cobranza requieren servicios y controles adicionales descritos en `domain-rules.md` antes de usarse comercialmente.
+Las tablas comerciales, de cobros y BCV son fundamentos de fases posteriores: no tienen endpoints operativos ni permisos de escritura del rol de aplicación. No representan un sistema de facturación listo. El almacén inicial existe sin inventario ficticio; los lotes de staging/pruebas se identifican como DEMO desde el servidor.
 
 ## Migraciones
 
-- `0000_thick_sunset_bain.sql`: esquema generado con Drizzle.
-- `0001_integrity.sql`: funciones y triggers versionados para historial inmutable, ciclos y doble conteo.
-- `0002_noisy_red_ghost.sql`: validación estricta del dominio oficial BCV; los puntos del dominio son literales.
+| Migración                          | Responsabilidad                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `0000_thick_sunset_bain.sql`       | Esquema inicial generado por Drizzle                                                                   |
+| `0001_integrity.sql`               | Historial inmutable, ciclos y doble conteo                                                             |
+| `0002_noisy_red_ghost.sql`         | Restricción del dominio oficial BCV                                                                    |
+| `0003_inventory_phase2.sql`        | Proveedores, recepción/lotes, proyección y ledger consistentes, estados físicos, versiones y snapshots |
+| `0004_auth_sessions.sql`           | Usuarios invitados, sesiones revocables y limitación de intentos                                       |
+| `0005_inventory_history_guard.sql` | Entradas creadas únicamente en la misma transacción del movimiento y consistentes con sus snapshots    |
 
-Los nombres aleatorios de migración proceden de Drizzle y no afectan al negocio. El journal y las instantáneas se versionan. El migrador toma un bloqueo asesor, aplica solo pendientes y concede permisos mínimos al rol local. No se alteró una migración ya aplicada para ocultar un cambio.
+Journal e instantáneas Drizzle se versionan. El migrador toma un bloqueo asesor, aplica pendientes y concede permisos mínimos a `mm_app`. `mm_owner` se usa solo para preparación y migración. Una migración aplicada se conserva; la siguiente incorpora la corrección. No se usa `drizzle-kit push`.
 
-## Ejecución local
+El migrador solo admite bases del proyecto en loopback/puerto 55432 o `manzanas_maracay_staging` en el servicio `postgres:5432` con `MM_APP_ENV=staging`. La configuración no habilita migrar bases ajenas. Los triggers limitan cambios históricos aunque el rol tenga permiso de actualización de la proyección.
 
-- Web: `127.0.0.1:3100`.
-- API: `127.0.0.1:3101`.
-- PostgreSQL: `127.0.0.1:55432`, directorio `.local/postgres`.
-- Bases separadas: `manzanas_maracay_dev` y `manzanas_maracay_test`.
-- Pruebas web/API: puertos 3200 y 3201.
+## Entornos y ejecución
 
-La ausencia de Docker local se resolvió con binarios PostgreSQL reales mediante `embedded-postgres`, no con SQLite ni almacenamiento del navegador. El paquete de arranque tiene versión beta; se limita a desarrollo. Para producción se propone PostgreSQL estándar en contenedor o servicio dedicado después de revisar despliegue y respaldo.
+| Entorno               | Web / API                                       | Base                                                             |
+| --------------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
+| Local                 | `127.0.0.1:3100` / `127.0.0.1:3101`             | `manzanas_maracay_dev`, PostgreSQL portable en `127.0.0.1:55432` |
+| Pruebas automatizadas | `127.0.0.1:3200` / `127.0.0.1:3201`             | `manzanas_maracay_test`, nunca staging                           |
+| Staging previsto      | `https://manzanas.ganamosclub.net`, API interna | Base, red, volumen y credenciales exclusivos                     |
 
-La API usa `mm_app`, sin privilegios de creación, superusuario ni escritura en módulos futuros. `mm_owner` se utiliza solo en preparación y migraciones. El proxy añade una clave interna del servidor y valida origen en mutaciones. Esto protege el entorno local frente a peticiones triviales de otros sitios, pero **no reemplaza autenticación de usuarios**. No publicar esta versión.
+La URL de staging está confirmada; su publicación y verificación externa están pendientes al redactar este documento. [infrastructure.md](infrastructure.md) contiene el estado operativo. No se afirma un despliegue de producción.
+
+`npm run dev` prepara e inicia el entorno local; `npm run check` ejecuta tipos, unitarias y compilación; `npm run test:e2e` administra sus servicios de prueba. PostgreSQL portable mediante `embedded-postgres` se limita a desarrollo/pruebas. El flujo Docker local es una alternativa que requiere validación en una máquina con Docker; no debe usar el puerto 55432 a la vez que la base portable.
 
 ## PWA y límites
 
-Manifiesto, iconos derivados del logo oficial y service worker con una página de desconexión. El archivo de marca original y sus variantes se describen en [brand-assets.md](brand-assets.md). No se almacenan respuestas del catálogo ni se encolan escrituras. Las capturas prueban tamaños de teléfono en Chromium; no equivalen a validación en todos los dispositivos o en Safari. La aplicación escucha solo en la computadora local; usarla desde un teléfono físico requiere una decisión posterior sobre acceso seguro.
+El manifiesto y los iconos derivan del logo oficial, documentado en [brand-assets.md](brand-assets.md). El service worker ofrece una página de desconexión; no guarda respuestas operativas ni encola escrituras. Las capturas de Chromium no equivalen a validación en todos los dispositivos o Safari.
 
-## Antes de producción
-
-Autenticación real, gestión de sesión, respaldo y restauración ensayados, revisión del modelo de inventario transaccional, auditoría con actor autenticado, paginación para catálogos grandes, observabilidad, límites de solicitudes, despliegue aislado y verificación oficial de BCV. No se incorporan como funciones simuladas en la fase 1.
+Antes de producción deben revisarse restauración y retención de respaldos, observabilidad, recuperación de acceso, volumen real, paginación y contención del inventario. Esta fase no incorpora ventas, cobranza, listas de precios operativas, WhatsApp, transferencias entre almacenes ni proveedor BCV en vivo. El cierre de pruebas y la publicación se documentarán cuando se verifiquen, sin confundir código preparado con servicios desplegados.
