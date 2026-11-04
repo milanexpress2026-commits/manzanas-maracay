@@ -164,7 +164,7 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                   ) : null}
                   {catalog.data!.configurations.length === 0 ? (
                     <p>
-                      Primero <Link href="/">crea una configuración de empaque en el catálogo</Link>
+                      Primero <Link href="/catalogo">crea una configuración de empaque en el catálogo</Link>
                       .
                     </p>
                   ) : null}

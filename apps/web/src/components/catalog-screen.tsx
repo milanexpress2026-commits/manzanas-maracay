@@ -148,7 +148,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
             }));
   const count = tab === 'configurations' ? configurations.length : masterRows.length;
   return (
-    <AppShell session={session} current="/" onGuide={() => setGuide(true)}>
+    <AppShell session={session} current="/catalogo" onGuide={() => setGuide(true)}>
       <main id="app-main" className="main-content">
         <div className="page-heading">
           <div>

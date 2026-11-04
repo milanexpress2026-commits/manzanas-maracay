@@ -9,6 +9,8 @@ COPY packages/database/package.json ./packages/database/package.json
 RUN npm ci --no-audit --no-fund
 
 FROM dependencies AS build
+ARG MM_RELEASE=demo-local
+ENV MM_RELEASE=$MM_RELEASE
 COPY apps ./apps
 COPY packages ./packages
 COPY scripts ./scripts
@@ -31,6 +33,8 @@ ENTRYPOINT ["node", "scripts/staging-runtime.mjs"]
 CMD ["api"]
 
 FROM node:24-bookworm-slim AS web
+ARG MM_RELEASE=demo-local
+ENV MM_RELEASE=$MM_RELEASE
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 MM_APP_ENV=staging PORT=3100 HOSTNAME=0.0.0.0
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./

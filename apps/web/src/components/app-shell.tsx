@@ -23,7 +23,7 @@ export type AppSession = {
   environment: 'local' | 'test' | 'staging';
 };
 const navigation = [
-  { href: '/', label: 'Catálogo', icon: Package },
+  { href: '/catalogo', label: 'Catálogo', icon: Package },
   { href: '/inventario', label: 'Inventario', icon: Boxes },
   { href: '/recepciones', label: 'Recepciones', icon: Truck },
   { href: '/proveedores', label: 'Proveedores', icon: Users },

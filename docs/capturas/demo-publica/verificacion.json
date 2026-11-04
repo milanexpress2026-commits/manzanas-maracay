@@ -1,0 +1,207 @@
+{
+  "publicRoutes": [
+    {
+      "route": "/",
+      "status": 200
+    },
+    {
+      "route": "/demo",
+      "status": 200
+    },
+    {
+      "route": "/demo/catalogo",
+      "status": 200
+    },
+    {
+      "route": "/demo/inventario",
+      "status": 200
+    },
+    {
+      "route": "/demo/recepciones",
+      "status": 200
+    },
+    {
+      "route": "/demo/ventas",
+      "status": 200
+    },
+    {
+      "route": "/demo/cobranza",
+      "status": 200
+    }
+  ],
+  "privateStatus": [
+    {
+      "method": "GET",
+      "route": "/catalogo",
+      "status": 307
+    },
+    {
+      "method": "GET",
+      "route": "/api/catalog",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "route": "/api/inventory",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "route": "/api/suppliers",
+      "status": 401
+    },
+    {
+      "method": "POST",
+      "route": "/api/receipts",
+      "status": 401
+    },
+    {
+      "method": "PATCH",
+      "route": "/api/catalog/configurations/50f89099-a44a-4eb9-b2a4-7c1aaeff4cf7",
+      "status": 401
+    }
+  ],
+  "viewportAudits": [
+    {
+      "route": "/",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "route": "/demo",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "route": "/demo/catalogo",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "route": "/demo/inventario",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "route": "/demo/recepciones",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "route": "/demo/ventas",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "route": "/demo/cobranza",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "route": "/",
+      "width": 800,
+      "issues": []
+    },
+    {
+      "route": "/demo",
+      "width": 800,
+      "issues": []
+    },
+    {
+      "route": "/demo/catalogo",
+      "width": 800,
+      "issues": []
+    },
+    {
+      "route": "/demo/inventario",
+      "width": 800,
+      "issues": []
+    },
+    {
+      "route": "/demo/recepciones",
+      "width": 800,
+      "issues": []
+    },
+    {
+      "route": "/demo/ventas",
+      "width": 800,
+      "issues": []
+    },
+    {
+      "route": "/demo/cobranza",
+      "width": 800,
+      "issues": []
+    },
+    {
+      "route": "/",
+      "width": 1024,
+      "issues": []
+    },
+    {
+      "route": "/demo",
+      "width": 1024,
+      "issues": []
+    },
+    {
+      "route": "/demo/catalogo",
+      "width": 1024,
+      "issues": []
+    },
+    {
+      "route": "/demo/inventario",
+      "width": 1024,
+      "issues": []
+    },
+    {
+      "route": "/demo/recepciones",
+      "width": 1024,
+      "issues": []
+    },
+    {
+      "route": "/demo/ventas",
+      "width": 1024,
+      "issues": []
+    },
+    {
+      "route": "/demo/cobranza",
+      "width": 1024,
+      "issues": []
+    },
+    {
+      "route": "/",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "route": "/demo",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "route": "/demo/catalogo",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "route": "/demo/inventario",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "route": "/demo/recepciones",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "route": "/demo/ventas",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "route": "/demo/cobranza",
+      "width": 1440,
+      "issues": []
+    }
+  ],
+  "errors": []
+}
