@@ -1,9 +1,12 @@
 import { sql } from 'drizzle-orm';
+export * from './schema.auth';
 import {
   pgTable,
   uuid,
   text,
   integer,
+  bigint,
+  boolean,
   numeric,
   timestamp,
   date,
@@ -111,13 +114,26 @@ export const warehouses = pgTable(
   { id: id(), name: text('name').notNull(), createdAt: createdAt() },
   (t) => [unique('warehouses_name_uq').on(t.name)],
 );
-export const suppliers = pgTable('suppliers', {
-  id: id(),
-  name: text('name').notNull(),
-  taxId: text('tax_id'),
-  phone: text('phone'),
-  createdAt: createdAt(),
-});
+export const suppliers = pgTable(
+  'suppliers',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    taxId: text('tax_id'),
+    phone: text('phone'),
+    notes: text('notes').notNull().default(''),
+    active: boolean('active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('suppliers_name_uq').on(sql`lower(btrim(${t.name}))`),
+    check(
+      'suppliers_fields_valid',
+      sql`length(btrim(${t.name})) between 2 and 120 and ${t.version}>0`,
+    ),
+  ],
+);
 export const purchases = pgTable(
   'purchases',
   {
@@ -128,6 +144,8 @@ export const purchases = pgTable(
     reference: text('reference').notNull(),
     purchasedAt: time('purchased_at').notNull(),
     status: text('status').notNull().default('draft'),
+    notes: text('notes').notNull().default(''),
+    isDemo: boolean('is_demo').notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [
@@ -149,6 +167,7 @@ export const purchaseLines = pgTable(
     quantity: integer('quantity').notNull(),
     presentation: text('presentation').notNull(),
     unitCostUsd: money('unit_cost_usd').notNull(),
+    notes: text('notes').notNull().default(''),
   },
   (t) => [
     index('purchase_lines_purchase_idx').on(t.purchaseId),
@@ -177,6 +196,10 @@ export const lots = pgTable(
     blistersPerBoxSnapshot: integer('blisters_per_box_snapshot').notNull(),
     receivedAt: time('received_at').notNull(),
     unitCostUsd: money('unit_cost_usd').notNull(),
+    receivedBoxes: integer('received_boxes').notNull().default(0),
+    notes: text('notes').notNull().default(''),
+    isDemo: boolean('is_demo').notNull().default(false),
+    inventoryVersion: integer('inventory_version').notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [
@@ -193,6 +216,7 @@ export const lots = pgTable(
       'lots_values_valid',
       sql`${t.blistersPerBoxSnapshot} between 1 and 100 and ${t.unitCostUsd}>=0 and ${t.packingRuleVersion}>0`,
     ),
+    check('lots_receipt_valid', sql`${t.receivedBoxes}>=0 and ${t.inventoryVersion}>=0`),
   ],
 );
 // A container is a physical location/identity, not an additional stock quantity.
@@ -255,6 +279,7 @@ export const stockBalances = pgTable(
       'half_box_count_required',
       sql`${t.unit}<>'prepared_half_box' or ${t.countedPieces} is not null`,
     ),
+    check('physical_package_quantity', sql`${t.unit}='loose_piece' or ${t.quantity} in (0,1)`),
   ],
 );
 export const inventoryMovements = pgTable(
@@ -263,9 +288,22 @@ export const inventoryMovements = pgTable(
     id: id(),
     idempotencyKey: uuid('idempotency_key').notNull(),
     requestHash: text('request_hash').notNull(),
+    creationTransaction: bigint('creation_transaction', { mode: 'bigint' })
+      .notNull()
+      .default(sql`txid_current()`),
     kind: text('kind').notNull(),
     reason: text('reason').notNull(),
     actor: text('actor').notNull(),
+    lotId: uuid('lot_id').references(() => lots.id),
+    reversalOf: uuid('reversal_of'),
+    lotVersionBefore: integer('lot_version_before'),
+    lotVersionAfter: integer('lot_version_after'),
+    beforeState: jsonb('before_state')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    afterState: jsonb('after_state')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     countedBefore: integer('counted_before'),
     deliveredPieces: integer('delivered_pieces'),
     remainingPieces: integer('remaining_pieces'),
@@ -274,9 +312,12 @@ export const inventoryMovements = pgTable(
   (t) => [
     unique('movement_idempotency_uq').on(t.idempotencyKey),
     index('movements_date_idx').on(t.createdAt),
+    index('movements_lot_idx').on(t.lotId, t.createdAt),
+    unique('movement_reversal_uq').on(t.reversalOf),
+    foreignKey({ columns: [t.reversalOf], foreignColumns: [t.id] }),
     check(
       'movement_kind_valid',
-      sql`${t.kind} in ('receipt','dispatch','open_box','fraction','adjustment','transfer','reversal')`,
+      sql`${t.kind} in ('receipt','dispatch','open_box','open_blister','fraction','adjustment','transfer','reversal')`,
     ),
     check('movement_reason_required', sql`length(btrim(${t.reason}))>0`),
     check(
@@ -298,11 +339,20 @@ export const inventoryEntries = pgTable(
     unit: text('unit').notNull(),
     quantityDelta: integer('quantity_delta').notNull(),
     piecesDelta: integer('pieces_delta'),
+    entryOrder: bigint('entry_order', { mode: 'number' }).generatedAlwaysAsIdentity().notNull(),
+    beforeState: jsonb('before_state'),
+    afterState: jsonb('after_state')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
   },
   (t) => [
     index('entries_movement_idx').on(t.movementId),
     index('entries_container_idx').on(t.containerId),
-    check('entry_nonzero', sql`${t.quantityDelta}<>0 or coalesce(${t.piecesDelta},0)<>0`),
+    index('entries_container_order_idx').on(t.containerId, t.entryOrder),
+    check(
+      'entry_nonzero',
+      sql`${t.quantityDelta}<>0 or coalesce(${t.piecesDelta},0)<>0 or ${t.beforeState} is distinct from ${t.afterState}`,
+    ),
     check(
       'entry_unit_valid',
       sql`${t.unit} in ('sealed_box','intact_blister','prepared_half_box','loose_piece')`,

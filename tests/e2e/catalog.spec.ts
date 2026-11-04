@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import fs from 'node:fs';
+import { loginPage } from './helpers/auth';
+test.beforeEach(async ({ page }) => { await loginPage(page); });
 
 test('escritorio y móvil: carga real, accesibilidad y capturas', async ({ page }) => {
   const errors: string[] = [];

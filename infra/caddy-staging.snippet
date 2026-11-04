@@ -1,0 +1,6 @@
+# Añadir únicamente después de validar la configuración completa y aprobar
+# el cambio del proxy compartido. No reemplaza ninguna ruta existente.
+manzanas.ganamosclub.net {
+    header X-Robots-Tag "noindex, nofollow, noarchive"
+    reverse_proxy mm-staging-web:3100
+}

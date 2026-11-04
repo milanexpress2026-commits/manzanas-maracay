@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import dotenv from 'dotenv';
+import { loginRequest } from './helpers/auth';
+test.beforeEach(async ({ request }) => { await loginRequest(request); });
 dotenv.config({ quiet: true });
 const headers = (key = randomUUID()) => ({
   Origin: 'http://127.0.0.1:3200',
@@ -171,7 +173,7 @@ test('PostgreSQL: no permite doble conteo de caja y blíster', async () => {
       )
     ).rows[0].id;
     await c.query(
-      "insert into stock_balances(container_id,unit,quantity) values($1,'sealed_box',1),($2,'intact_blister',5)",
+      "insert into stock_balances(container_id,unit,quantity) values($1,'sealed_box',1),($2,'intact_blister',1)",
       [box, blister],
     );
     await expect(c.query('SET CONSTRAINTS ALL IMMEDIATE')).rejects.toMatchObject({ code: '23514' });

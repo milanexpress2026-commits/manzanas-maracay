@@ -22,6 +22,27 @@
       "when": 1793818469802,
       "tag": "0002_noisy_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793822773764,
+      "tag": "0003_inventory_phase2",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793822956452,
+      "tag": "0004_auth_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793823531824,
+      "tag": "0005_inventory_history_guard",
+      "breakpoints": true
     }
   ]
 }

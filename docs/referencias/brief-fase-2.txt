@@ -1,0 +1,170 @@
+MANZANAS MARACAY — PROMPT N.º 2 PARA CODEX
+FASE 2: RECEPCIÓN DE MERCANCÍA, INVENTARIO OPERATIVO Y VISTA PREVIA SEGURA EN VPS/HOSTING
+Fecha de planificación: 4 de noviembre de 2026
+
+CONTEXTO Y OBJETIVO
+
+Continúa el proyecto existente «Manzanas Maracay», una aplicación de gestión de frutas importadas para los propietarios de un negocio en Venezuela. No comiences un proyecto nuevo ni reemplaces lo construido.
+
+Repositorio: https://github.com/milanexpress2026-commits/manzanas-maracay
+Rama actual de la primera entrega: phase-1/foundations
+
+Antes de escribir código, lee AGENTS.md, apps/web/AGENTS.md, README.md, PRODUCT.md, DESIGN.md, docs/domain-rules.md, docs/architecture.md, docs/entrega-fase-1.md, docs/infrastructure.md, docs/brand-assets.md, docs/visual-review.md, además de las migraciones y las pruebas existentes. Revisa el estado real del repositorio y cualquier cambio posterior a la Fase 1. Conserva el logo oficial y el diseño propio; utiliza las Skills del repositorio cuando aporten valor.
+
+La Fase 1, según su entrega, implementó un catálogo funcional con Next.js, NestJS, PostgreSQL, Drizzle y pruebas. También dejó el modelo SQL de compras, lotes, contenedores y movimientos como base, pero sin inventario operativo. Hay una inspección previa del VPS Contabo: Ubuntu 24.04.5 LTS, 8 CPU lógicas, cerca de 24 GB de RAM, unos 272 GB libres, Docker y Compose disponibles. El VPS YA ALOJA OTROS PROYECTOS. No se desplegó esta app todavía.
+
+NUEVA PETICIÓN DEL PROPIETARIO: además de desarrollar la Fase 2, quiero que mis socios puedan IR VIENDO LA APLICACIÓN en una dirección web de prueba, usando mi VPS Contabo y, cuando resulte adecuado, mi hosting pago/dominio. Esto requiere un despliegue de STAGING (vista previa), NO puesta en producción abierta. El despliegue no puede perjudicar los proyectos anteriores ni exponer la administración sin autenticación.
+
+REGLAS INNEGOCIABLES
+
+1. NO interrumpas, reinicies ni modifiques otros proyectos, contenedores, bases de datos, puertos, dominios, certificados, proxys, DNS o reglas de firewall existentes. La inspección debe ser primero NO DESTRUCTIVA. No uses docker system prune, docker compose down global, comandos indiscriminados ni migraciones sobre bases ajenas.
+2. NO expongas interfaces administrativas, API de escritura, PostgreSQL ni datos comerciales a Internet sin autenticación y HTTPS. La fase previa solo tiene protección de desarrollo y NO ES APTA PARA exposición pública.
+3. El repositorio es público por decisión del propietario. Nunca subas credenciales, claves SSH, .env, tokens, contraseñas, backups o datos privados; comprueba los cambios antes de cada push.
+4. Usa commits y ramas claras, conserva historial y envía avances a GitHub. No hagas merge ni elimines ramas sin autorización. No fuerces push sobre trabajo ajeno.
+5. No inventes precios reales, inventario, proveedores, tasas BCV ni ventas. Los ejemplos de interfaz deben identificarse como DEMO, estar separados de los registros reales y no simular que representan operaciones auténticas.
+6. El usuario no es programador. Realiza el trabajo técnico que puedas de forma autónoma y presenta resultados en ESPAÑOL, con instrucciones muy simples si hay algún paso que deba hacer él. Nunca le pidas que comparta contraseñas por el chat.
+7. Trabaja por hitos pequeños y comprobables. Si la publicación requiere accesos, DNS, certificado, aprobación sobre un archivo compartido o acciones que pudieran afectar a otros servicios, DETENTE en esa operación concreta, explica exactamente la dependencia y continúa con el desarrollo seguro que no esté bloqueado.
+
+PARTE A — REVISIÓN BREVE DE FASE 1 Y PREPARACIÓN
+
+- Revisa el código existente, el estado Git y las migraciones. No bases tu análisis únicamente en el informe anterior.
+- Ejecuta, cuando sea posible, typecheck, tests, build y tests e2e de Fase 1, con la base y servicios de pruebas exclusivos de este proyecto.
+- Identifica detalles que deben ajustarse antes de habilitar movimientos reales, especialmente conservación de unidades, estado de contenedores vacíos, idempotencia y seguridad.
+- Registra hallazgos y decisiones técnicas en docs/revision-fase-1.md y docs/plan-fase-2.md; implementa correcciones dentro del alcance y con tests, sin ampliar innecesariamente otras áreas.
+- Crea una rama nueva de trabajo, por ejemplo phase-2/inventario-staging, basada en el estado revisado de la Fase 1, si ello es seguro y consistente con el historial actual.
+
+PARTE B — DESPLIEGUE PROGRESIVO DE VISTA PREVIA (STAGING)
+
+Quiero que los socios puedan abrir la app desde sus celulares o computadoras sin necesitar acceso remoto ni terminal. Prioriza una URL HTTPS de vista previa, por ejemplo staging.[DOMINIO REAL], pero NO INVENTES un dominio, subdominio o credenciales que aún no estén confirmados.
+
+B1. Inspección segura:
+- Comprueba únicamente recursos generales del VPS, Docker/Compose, redes y puertos publicados, proxy inverso que ya existe, uso de disco/RAM, dominio o subdominio disponible y cómo está gestionado el hosting pago. No leas archivos ni secretos de otras apps salvo lo estrictamente necesario y autorizado para integrar un nuevo host.
+- Identifica si el «hosting pago» es alojamiento compartido/cPanel, un dominio/DNS o un servidor separado. No supongas que es compatible con Node/PostgreSQL. La arquitectura preferida es ejecutar frontend, API y DB en el VPS y utilizar el hosting/dominio para DNS o, si procede, una página informativa estática. NO despliegues copias inconsistentes del backend o de la base de datos en ambos sitios.
+- Propón una configuración aislada con directorio, nombre de proyecto Docker Compose, red, volúmenes y recursos propios de Manzanas Maracay. Usa puertos internos no expuestos; no publiques PostgreSQL externamente.
+- Evita alterar el proxy del servidor si no puedes añadir la nueva ruta/host de manera segura y reversible. Guarda plan de rollback solo para recursos de este proyecto.
+
+B2. Protección antes de publicación:
+- Implementa una autenticación mínima real, con sesiones seguras y contraseñas con hash robusto, para que SOLO personas invitadas por el propietario entren a la app de prueba. No basta con el token proxy de desarrollo ni con esconder botones.
+- Como los usuarios serán los dueños y sus socios, NO crees complejas jerarquías de autorización comercial, límites de crédito ni aprobaciones de venta. La autenticación solo restringe el acceso a la app. Si implementas una cuenta de «solo lectura» para socios, que sea opcional y no complique el producto.
+- Deshabilita acceso de visitantes sin sesión a pantallas internas y a APIs privadas; usa HTTPS, cookies seguras, protección CSRF según la arquitectura, limitación de intentos de inicio de sesión y configuración de secretos externa al repositorio.
+- En staging, utiliza exclusivamente una base de datos propia de pruebas/preview, aislada de la base local y futura producción. Etiqueta visiblemente «ENTORNO DE PRUEBAS» y no envíes mensajes reales de WhatsApp ni proceses cobros externos.
+- No uses datos reales de clientes ni deudas para la demostración a menos que el propietario lo autorice expresamente. Puedes cargar datos DEMO identificados y reversibles, en un entorno aislado.
+
+B3. Publicación condicionada:
+- Una vez aprobadas las pruebas, intenta desplegar una versión de prueba segura en VPS con Docker Compose y HTTPS, únicamente cuando todos los requisitos anteriores estén cubiertos y puedas hacerlo sin riesgo a los servicios actuales.
+- Si falta dominio, acceso DNS, certificado, ruta de proxy segura o autorización para tocar una configuración compartida, no expongas por HTTP una app sin protección. Entrega la configuración preparada y señala el dato o permiso exacto que falta. Si es posible, ofrece acceso temporal privado y seguro (por ejemplo, túnel autorizado) sin exponer credenciales.
+- Implementa health checks, reinicios limitados, recursos razonables, logs sin secretos y persistencia solo de este proyecto. Prepara backup y procedimiento probado de recuperación antes de colocar datos comerciales reales.
+- Documenta la URL REAL de staging si se consigue, cómo acceder de forma segura (sin revelar contraseñas), cómo actualizarla y cómo revertir solo este despliegue.
+- Cada avance estable de la Fase 2 que supere pruebas puede actualizarse en staging, manteniendo separación entre pruebas y producción. No publiques cambios a ciegas sin build/pruebas.
+
+PARTE C — FASE 2: COMPRAS, RECEPCIÓN Y LOTES
+
+Implementa backend real, base de datos con migraciones versionadas y frontend responsive para:
+
+- Alta, consulta y edición segura de proveedores (sin eliminar silenciosamente los referenciados).
+- Registro de compras o entradas de mercancía con múltiples líneas: fruta, variedad, calibre, presentación, cajas recibidas, proveedor, referencia, fecha, costo por caja y observaciones.
+- Generación de lotes con identificador único, fecha de ingreso, vínculo de compra y variante, cantidad recibida y copia inmutable de la configuración de blíster por caja.
+- La cantidad usual de blíster se toma de la configuración del catálogo, pero puede corregirse para ese lote si la mercancía real lo exige. Un cambio posterior en catálogo no reescribe la historia.
+- Configurar un almacén inicial propio del negocio, con un diseño futuro que admita otros almacenes sin implementar aún el sistema multisucursal completo.
+- Costos históricos de lote en USD con Decimal/NUMERIC, sin floats para dinero.
+- Validaciones, transacciones, auditoría, idempotencia y manejo claro de errores.
+
+EJEMPLO DE NEGOCIO: «Manzana → Gala → calibre 80 → 5 blíster por caja». Si el dueño recibe 3 cajas, se guardan 3 cajas CERRADAS; ello equivale comercialmente a 15 blíster, pero NO a 3 cajas más 15 blíster independientes. Calibre 180 = 4 blíster por caja en la configuración habitual del ejemplo. El calibre NO indica cantidad de manzanas.
+
+PARTE D — FASE 2: INVENTARIO TRANSACCIONAL
+
+Implementa servicios reales, endpoints y pantallas para consultar el inventario por fruta, variedad, calibre, lote y estado físico:
+- Cajas cerradas.
+- Cajas abiertas como contenedores (no unidades adicionales).
+- Blíster intactos en cajas abiertas.
+- Blíster abiertos, cuando exista fraccionamiento.
+- Medias cajas físicamente preparadas.
+- Fruta suelta CONTADA.
+- Historial de movimientos y ajustes.
+
+Operaciones mínimas:
+1. Recibir cajas y crear existencia inicial sin duplicarla.
+2. Abrir una caja, trasladando su contenido esperado en blíster al estado correcto en la MISMA transacción.
+3. Retirar o despachar blíster intactos, priorizando existencias ya abiertas cuando sea razonable y mostrando claramente qué lote/contendor se usa.
+4. Preparar media caja con conteo físico de manzanas. Exigir unidades realmente contadas, entregadas/preparadas y restantes. Si hay piezas impares, conservar cantidades enteras y registrar cuál mitad se preparó; no asumir 0,5 blíster físico.
+5. Registrar la apertura de blíster cuando sea necesaria y distinguir los blíster todavía intactos de fruta suelta.
+6. Retirar del stock contenedores vacíos o marcarlos «vacíos» sin contarlos en existencias.
+7. Ajustes de inventario justificados y reversas mediante movimientos nuevos; no editar silenciosamente movimientos históricos.
+8. Consultar kardex/historial por lote y un resumen agregado sin doble conteo.
+
+Si la cantidad de manzanas dentro de una caja o blíster cerrado es desconocida, almacénala como null/desconocida. NO la deduzcas del calibre, del número de blíster ni de un ejemplo visual. Un conteo físico que se realiza al abrir un empaque sí puede definir cantidades conocidas.
+
+Integridad crítica:
+- PostgreSQL es la fuente de verdad. No calcules ni confirmes ventas o salidas únicamente en el navegador.
+- Cada operación de cambio de stock debe ser atómica, auditable, idempotente y protegida contra concurrencia. Repetir una solicitud no puede descontar dos veces.
+- Impedir stocks negativos, doble contabilización, contenedores con padre incorrecto, cajas a la vez cerradas y abiertas, y descuadres entre ledger y proyección de saldos.
+- Asegurar que los contenedores vacíos no se sumen ni queden falsamente disponibles.
+- No habilitar todavía una venta comercial completa si no están implementados y probados los módulos de facturación y cobranza. Los retiros de inventario de prueba deben identificarse como movimientos internos, no como facturas reales.
+
+PARTE E — INTERFAZ Y EXPERIENCIA DE USUARIO
+
+Construir pantallas reales de:
+- Proveedores.
+- Registrar recepción de mercancía.
+- Inventario general y por lote.
+- Detalle de caja/lote.
+- Abrir caja.
+- Retirar blíster.
+- Preparar media caja con conteo.
+- Movimientos y ajustes.
+
+Usar logo oficial existente, identidad verde oscuro/rojo manzana/crema, componentes consistentes y diseño móvil prioritario. Aplicar con criterio las Skills de diseño y accesibilidad locales.
+
+Las pantallas deben mostrar los saldos de manera inteligible, por ejemplo «2 cajas cerradas y 4 blíster intactos en caja abierta», además de equivalencias claramente etiquetadas cuando proceda. Diferenciar el saldo físicamente disponible de los cálculos de equivalencia. Incluir estados de carga, errores recuperables, confirmaciones de operaciones irreversibles y accesibilidad.
+
+Para la vista de socios, evitar datos ficticios presentados como reales: mostrar «DEMO» donde corresponda. Un socio puede visualizar el avance desde una URL segura aunque el módulo todavía esté parcialmente implementado, siempre que no exista acceso público a operaciones de escritura no protegidas.
+
+PARTE F — PRUEBAS DE ACEPTACIÓN OBLIGATORIAS
+
+Ejecuta pruebas unitarias, de integración con PostgreSQL y de navegador, como mínimo:
+
+1. Recepción de 3 cajas Gala calibre 80 con 5 blíster por caja: registrar exactamente 3 cajas cerradas.
+2. Retirar 1 blíster: obtener exactamente 2 cajas cerradas y 4 blíster intactos en la caja abierta; 14 blíster equivalentes en total.
+3. Retirar los 4 blíster restantes: no conservar cajas abiertas contabilizadas como existencias vendibles; su contenedor se marca vacío.
+4. Si hay blíster intactos en caja abierta, consumirlos antes de abrir otra caja cuando se use esa política.
+5. Calibre 180 configurado como 4 blíster/caja; el número 180 jamás se convierte en 180 piezas por caja.
+6. Modificar la regla general del catálogo y demostrar que NO cambia los lotes existentes.
+7. Sobrescribir blíster/caja en un lote nuevo sin afectar otros lotes.
+8. Abrir/fraccionar una caja o blíster con conteo real de 37 manzanas; preparar 18 y registrar 19 remanentes, sin duplicación.
+9. Rechazar fraccionamiento de 37 manzanas donde 18 + 20 no concuerden.
+10. Conservar cantidad física desconocida como null mientras el empaque siga intacto.
+11. Concurrencia: dos solicitudes intentan retirar el último blíster; solo una puede confirmar.
+12. Reintento con la misma clave de idempotencia: una sola salida real de stock.
+13. Reversa controlada de movimiento y auditoría sin borrar historial.
+14. Persistencia tras recarga, errores de conexión y uso en pantalla móvil.
+15. Acceso sin autenticación a staging: denegado. Nunca permitir escritura sin sesión.
+16. Prueba de que el despliegue de esta app no altera ni detiene servicios ajenos.
+
+Ejecuta npm run typecheck, npm test, npm run build, npm run test:e2e o sus equivalentes reales. No afirmes que algo pasó si no lo ejecutaste; informa bloqueos verificables. No utilices la base de datos de otros proyectos para pruebas.
+
+PARTE G — GITHUB Y ENTREGA PROGRESIVA
+
+- Trabaja en una rama de Fase 2 y haz commits descriptivos. Sube cambios a este repositorio para que ChatGPT pueda revisar directamente el código.
+- Asegúrate de que no se versionen secretos ni datos privados, especialmente porque el repositorio es público.
+- Cuando exista una versión de staging segura y verificable, informa la URL, rama y commit exactos, y confirma que NO se afectaron los proyectos actuales. Si no puede publicarse por una dependencia real, explica precisamente cuál y qué alternativa segura quedó preparada.
+- Actualiza README y docs: arquitectura, modelo de inventario, comandos de pruebas, decisiones de infraestructura, guía de staging y procedimiento de rollback.
+- Adjunta capturas reales de escritorio y móvil, no sustituyas pruebas por renders conceptuales.
+- Indica qué quedó completamente funcional, qué es únicamente demostrativo y qué pertenece a fases futuras.
+- No avances por tu cuenta a facturación, integración de WhatsApp ni BCV en vivo. Esas serán fases posteriores con revisión del propietario.
+
+FORMATO DE RESPUESTA PARA EL PROPIETARIO
+
+En español sencillo, informa:
+1. Qué construiste y qué se puede probar ahora.
+2. Qué pruebas ejecutaste, con resultados y pendientes.
+3. Qué publicaste en GitHub (rama, commit y, si existe, Pull Request).
+4. Qué lograste desplegar en VPS/hosting, URL de prueba o motivo exacto del bloqueo.
+5. Qué medidas de seguridad protegen la vista previa para socios.
+6. Qué datos o accesos te hacen falta, sin pedir contraseñas en mensajes ni en archivos compartidos.
+7. Qué debería revisar el propietario antes de dar por aprobada la Fase 2.
+
+PRIORIDAD DE EJECUCIÓN
+
+Primero, verificar Fase 1 y plan de staging; segundo, establecer acceso seguro y despliegue aislado de la app base cuando sea posible; tercero, implementar y probar inventario real por hitos; cuarto, actualizar la vista previa y compartir resultados. Si el despliegue está bloqueado, no detengas innecesariamente el desarrollo local. Antes de cualquier cambio sobre infraestructura compartida, analiza riesgo y requiere aprobación específica.
+
+No hagas merge ni despliegue de producción. Trabajamos en una VISTA PREVIA SEGURA para socios.

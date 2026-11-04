@@ -1,0 +1,128 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: var(--background);
+}
+.card {
+  width: min(900px, 100%);
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+}
+.brand {
+  background: var(--green);
+  color: #e5eddf;
+  padding: 48px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  text-align: center;
+}
+.brand img {
+  max-width: 100%;
+  height: auto;
+}
+.brand p {
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 0;
+}
+.formSection {
+  padding: 48px 40px;
+}
+.lock {
+  color: var(--leaf);
+  width: 28px;
+  height: 28px;
+  margin-bottom: 20px;
+}
+.formSection h1 {
+  font-size: clamp(24px, 3vw, 30px);
+  line-height: 1.25;
+  font-weight: 800;
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+}
+.intro,
+.help {
+  color: var(--muted-foreground);
+  line-height: 1.7;
+}
+.intro {
+  margin: 0 0 28px;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.form label {
+  margin-bottom: 8px;
+  display: block;
+}
+.form input {
+  min-height: 46px;
+  font-size: 16px;
+}
+.submit {
+  min-height: 46px;
+  width: 100%;
+}
+.help {
+  font-size: 12px;
+  margin-top: 26px;
+}
+.error {
+  border: 1px solid #e8b9bb;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff3f2;
+  color: #9d2032;
+  margin: 0;
+}
+.notice {
+  color: #644b11;
+  background: #fff2cf;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0 0 24px;
+}
+@media (max-width: 640px) {
+  .page {
+    padding: 16px;
+    align-items: start;
+  }
+  .card {
+    grid-template-columns: 1fr;
+  }
+  .brand {
+    padding: 22px;
+    gap: 0;
+  }
+  .brand img {
+    width: 132px;
+  }
+  .brand p {
+    display: none;
+  }
+  .formSection {
+    padding: 28px 24px;
+  }
+  .lock {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .submit svg {
+    animation: none;
+  }
+}

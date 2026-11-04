@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { root } from './local-env.mjs';
 process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(root, '.local/browsers');
 const { chromium } = await import('playwright');
-const child = spawn(process.execPath, ['scripts/dev.mjs'], {
+const child = spawn(process.execPath, ['scripts/dev.mjs', '--production'], {
   cwd: root,
   env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
   stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
@@ -27,6 +27,14 @@ try {
   browser = await chromium.launch({ headless: true });
   fs.mkdirSync(path.join(root, 'docs/capturas'), { recursive: true });
   const page = await browser.newPage();
+  const credentials = JSON.parse(
+    fs.readFileSync(path.join(root, '.local/auth-local.json'), 'utf8'),
+  );
+  const login = await page.request.post('http://127.0.0.1:3100/api/auth/login', {
+    headers: { Origin: 'http://127.0.0.1:3100' },
+    data: { username: credentials.username, password: credentials.password },
+  });
+  if (!login.ok()) throw new Error('No se pudo iniciar la sesión para las capturas.');
   for (const viewport of [
     { width: 1440, height: 1000 },
     { width: 390, height: 844 },

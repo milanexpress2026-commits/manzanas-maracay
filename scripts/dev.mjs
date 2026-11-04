@@ -6,6 +6,8 @@ import { root, loadLocalEnv } from './local-env.mjs';
 loadLocalEnv();
 process.chdir(root);
 const testing = process.argv.includes('--test');
+const production = process.argv.includes('--production');
+process.env.MM_APP_ENV = testing ? 'test' : 'local';
 if (testing) {
   process.env.DATABASE_URL = process.env.DATABASE_URL.replace(
     '/manzanas_maracay_dev',
@@ -18,6 +20,8 @@ if (testing) {
   process.env.MM_WEB_PORT = '3200';
   process.env.MM_API_PORT = '3201';
 }
+process.env.MM_APP_ORIGIN = `http://127.0.0.1:${process.env.MM_WEB_PORT}`;
+process.env.MM_API_BASE_URL = `http://127.0.0.1:${process.env.MM_API_PORT}`;
 const children = [];
 function run(args, wait = true, cwd = root) {
   const child = spawn(process.execPath, args, {
@@ -79,6 +83,7 @@ try {
   if (!process.argv.includes('--external-db')) pg = await startPostgres();
   await run(['node_modules/tsx/dist/cli.mjs', 'scripts/migrate.ts']);
   await run(['node_modules/tsx/dist/cli.mjs', 'scripts/seed.ts']);
+  await run(['node_modules/tsx/dist/cli.mjs', 'scripts/bootstrap-auth.ts']);
   await run(['node_modules/typescript/bin/tsc', '-p', 'apps/api/tsconfig.json']);
   const api = run(['apps/api/dist/apps/api/src/main.js'], false);
   const ready = async () => {
@@ -94,7 +99,7 @@ try {
   const web = run(
     [
       path.join(root, 'node_modules/next/dist/bin/next'),
-      testing ? 'start' : 'dev',
+      testing || production ? 'start' : 'dev',
       '--hostname',
       '127.0.0.1',
       '--port',
