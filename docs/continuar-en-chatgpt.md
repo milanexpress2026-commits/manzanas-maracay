@@ -1,6 +1,6 @@
 # Continuar la revisión de Manzanas Maracay
 
-Repositorio privado autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-1/foundations`.
+Repositorio público autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-1/foundations`.
 
 Este texto permite trasladar el contexto a otro chat sin compartir credenciales. La siguiente tarea es revisar la fase 1 con el propietario antes de iniciar la fase 2.
 

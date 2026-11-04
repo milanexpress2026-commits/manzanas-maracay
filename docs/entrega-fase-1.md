@@ -100,7 +100,7 @@ El archivo de accesos del propietario y su llave no forman parte del proyecto, d
 
 ## Limitaciones y pendientes
 
-1. **Repositorio privado autorizado:** [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay), rama de trabajo `phase-1/foundations`. Se conserva la [descripción preparada para revisión](pull-request.md). No hay PR porque el repositorio nuevo no tiene aún una rama base distinta; no se realizó merge ni despliegue.
+1. **Repositorio público autorizado:** [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay), rama de trabajo `phase-1/foundations`. Se conserva la [descripción preparada para revisión](pull-request.md). No hay PR porque el repositorio nuevo no tiene aún una rama base distinta; no se realizó merge ni despliegue. Hacer público el código no publica la aplicación ni modifica el VPS.
 2. **Docker Compose preparado, no ejecutado:** Docker no está instalado en esta computadora. Se verificó PostgreSQL real portable. Antes de adoptar Compose se debe validar ese camino en un entorno aislado.
 3. **Acceso solo local:** esta fase no incorpora autenticación de producción y no debe exponerse a Internet. El token entre interfaz y API no sustituye el inicio de sesión de personas.
 4. **BCV desacoplado, sin conexión automática:** no se obtuvo un dato oficial vigente verificable ni se afirmó que exista una API oficial. El proveedor sin configurar devuelve ausencia de tasa.

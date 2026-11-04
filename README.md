@@ -2,7 +2,9 @@
 
 Aplicación comercial para una distribuidora venezolana de frutas importadas. Esta entrega cubre la **fase 1: fundamentos y catálogo**, con datos reales en PostgreSQL local. No incluye facturación, cobranza ni despliegue público.
 
-Repositorio privado autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-1/foundations`. [Contexto para continuar la revisión en otro chat](docs/continuar-en-chatgpt.md).
+Repositorio público por autorización del propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-1/foundations`. [Contexto para continuar la revisión en otro chat](docs/continuar-en-chatgpt.md).
+
+La visibilidad pública permite consultar el código y la documentación. La aplicación sigue siendo local; este cambio no despliega servicios ni modifica el VPS.
 
 ## Abrir en esta computadora
 

@@ -42,6 +42,6 @@ Durante QA se resolvió un problema de Windows: el cierre del grupo de procesos 
 
 ## GitHub
 
-Repositorio privado autorizado por el propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). La rama de trabajo es `phase-1/foundations`. Esta autorización corresponde al código de Manzanas Maracay; no incluye publicar la aplicación ni acceder a proyectos ajenos.
+Repositorio público autorizado por el propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). La rama de trabajo es `phase-1/foundations`. Esta autorización corresponde al código de Manzanas Maracay; no incluye publicar la aplicación ni acceder a proyectos ajenos. El cambio de visibilidad no modifica el VPS.
 
 No hay PR: el repositorio es nuevo y todavía no dispone de una rama base distinta para comparar esta primera entrega. La descripción de revisión se conserva en `docs/pull-request.md`. No se realizó merge ni despliegue. Las credenciales, llaves, bases locales y dependencias quedan fuera del código versionado; no compartirlas en el chat.
