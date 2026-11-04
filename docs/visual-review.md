@@ -1,6 +1,6 @@
 # Revisión visual y accesibilidad
 
-La dirección proviene de las cuatro imágenes entregadas: verde oscuro, rojo manzana, crema, navegación lateral y formularios claros. Se utilizó un encabezado tipográfico temporal. No se recortó ni se reconstruyó el logo conceptual como si fuera el archivo oficial.
+La dirección proviene de las cuatro imágenes entregadas: verde oscuro, rojo manzana, crema, navegación lateral y formularios claros. El propietario entregó el logo oficial el 4 de noviembre de 2026 para reemplazar el encabezado tipográfico provisional. Se preserva su arte original; las referencias conceptuales permanecen separadas. Véase [activos de marca](brand-assets.md).
 
 ## Verificaciones
 
@@ -12,6 +12,7 @@ La dirección proviene de las cuatro imágenes entregadas: verde oscuro, rojo ma
 - Reducción de movimiento; foco visible y fuente Manrope alojada localmente.
 - Contraste del texto secundario y adaptación de tabla/editor/formulario.
 - Página de desconexión con acción de reintento, sin prometer guardado sin conexión.
+- Tras incorporar el logo oficial, se repitieron tipos, compilación, 11 pruebas unitarias y 13 escenarios de navegador/API/SQL. La revisión automática de escritorio y teléfono no detectó infracciones; se verificó además que el logo carga sin conexión.
 
 ## Hallazgos corregidos
 
@@ -23,6 +24,6 @@ La dirección proviene de las cuatro imágenes entregadas: verde oscuro, rojo ma
 
 ## Límites
 
-Una auditoría automática sin infracciones no equivale a certificación de accesibilidad. No se ensayaron lector de pantalla real, Safari/iOS ni todos los tamaños posibles. La marca oficial queda pendiente de recibir el archivo de logo. La navegación de módulos posteriores es texto informativo, no botones que simulan acciones.
+Una auditoría automática sin infracciones no equivale a certificación de accesibilidad. No se ensayaron lector de pantalla real, Safari/iOS ni todos los tamaños posibles. La navegación de módulos posteriores es texto informativo, no botones que simulan acciones.
 
 La revisión de código utilizó la [fuente de Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines/blob/main/command.md), consultada durante esta fase. Las capturas de pruebas usan datos aislados de prueba; las capturas finales del catálogo local contienen únicamente las configuraciones iniciales del propietario.

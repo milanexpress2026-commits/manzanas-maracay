@@ -15,6 +15,10 @@ Navegación lateral de 232 px, encabezado ligero, título y acción Nueva config
 
 La firma visual es la composición de blíster del empaque seleccionado: exactamente tantos iconos como contiene la configuración, sin insinuar una cantidad de frutas. Las cantidades y etiquetas salen de PostgreSQL. No hay logo inventado, fotos decorativas, métricas ni tasas ficticias.
 
+## Marca oficial
+
+El logo suministrado por el propietario el 4 de noviembre de 2026 reemplaza la firma tipográfica provisional. Se conserva completo, con sus letras, personaje, tractor y frutas, sin recortarlo, deformarlo ni redibujarlo. En navegación y encabezado se adapta su tamaño al espacio disponible; los iconos de instalación se derivan del mismo archivo. Original, variantes y reglas de uso en [activos de marca](docs/brand-assets.md).
+
 ## Estados y revisión
 
 El editor mantiene errores y datos si falla la red. Se desactiva durante guardado. Conflictos de edición requieren recargar. Foco vuelve al disparador al cerrar. Se respeta prefers-reduced-motion.

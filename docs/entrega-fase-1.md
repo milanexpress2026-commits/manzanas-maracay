@@ -6,7 +6,7 @@
 
 Se construyó un proyecto independiente con un catálogo funcional: permite crear y consultar frutas, variedades y calibres, configurar los blíster por caja, editar empaques, buscar y filtrar. Los cambios llegan a una API NestJS y se guardan en PostgreSQL; no dependen de datos simulados en el navegador.
 
-El diseño utiliza verde oscuro, rojo manzana y crema, fuente Manrope, tabla profesional, editor de empaque y formularios adaptados al teléfono. El encabezado sigue siendo tipográfico porque falta el archivo oficial del logo. Las imágenes suministradas se conservaron como referencias conceptuales en `docs/referencias`.
+El diseño utiliza verde oscuro, rojo manzana y crema, fuente Manrope, tabla profesional, editor de empaque y formularios adaptados al teléfono. El propietario entregó el logo oficial el 4 de noviembre de 2026 para sustituir la firma provisional; el original se conserva en `apps/web/public/brand/logo-manzanas-maracay.png`. Las imágenes suministradas como modelos se conservaron por separado en `docs/referencias`. Véase [activos de marca](brand-assets.md).
 
 ## Tecnologías utilizadas
 
@@ -58,7 +58,7 @@ Las cuatro pestañas —Empaques, Frutas, Variedades y Calibres— realizan oper
 
 Los únicos datos iniciales son los ejemplos del propietario: Manzana, Pera, Gala, Pink Lady, calibres 80 y 180, y Gala con 5 y 4 blíster respectivamente. No son existencias. No se generaron ventas, saldos ni tasa BCV ficticia.
 
-La PWA contiene manifiesto, iconos tipográficos temporales y página de desconexión. No procesa operaciones comerciales sin conexión.
+La PWA contiene manifiesto, iconos derivados del logo oficial y página de desconexión. No procesa operaciones comerciales sin conexión.
 
 ![Catálogo en escritorio](capturas/catalogo-escritorio.png)
 
@@ -82,7 +82,9 @@ La PWA contiene manifiesto, iconos tipográficos temporales y página de descone
 | Inicio local y capturas con datos de desarrollo | Comprobados                                                          |
 | Cierre de procesos de prueba                    | PostgreSQL detenido conservando datos                                |
 
-Los fallos detectados durante el desarrollo se corrigieron antes de esta entrega. Entre ellos: contraste del pie, vínculo de pestañas/paneles, pestaña recortada en móvil, selectores ambiguos de pruebas y cierre de procesos PostgreSQL en Windows. La última ejecución completa aprobó los 13 escenarios de Playwright en 32,4 segundos; las 11 pruebas de dominio también pasaron.
+Los fallos detectados durante el desarrollo se corrigieron antes de esta entrega. Entre ellos: contraste del pie, vínculo de pestañas/paneles, pestaña recortada en móvil, selectores ambiguos de pruebas y cierre de procesos PostgreSQL en Windows. La ejecución previa a incorporar el logo aprobó los 13 escenarios de Playwright en 32,4 segundos; las 11 pruebas de dominio también pasaron.
+
+Después de incorporar el logo oficial se repitieron tipos, compilación y las 24 pruebas: todas aprobadas. La ejecución de Playwright tardó 40,9 segundos e incluyó la comprobación del logo en la página sin conexión.
 
 La suite unitaria comprueba el ejemplo de 3 cajas/5 blíster, uso de blíster ya abiertos, saldo insuficiente, medias cajas por conteo físico, sobrescritura por lote, calibres de texto, precios negociados, precisión decimal y rechazo de tasas BCV inválidas. Los números de tasa usados allí son exclusivamente sintéticos.
 
@@ -98,19 +100,18 @@ El archivo de accesos del propietario y su llave no forman parte del proyecto, d
 
 ## Limitaciones y pendientes
 
-1. **Logo oficial pendiente:** adjuntar el archivo original, preferiblemente SVG o PNG de buena calidad.
-2. **Repositorio privado autorizado:** [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay), rama de trabajo `phase-1/foundations`. Se conserva la [descripción preparada para revisión](pull-request.md). No hay PR porque el repositorio nuevo no tiene aún una rama base distinta; no se realizó merge ni despliegue.
-3. **Docker Compose preparado, no ejecutado:** Docker no está instalado en esta computadora. Se verificó PostgreSQL real portable. Antes de adoptar Compose se debe validar ese camino en un entorno aislado.
-4. **Acceso solo local:** esta fase no incorpora autenticación de producción y no debe exponerse a Internet. El token entre interfaz y API no sustituye el inicio de sesión de personas.
-5. **BCV desacoplado, sin conexión automática:** no se obtuvo un dato oficial vigente verificable ni se afirmó que exista una API oficial. El proveedor sin configurar devuelve ausencia de tasa.
-6. **Inventario, ventas y cobranza no operativos:** hay fundamentos SQL y reglas, pero faltan servicios transaccionales completos, pruebas de aplicación de pagos y el diseño de las siguientes fases.
-7. **Cobertura de dispositivos:** se verificó Chromium con tamaños de escritorio y móvil. Quedan pruebas en dispositivos reales, Safari y lector de pantalla.
+1. **Repositorio privado autorizado:** [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay), rama de trabajo `phase-1/foundations`. Se conserva la [descripción preparada para revisión](pull-request.md). No hay PR porque el repositorio nuevo no tiene aún una rama base distinta; no se realizó merge ni despliegue.
+2. **Docker Compose preparado, no ejecutado:** Docker no está instalado en esta computadora. Se verificó PostgreSQL real portable. Antes de adoptar Compose se debe validar ese camino en un entorno aislado.
+3. **Acceso solo local:** esta fase no incorpora autenticación de producción y no debe exponerse a Internet. El token entre interfaz y API no sustituye el inicio de sesión de personas.
+4. **BCV desacoplado, sin conexión automática:** no se obtuvo un dato oficial vigente verificable ni se afirmó que exista una API oficial. El proveedor sin configurar devuelve ausencia de tasa.
+5. **Inventario, ventas y cobranza no operativos:** hay fundamentos SQL y reglas, pero faltan servicios transaccionales completos, pruebas de aplicación de pagos y el diseño de las siguientes fases.
+6. **Cobertura de dispositivos:** se verificó Chromium con tamaños de escritorio y móvil. Quedan pruebas en dispositivos reales, Safari y lector de pantalla.
 
 ## Cómo abrir y continuar
 
 En la carpeta del proyecto, ejecutar `npm run dev` y abrir **http://127.0.0.1:3100**. Instrucciones completas en [README](../README.md). Los servicios se dejan detenidos al finalizar la revisión; el iniciador los vuelve a levantar sin perder registros.
 
-Próximo paso recomendado: revisar el catálogo con el propietario, recibir el logo oficial y confirmar las configuraciones de empaque. Después de aprobar esta fase, diseñar e implementar recepción de lotes y fraccionamientos con conteos físicos, reversas y pruebas de concurrencia. No se avanzó automáticamente a esa fase.
+Próximo paso recomendado: revisar el catálogo con el propietario y confirmar las configuraciones de empaque. Después de aprobar esta fase, diseñar e implementar recepción de lotes y fraccionamientos con conteos físicos, reversas y pruebas de concurrencia. No se avanzó automáticamente a esa fase.
 
 Para trasladar el contexto a otra conversación, utiliza el [prompt de continuación](continuar-en-chatgpt.md), que señala los documentos y límites que deben conservarse.
 

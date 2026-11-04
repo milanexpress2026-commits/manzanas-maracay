@@ -111,36 +111,25 @@ select {
   inset: 0 auto 0 0;
   display: flex;
   flex-direction: column;
-  padding: 38px 20px 20px;
+  padding: 24px 20px 20px;
+  overflow-y: auto;
 }
-.brand-wordmark {
-  padding: 0 14px;
-  line-height: 1.15;
+.sidebar-brand {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
 }
-.brand-wordmark > span {
+.brand-logo {
   display: block;
-  font-weight: 650;
-  font-size: 24px;
-  letter-spacing: -0.7px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
 }
-.brand-wordmark > strong {
-  display: block;
-  font-weight: 800;
-  font-size: 35px;
-  letter-spacing: -1.3px;
-}
-.brand-period {
-  color: #f16c64;
-}
-.brand-wordmark > small {
-  display: block;
-  color: #c2d4c5;
-  margin-top: 13px;
-  font-size: 12px;
-  letter-spacing: 1px;
+.mobile-brand {
+  display: none;
 }
 .sidebar-nav {
-  margin-top: 48px;
+  margin-top: 24px;
 }
 .sidebar-nav > p {
   color: #afc5b5;
@@ -1134,15 +1123,6 @@ h1 {
     font-size: 12px;
     padding-inline: 10px;
   }
-  .brand-wordmark {
-    padding-inline: 10px;
-  }
-  .brand-wordmark > strong {
-    font-size: 31px;
-  }
-  .brand-wordmark > span {
-    font-size: 21px;
-  }
   .catalog-table td,
   .catalog-table th {
     padding-inline: 20px;
@@ -1180,8 +1160,19 @@ h1 {
     margin-left: 0;
   }
   .topbar {
-    height: 64px;
+    height: 96px;
     padding: 0 20px;
+    position: relative;
+  }
+  .mobile-brand {
+    display: block;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .current-crumb,
+  .topbar .local-label {
+    display: none;
   }
   .mobile-menu {
     display: inline-flex !important;

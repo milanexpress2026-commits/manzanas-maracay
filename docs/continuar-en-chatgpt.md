@@ -16,7 +16,7 @@ Antes de proponer cambios, lee AGENTS.md, README.md, PRODUCT.md, DESIGN.md, docs
 
 La fase 1 incluye un catálogo funcional de frutas, variedades, calibres y empaques, con Next.js, NestJS, PostgreSQL y Drizzle. La entrega registra 11 pruebas unitarias y 13 escenarios de navegador/API/SQL aprobados; verifica el estado actual antes de afirmar resultados nuevos.
 
-Primero resume lo construido, identifica problemas verificables y propone qué revisar con el propietario. No avances a la fase 2 sin aprobación. Inventario completo, facturación, cobranza, autenticación productiva y conexión automática con BCV todavía no están operativos. El logo oficial está pendiente.
+Primero resume lo construido, identifica problemas verificables y propone qué revisar con el propietario. No avances a la fase 2 sin aprobación. Inventario completo, facturación, cobranza, autenticación productiva y conexión automática con BCV todavía no están operativos. El logo oficial ya fue entregado: consulta docs/brand-assets.md y conserva el original en apps/web/public/brand/logo-manzanas-maracay.png, sin redibujarlo ni deformarlo.
 
 Preserva las reglas comerciales: el calibre no indica cuántas frutas hay; los empaques son editables por lote; una caja y su contenido no se cuentan dos veces; los fraccionamientos usan conteo físico; el dinero se maneja con precisión decimal y las deudas en USD. Nunca inventes una tasa BCV.
 

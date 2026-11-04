@@ -83,5 +83,6 @@ Después de generar `.env` con el iniciador y detenerlo, una máquina con Docker
 - [Revisión visual y accesibilidad](docs/visual-review.md)
 - [Descripción preparada para el PR](docs/pull-request.md)
 - [Continuar la revisión en otro chat](docs/continuar-en-chatgpt.md)
+- [Logo oficial y activos de marca](docs/brand-assets.md)
 
-El logo oficial sigue pendiente. El encabezado y el icono de instalación usan texto temporal. El acceso actual es local y no sustituye una autenticación de producción. La PWA ofrece instalación y una página sin conexión; no guarda operaciones comerciales sin conexión.
+El logo oficial del propietario se conserva en `apps/web/public/brand/logo-manzanas-maracay.png` y se usa como fuente de las versiones para interfaz e instalación. El acceso actual es local y no sustituye una autenticación de producción. La PWA ofrece instalación y una página sin conexión; no guarda operaciones comerciales sin conexión.

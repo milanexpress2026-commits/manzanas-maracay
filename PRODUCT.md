@@ -16,7 +16,7 @@ Propietarios de una distribuidora venezolana de frutas importadas. Gestionan cat
 
 ## Alcance y evidencia
 
-Fase 1 confirmada en el prompt entregado. Cuatro imágenes conceptuales fijan identidad verde, roja y crema. No hay archivo de logo oficial. Los ejemplos Gala 80 con 5 blíster y Gala 180 con 4 son configuraciones editables, nunca cantidades de fruta. No hay datos de ventas, inventario ni tasa BCV verificada.
+Fase 1 confirmada en el prompt entregado. Cuatro imágenes conceptuales fijan identidad verde, roja y crema. El propietario entregó el logo oficial el 4 de noviembre de 2026; su original se conserva en `apps/web/public/brand/logo-manzanas-maracay.png`. Los ejemplos Gala 80 con 5 blíster y Gala 180 con 4 son configuraciones editables, nunca cantidades de fruta. No hay datos de ventas, inventario ni tasa BCV verificada.
 
 ## Restricciones
 

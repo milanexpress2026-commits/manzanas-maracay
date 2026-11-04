@@ -6,7 +6,7 @@
 - TypeScript estricto; Next.js para interfaz, NestJS para API central, Drizzle/PostgreSQL para persistencia. Las reglas puras viven en packages/domain.
 - Todo cambio de esquema lleva migración versionada y pruebas significativas. No usar db push ni borrar datos para resolver errores.
 - Importes y tasas: numeric y Decimal, nunca floats. No inferir fruta por calibre. No contar un contenedor abierto y su contenido dos veces.
-- Identidad verde oscuro, rojo manzana y crema; logo tipográfico temporal, nunca inventar logo. No presentar datos ficticios como reales.
+- Identidad verde oscuro, rojo manzana y crema; usar el logo oficial del propietario en apps/web/public/brand/logo-manzanas-maracay.png. Preservar su arte y proporciones; no inventarlo ni redibujarlo. Ver docs/brand-assets.md. No presentar datos ficticios como reales.
 - No leer ni imprimir .env ni credenciales; consultar solo nombres de variables. No versionar datos, credenciales o artefactos compilados.
 - Mutaciones: validación, transacción, idempotencia, auditoría y control de concurrencia cuando corresponda.
 - Antes de entregar: npm run typecheck, npm test, npm run build, npm run test:e2e con base de pruebas exclusiva. Verificar escritorio y celular.

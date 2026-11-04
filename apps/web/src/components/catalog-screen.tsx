@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import { useEffect, useState, useRef } from 'react';
 import {
   Apple,
@@ -176,7 +177,10 @@ export function CatalogScreen() {
             </Button>
             <span className="desktop-crumb">Gestión comercial</span>
             <ChevronRight className="desktop-crumb" aria-hidden="true" />
-            <span>Catálogo</span>
+            <span className="current-crumb">Catálogo</span>
+          </div>
+          <div className="mobile-brand">
+            <BrandLogo size={80} />
           </div>
           <div className="topbar-right">
             <span className="local-label">
@@ -638,15 +642,24 @@ export function CatalogScreen() {
     </div>
   );
 }
+function BrandLogo({ size }: { size: number }) {
+  return (
+    <Image
+      src="/brand/logo-manzanas-maracay.webp"
+      alt="Manzanas Maracay · Frutas importadas"
+      width={size}
+      height={size}
+      sizes={`${size}px`}
+      className="brand-logo"
+      loading="eager"
+    />
+  );
+}
 function SidebarContent({ onGuide }: { onGuide: () => void }) {
   return (
     <>
-      <div className="brand-wordmark">
-        <span>Manzanas</span>
-        <strong>
-          Maracay<span className="brand-period">.</span>
-        </strong>
-        <small>Frutas importadas</small>
+      <div className="sidebar-brand">
+        <BrandLogo size={180} />
       </div>
       <div className="sidebar-nav">
         <p>Tu negocio</p>

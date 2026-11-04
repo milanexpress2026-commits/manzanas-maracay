@@ -165,5 +165,14 @@ test('PWA: manifiesto, iconos y página sin conexión', async ({ page, context, 
   await context.setOffline(true);
   await page.goto('/?offline-test=1');
   await expect(page.getByRole('heading', { name: 'Necesitas conexión' })).toBeVisible();
+  const logo = page.getByRole('img', { name: 'Manzanas Maracay · Frutas importadas' });
+  await expect(logo).toBeVisible();
+  await expect
+    .poll(() =>
+      logo.evaluate(
+        (image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
+      ),
+    )
+    .toBe(true);
   await context.setOffline(false);
 });

@@ -24,6 +24,6 @@ Ver resultados finales en `docs/entrega-fase-1.md`: tipos, compilación, 11 prue
 
 ## Límites y revisión
 
-No se implementan ventas, cobranza ni movimientos completos. No se publica el sitio ni se modifica el VPS. La autenticación productiva y el logo oficial siguen pendientes. Docker no se probó en esta máquina. El esquema comercial futuro requiere sus servicios e invariantes adicionales antes de habilitarlo.
+No se implementan ventas, cobranza ni movimientos completos. No se publica el sitio ni se modifica el VPS. La autenticación productiva sigue pendiente. El logo oficial del propietario se incorpora conservando su arte; origen y variantes en `docs/brand-assets.md`. Docker no se probó en esta máquina. El esquema comercial futuro requiere sus servicios e invariantes adicionales antes de habilitarlo.
 
 Repositorio privado autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-1/foundations`. No hay PR porque el repositorio nuevo todavía no dispone de una rama base distinta con la que comparar esta entrega. Esta descripción queda preparada para la revisión. No se realizó merge ni despliegue; no hacerlos automáticamente.

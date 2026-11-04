@@ -71,7 +71,7 @@ La API usa `mm_app`, sin privilegios de creación, superusuario ni escritura en 
 
 ## PWA y límites
 
-Manifiesto, iconos tipográficos temporales y service worker con una página de desconexión. No se almacenan respuestas del catálogo ni se encolan escrituras. Las capturas prueban tamaños de teléfono en Chromium; no equivalen a validación en todos los dispositivos o en Safari. La aplicación escucha solo en la computadora local; usarla desde un teléfono físico requiere una decisión posterior sobre acceso seguro.
+Manifiesto, iconos derivados del logo oficial y service worker con una página de desconexión. El archivo de marca original y sus variantes se describen en [brand-assets.md](brand-assets.md). No se almacenan respuestas del catálogo ni se encolan escrituras. Las capturas prueban tamaños de teléfono en Chromium; no equivalen a validación en todos los dispositivos o en Safari. La aplicación escucha solo en la computadora local; usarla desde un teléfono físico requiere una decisión posterior sobre acceso seguro.
 
 ## Antes de producción
 
