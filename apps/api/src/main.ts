@@ -10,11 +10,7 @@ import {
   Headers,
   Body,
   Inject,
-  UseGuards,
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  UnauthorizedException,
+  Req,
   ExceptionFilter,
   Catch,
   ArgumentsHost,
@@ -22,24 +18,12 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ZodError } from 'zod';
-import { timingSafeEqual } from 'node:crypto';
 import { CatalogService } from './catalog.service';
-
-@Injectable()
-class LocalProxyGuard implements CanActivate {
-  canActivate(context: ExecutionContext) {
-    const actual = context.switchToHttp().getRequest().headers['x-mm-internal'];
-    const expected = process.env.MM_INTERNAL_TOKEN;
-    if (
-      typeof actual !== 'string' ||
-      !expected ||
-      actual.length !== expected.length ||
-      !timingSafeEqual(Buffer.from(actual), Buffer.from(expected))
-    )
-      throw new UnauthorizedException('Accede desde la aplicación local.');
-    return true;
-  }
-}
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { AuthModule } from './auth/auth.module';
+import { PublicHealth, type AuthenticatedRequest } from './auth/auth.guard';
+import { authConfig } from './auth/config';
+import { InventoryModule } from './inventory.module';
 @Catch()
 class ApiErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
@@ -52,7 +36,7 @@ class ApiErrors implements ExceptionFilter {
       status = 400;
       message = error.issues.map((issue) => issue.message).join(' ');
     } else {
-      const e = error as { code?: string; cause?: { code?: string } };
+      const e = error as { code?: string; cause?: { code?: string }; type?: string };
       const code = e.code ?? e.cause?.code;
       if (code === '23505') {
         status = 409;
@@ -71,6 +55,14 @@ class ApiErrors implements ExceptionFilter {
         status = 503;
         message = 'La base de datos no está disponible. Tus cambios no se guardaron.';
       }
+      if (e.type === 'entity.too.large') {
+        status = 413;
+        message = 'El formulario es demasiado grande.';
+      }
+      if (e.type === 'entity.parse.failed') {
+        status = 400;
+        message = 'Formato JSON inválido.';
+      }
       if (status === 500) console.error('API operation failed', code ?? 'unknown');
     }
     host.switchToHttp().getResponse().status(status).json({ message, statusCode: status });
@@ -79,59 +71,79 @@ class ApiErrors implements ExceptionFilter {
 @Controller('api')
 class HealthController {
   constructor(@Inject(CatalogService) private readonly catalog: CatalogService) {}
-  @Get('health') async health() {
+  @Get('health') @PublicHealth() async health() {
     try {
-      return await this.catalog.health();
+      await this.catalog.health();
+      return { status: 'ok' };
     } catch {
       throw new ServiceUnavailableException('Base de datos no disponible.');
     }
   }
 }
 @Controller('api/catalog')
-@UseGuards(LocalProxyGuard)
 class CatalogController {
   constructor(@Inject(CatalogService) private readonly catalog: CatalogService) {}
   @Get() read() {
     return this.catalog.read();
   }
-  @Post('fruits') fruit(@Body() body: unknown, @Headers('idempotency-key') key?: string) {
-    return this.catalog.mutate('fruits', body, key);
-  }
-  @Post('varieties') variety(@Body() body: unknown, @Headers('idempotency-key') key?: string) {
-    return this.catalog.mutate('varieties', body, key);
-  }
-  @Post('calibers') caliber(@Body() body: unknown, @Headers('idempotency-key') key?: string) {
-    return this.catalog.mutate('calibers', body, key);
-  }
-  @Post('configurations') configuration(
+  @Post('fruits') fruit(
+    @Req() request: AuthenticatedRequest,
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.catalog.mutate('configurations', body, key);
+    return this.catalog.mutate('fruits', body, key, undefined, request.user.id);
+  }
+  @Post('varieties') variety(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.catalog.mutate('varieties', body, key, undefined, request.user.id);
+  }
+  @Post('calibers') caliber(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.catalog.mutate('calibers', body, key, undefined, request.user.id);
+  }
+  @Post('configurations') configuration(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.catalog.mutate('configurations', body, key, undefined, request.user.id);
   }
   @Patch('configurations/:id') update(
+    @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: unknown,
     @Headers('idempotency-key') key?: string,
   ) {
-    return this.catalog.mutate('update-packing', body, key, id);
+    return this.catalog.mutate('update-packing', body, key, id, request.user.id);
   }
 }
 @Module({
   controllers: [HealthController, CatalogController],
-  providers: [CatalogService, LocalProxyGuard],
+  providers: [CatalogService],
 })
 class CatalogModule {}
-@Module({ imports: [CatalogModule] })
+@Module({ imports: [AuthModule, CatalogModule, InventoryModule] })
 class AppModule {}
 async function main() {
   if (!process.env.DATABASE_URL || !process.env.MM_INTERNAL_TOKEN)
     throw new Error('Inicia con npm run dev para cargar la configuración local.');
-  const app = await NestFactory.create(AppModule, { logger: ['warn', 'error'] });
+  authConfig();
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: ['warn', 'error'],
+    bodyParser: false,
+  });
+  app.useBodyParser('json', { limit: '64kb' });
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.useGlobalFilters(new ApiErrors());
   app.enableShutdownHooks();
-  await app.listen(Number(process.env.MM_API_PORT ?? 3101), '127.0.0.1');
-  console.log('API de catálogo lista en loopback.');
+  await app.listen(Number(process.env.MM_API_PORT ?? 3101), process.env.MM_API_HOST ?? '127.0.0.1');
+  console.log('API de Manzanas Maracay lista.');
 }
 main().catch((e) => {
   console.error(e.message);

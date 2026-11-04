@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js';
+export * from './inventory';
 
 export const nameSchema = z
   .string()

@@ -27,6 +27,12 @@ try {
   browser = await chromium.launch({ headless: true });
   fs.mkdirSync(path.join(root, 'docs/capturas'), { recursive: true });
   const page = await browser.newPage();
+  const credentials = JSON.parse(fs.readFileSync(path.join(root, '.local/auth-local.json'), 'utf8'));
+  const login = await page.request.post('http://127.0.0.1:3100/api/auth/login', {
+    headers: { Origin: 'http://127.0.0.1:3100' },
+    data: { username: credentials.username, password: credentials.password },
+  });
+  if (!login.ok()) throw new Error('No se pudo iniciar la sesión para las capturas.');
   for (const viewport of [
     { width: 1440, height: 1000 },
     { width: 390, height: 844 },

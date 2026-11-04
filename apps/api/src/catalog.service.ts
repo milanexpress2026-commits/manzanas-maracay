@@ -92,7 +92,9 @@ export class CatalogService implements OnModuleDestroy {
       { isolationLevel: 'repeatable read', accessMode: 'read only' },
     );
   }
-  async mutate(kind: string, body: unknown, key: string | undefined, id?: string) {
+  async mutate(kind: string, body: unknown, key: string | undefined, id?: string, actor?: string) {
+    if (!actor || !z.uuid().safeParse(actor).success)
+      throw new BadRequestException('Falta el usuario autenticado.');
     if (!key || !z.uuid().safeParse(key).success)
       throw new BadRequestException('Falta una clave válida para guardar sin duplicados.');
     const parsed =
@@ -108,7 +110,7 @@ export class CatalogService implements OnModuleDestroy {
     if (id && !z.uuid().safeParse(id).success)
       throw new BadRequestException('Identificador inválido.');
     const hash = createHash('sha256')
-      .update(JSON.stringify({ kind, id, body: parsed }))
+      .update(JSON.stringify({ kind, id, body: parsed, actor }))
       .digest('hex');
     return this.db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key},0))`);
@@ -188,17 +190,15 @@ export class CatalogService implements OnModuleDestroy {
           .returning();
       }
       const response = JSON.parse(JSON.stringify(result)) as Record<string, unknown>;
-      await tx
-        .insert(schema.auditEvents)
-        .values({
-          entityType: kind,
-          entityId: result.id as string,
-          action: id ? 'update' : 'create',
-          before,
-          after: response,
-          actor: 'local-owner',
-          requestId: key,
-        });
+      await tx.insert(schema.auditEvents).values({
+        entityType: kind,
+        entityId: result.id as string,
+        action: id ? 'update' : 'create',
+        before,
+        after: response,
+        actor,
+        requestId: key,
+      });
       await tx.insert(schema.commandReceipts).values({ key, requestHash: hash, response });
       return response;
     });
