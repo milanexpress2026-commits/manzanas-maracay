@@ -18,7 +18,11 @@ const child = existingServer
   ? null
   : spawn(
       process.execPath,
-      ['scripts/dev.mjs', ...(process.argv.includes('--external-db') ? ['--external-db'] : [])],
+      [
+        'scripts/dev.mjs',
+        '--production',
+        ...(process.argv.includes('--external-db') ? ['--external-db'] : []),
+      ],
       {
         cwd: root,
         env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' },
@@ -49,12 +53,12 @@ try {
     { name: 'escritorio', width: 1440, height: 1000 },
     { name: 'movil', width: 390, height: 844 },
   ];
-  async function screenshot(name, viewport) {
+  async function screenshot(name, viewport, fullPage = true) {
     if (!(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)))
       throw new Error(`Desbordamiento horizontal en ${name}-${viewport.name}.`);
     await page.screenshot({
       path: path.join(output, `fase2-${name}-${viewport.name}.png`),
-      fullPage: true,
+      fullPage,
     });
   }
   for (const viewport of viewports) {
@@ -178,9 +182,22 @@ try {
     await page
       .getByLabel('Motivo del movimiento')
       .fill('DEMO · Ejemplo de conteo físico: 37 = 18 + 19. Sin confirmar.');
-    await screenshot('media-caja', viewport);
-    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Revisar movimiento', exact: true })
+      .click();
+    await screenshot('media-caja', viewport, false);
+    await page.keyboard.press('Escape');
   }
+  const finalDetail = await read(`/api/inventory/lots/${detail.lot.id}`);
+  if (
+    finalDetail.lot.version !== detail.lot.version ||
+    finalDetail.movements.length !== detail.movements.length
+  )
+    throw new Error('El lote DEMO cambió durante las capturas; revisa sus movimientos.');
+  console.log(
+    `Lote DEMO ${detail.lot.code}: ${finalDetail.lot.closedBoxes} cajas cerradas, ${finalDetail.lot.intactBlisters} blíster intactos, ${finalDetail.movements.length} movimientos. Formularios sin guardar verificados.`,
+  );
   console.log(
     'Diez capturas de fase 2 guardadas en docs/capturas. Solo se creó el ejemplo DEMO cuando faltaba; ningún formulario capturado se confirmó.',
   );

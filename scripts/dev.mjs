@@ -6,6 +6,7 @@ import { root, loadLocalEnv } from './local-env.mjs';
 loadLocalEnv();
 process.chdir(root);
 const testing = process.argv.includes('--test');
+const production = process.argv.includes('--production');
 process.env.MM_APP_ENV = testing ? 'test' : 'local';
 if (testing) {
   process.env.DATABASE_URL = process.env.DATABASE_URL.replace(
@@ -98,7 +99,7 @@ try {
   const web = run(
     [
       path.join(root, 'node_modules/next/dist/bin/next'),
-      testing ? 'start' : 'dev',
+      testing || production ? 'start' : 'dev',
       '--hostname',
       '127.0.0.1',
       '--port',
