@@ -1,0 +1,9 @@
+.agents/
+.local/
+node_modules/
+dist/
+.next/
+package-lock.json
+packages/database/migrations/
+playwright-report/
+test-results/

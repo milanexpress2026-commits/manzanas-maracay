@@ -1,0 +1,2 @@
+ALTER TABLE "bcv_rates" DROP CONSTRAINT "bcv_verified_official";--> statement-breakpoint
+ALTER TABLE "bcv_rates" ADD CONSTRAINT "bcv_verified_official" CHECK ("bcv_rates"."source"='BCV' and "bcv_rates"."rate">0 and "bcv_rates"."valid_until">"bcv_rates"."valid_from" and "bcv_rates"."verified_at">="bcv_rates"."fetched_at" and "bcv_rates"."source_url" ~ '^https://(www[.])?bcv[.]org[.]ve(/|$)');
