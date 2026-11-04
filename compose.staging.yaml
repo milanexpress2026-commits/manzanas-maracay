@@ -76,7 +76,7 @@ services:
       retries: 6
     mem_limit: 512m
     cpus: 1.0
-  web:
+  mm-staging-web:
     <<: *runtime
     image: manzanas-maracay-web:${MM_RELEASE:?Identifica la versión}
     build: {context: ., dockerfile: infra/Dockerfile, target: web}
