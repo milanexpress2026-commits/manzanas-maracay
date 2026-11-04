@@ -1,5 +1,6 @@
 'use client';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, LoaderCircle, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,7 @@ export function LoginForm({ staging }: { staging: boolean }) {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message ?? 'No se pudo iniciar sesión.');
-      window.location.assign('/');
+      window.location.assign('/catalogo');
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : 'No se pudo conectar. Vuelve a intentar.',
@@ -98,6 +99,7 @@ export function LoginForm({ staging }: { staging: boolean }) {
           <p className={styles.help}>
             Si necesitas acceso o recuperar tu contraseña, comunícate con el propietario.
           </p>
+          <Link href="/demo">Explorar demostración sin contraseña</Link>
         </section>
       </div>
     </main>

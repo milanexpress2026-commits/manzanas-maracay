@@ -38,6 +38,7 @@ import { LoadError, LoadingRows, SavedNotice, PageFooter } from './operations-ui
 import { displayDate, displayMoney, useRemote } from '@/lib/inventory-api';
 import { InventoryOperationDialog, type StockAction } from './inventory-operation-dialog';
 import { containerName } from '@/lib/stock-labels';
+import { packingLabel, productLabel } from '@/lib/commercial-ui';
 const stateNames = { sealed: 'Cerrado', open: 'Abierto', empty: 'Vacío', dispatched: 'Retirado' };
 const movementNames: Record<InventoryMovement['kind'], string> = {
   receipt: 'Recepción',
@@ -45,6 +46,7 @@ const movementNames: Record<InventoryMovement['kind'], string> = {
   open_box: 'Apertura de caja',
   open_blister: 'Apertura de blíster',
   fraction: 'Media caja preparada',
+  commercial_split: 'Caja dividida en dos medias',
   adjustment: 'Ajuste de inventario',
   transfer: 'Traslado',
   reversal: 'Reversa',
@@ -52,33 +54,57 @@ const movementNames: Record<InventoryMovement['kind'], string> = {
 function hasStock(lot: StockSummary) {
   return lot.closedBoxes + lot.intactBlisters + lot.preparedHalfBoxes + lot.loosePieces > 0;
 }
-export function StockTotals({ stock }: { stock: StockSummary }) {
+export function StockTotals({
+  stock,
+  model,
+}: {
+  stock: StockSummary;
+  model?: 'blister' | 'halves' | 'whole';
+}) {
   return (
     <div className="stock-totals" aria-label="Existencias físicas">
       <div>
         <Box aria-hidden="true" />
         <span>Cajas cerradas</span>
         <strong>{stock.closedBoxes}</strong>
-        <small>{stock.openBoxes} cajas abiertas como contenedores</small>
+        <small>
+          {model === 'whole'
+            ? 'Presentaciones completas'
+            : model === 'halves'
+              ? 'Unidades físicas completas'
+              : `${stock.openBoxes} cajas abiertas como contenedores`}
+        </small>
       </div>
-      <div>
-        <Layers3 aria-hidden="true" />
-        <span>Blíster intactos</span>
-        <strong>{stock.intactBlisters}</strong>
-        <small>Disponibles en cajas abiertas</small>
-      </div>
-      <div>
-        <Boxes aria-hidden="true" />
-        <span>Medias cajas</span>
-        <strong>{stock.preparedHalfBoxes}</strong>
-        <small>{stock.preparedPieces} piezas contadas y preparadas</small>
-      </div>
-      <div>
-        <Apple aria-hidden="true" />
-        <span>Fruta suelta</span>
-        <strong>{stock.loosePieces}</strong>
-        <small>{stock.openBlisters} blíster abiertos</small>
-      </div>
+      {!model || model === 'blister' ? (
+        <div>
+          <Layers3 aria-hidden="true" />
+          <span>Blíster intactos</span>
+          <strong>{stock.intactBlisters}</strong>
+          <small>Disponibles en cajas abiertas</small>
+        </div>
+      ) : null}
+      {model !== 'whole' ? (
+        <div>
+          <Boxes aria-hidden="true" />
+          <span>Medias cajas</span>
+          <strong>{stock.preparedHalfBoxes}</strong>
+          <small>
+            {model === 'halves'
+              ? 'Mitades comerciales, sin conteo de piezas'
+              : model === 'blister'
+                ? `${stock.preparedPieces} piezas contadas y preparadas`
+                : `${stock.preparedPieces} piezas en medias preparadas por conteo`}
+          </small>
+        </div>
+      ) : null}
+      {!model || model === 'blister' ? (
+        <div>
+          <Apple aria-hidden="true" />
+          <span>Fruta suelta</span>
+          <strong>{stock.loosePieces}</strong>
+          <small>{stock.openBlisters} blíster abiertos</small>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -101,14 +127,16 @@ export function InventoryScreen({
     ...new Map(
       all
         .filter((lot) => fruit === 'all' || lot.fruitId === fruit)
-        .map((lot) => [lot.varietyId, lot.variety]),
+        .filter((lot) => lot.varietyId !== null)
+        .map((lot) => [lot.varietyId!, lot.variety!]),
     ).entries(),
   ];
   const calibers = [
     ...new Map(
       all
         .filter((lot) => fruit === 'all' || lot.fruitId === fruit)
-        .map((lot) => [lot.caliberId, lot.caliber]),
+        .filter((lot) => lot.caliberId !== null)
+        .map((lot) => [lot.caliberId!, lot.caliber!]),
     ).entries(),
   ];
   const filtered = all.filter(
@@ -161,8 +189,13 @@ export function InventoryScreen({
                 intactos
               </strong>
               <span>
-                Es una equivalencia de cajas cerradas y blíster intactos, no stock adicional.
-                Excluye fruta ya fraccionada.
+                Es una equivalencia de cajas cerradas y blíster intactos, no stock adicional. Solo
+                productos con blíster conocido. Excluye fruta ya fraccionada. Equivalencia comercial
+                de cajas:{' '}
+                {inventory.data.totals.equivalentBoxes.toLocaleString('es-VE', {
+                  maximumFractionDigits: 4,
+                })}
+                ; incluye únicamente empaques con equivalencia explícita.
               </span>
             </p>
             <section className="operations-panel" aria-label="Inventario por lote">
@@ -308,19 +341,30 @@ export function InventoryScreen({
                                 {lot.fruit} {lot.variety}
                               </strong>
                               <span>
-                                Calibre {lot.caliber} · {lot.code}
+                                {lot.caliber ? `Calibre ${lot.caliber} · ` : ''}
+                                {lot.commercialLine} · {lot.code}
                               </span>
                             </Link>
                             <span className="lot-supplier">{lot.supplier}</span>
                             {lot.isDemo ? <Badge variant="secondary">DEMO</Badge> : null}
                           </td>
                           <td data-label="Cajas cerradas">{lot.closedBoxes}</td>
-                          <td data-label="Blíster intactos">{lot.intactBlisters}</td>
+                          <td data-label="Blíster intactos">
+                            {lot.packingModel === 'blister' ? lot.intactBlisters : 'No aplica'}
+                          </td>
                           <td data-label="Medias cajas">
                             {lot.preparedHalfBoxes}
-                            <small>{lot.preparedPieces} piezas preparadas</small>
+                            <small>
+                              {lot.packingModel === 'halves'
+                                ? 'Mitades comerciales'
+                                : lot.packingModel === 'whole'
+                                  ? 'No aplica'
+                                  : `${lot.preparedPieces} piezas preparadas`}
+                            </small>
                           </td>
-                          <td data-label="Piezas sueltas">{lot.loosePieces}</td>
+                          <td data-label="Piezas sueltas">
+                            {lot.packingModel === 'blister' ? lot.loosePieces : 'No aplica'}
+                          </td>
                           <td>
                             <Button variant="ghost" size="icon" asChild>
                               <Link
@@ -411,8 +455,7 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
             Detalle del lote {lot.code}
           </h2>
           <p>
-            {lot.fruit} {lot.variety} · Calibre {lot.caliber}{' '}
-            {lot.isDemo ? <Badge variant="secondary">DEMO</Badge> : null}
+            {productLabel(lot)} {lot.isDemo ? <Badge variant="secondary">DEMO</Badge> : null}
           </p>
         </div>
         <Button variant="outline" asChild>
@@ -438,7 +481,7 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
           </div>
           <div>
             <dt>Empaque histórico</dt>
-            <dd>{lot.blistersPerBox} blíster por caja</dd>
+            <dd>{packingLabel({ ...lot, boxWeightKg: lot.boxWeightKgSnapshot })}</dd>
           </div>
           <div>
             <dt>Costo histórico por caja</dt>
@@ -447,29 +490,51 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
         </dl>
         {lot.notes ? <p>{lot.notes}</p> : null}
       </div>
-      <StockTotals stock={lot} />
+      <StockTotals stock={lot} model={lot.packingModel} />
       <p className="stock-equivalence">
-        <strong>{lot.equivalentIntactBlisters} blíster equivalentes en empaques intactos</strong>
+        <strong>
+          {lot.packingModel === 'blister'
+            ? `${lot.equivalentIntactBlisters} blíster equivalentes en empaques intactos`
+            : `${lot.equivalentBoxes.toLocaleString('es-VE', { maximumFractionDigits: 4 })} cajas equivalentes comerciales`}
+        </strong>
         <span>
-          La cantidad de frutas dentro de empaques cerrados permanece desconocida hasta contarlas.
+          {lot.packingModel === 'blister'
+            ? 'La cantidad de frutas dentro de empaques cerrados permanece desconocida hasta contarlas.'
+            : 'Las medias cajas no se cuentan como cajas cerradas. No se generan cantidades de fruta.'}
         </span>
       </p>
       <div className="inventory-actions">
-        <Button
-          disabled={detail.loading || lot.equivalentIntactBlisters === 0}
-          onClick={() => open({ kind: 'withdraw-blisters' })}
-        >
-          <ArrowUpRight data-icon="inline-start" />
-          Retirar blíster
-        </Button>
-        <Button
-          variant="outline"
-          disabled={detail.loading || !canFraction}
-          onClick={() => open({ kind: 'prepare-half' })}
-        >
-          <Scissors data-icon="inline-start" />
-          Preparar media caja
-        </Button>
+        {lot.packingModel === 'halves' ? (
+          <Button
+            variant="outline"
+            disabled={detail.loading || lot.closedBoxes === 0}
+            onClick={() => open({ kind: 'split-halves' })}
+          >
+            <Scissors aria-hidden="true" />
+            Dividir en medias cajas
+          </Button>
+        ) : null}
+        {lot.packingModel === 'blister' && lot.blistersPerBox !== null ? (
+          <Button
+            disabled={detail.loading || lot.equivalentIntactBlisters === 0}
+            onClick={() => open({ kind: 'withdraw-blisters' })}
+          >
+            <ArrowUpRight data-icon="inline-start" />
+            Retirar blíster
+          </Button>
+        ) : null}
+        {lot.packingModel === 'blister' &&
+        lot.halfPreparation === 'counted' &&
+        lot.allowedPresentations.includes('half_box') ? (
+          <Button
+            variant="outline"
+            disabled={detail.loading || !canFraction}
+            onClick={() => open({ kind: 'prepare-half' })}
+          >
+            <Scissors data-icon="inline-start" />
+            Preparar media caja
+          </Button>
+        ) : null}
         <Button
           variant="outline"
           disabled={detail.loading || available.length === 0}
@@ -482,7 +547,8 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
       <Alert>
         <Info aria-hidden="true" />
         <AlertDescription>
-          Los retiros de esta fase son movimientos internos. No crean facturas ni cobros.
+          Los retiros de esta pantalla son movimientos internos. Para entregar mercancía a un
+          cliente, registra una venta.
         </AlertDescription>
       </Alert>
       <section className="operations-panel" aria-label="Contenedores del lote">
@@ -525,19 +591,34 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                       {container.unit === 'loose_piece'
                         ? `${container.quantity} piezas sueltas`
                         : container.unit === 'prepared_half_box'
-                          ? `${container.quantity} media caja · ${container.countedPieces ?? 0} piezas`
+                          ? `${container.quantity} media caja${container.countedPieces === null ? ' comercial' : ` · ${container.countedPieces} piezas`}`
                           : container.state === 'open'
                             ? 'Contenedor; el saldo está en su contenido'
                             : `${container.quantity} ${container.unit === 'sealed_box' ? 'caja cerrada' : 'blíster intacto'}`}
                     </span>
                     <small>
-                      {container.countedPieces === null
-                        ? 'Frutas: cantidad desconocida'
-                        : `${container.countedPieces} frutas contadas`}
+                      {lot.packingModel !== 'blister'
+                        ? 'Sin conteo de piezas'
+                        : container.countedPieces === null
+                          ? 'Frutas: cantidad desconocida'
+                          : `${container.countedPieces} frutas contadas`}
                     </small>
                   </div>
                   <div className="container-actions">
-                    {sealed && container.kind === 'box' ? (
+                    {sealed && container.kind === 'box' && lot.packingModel === 'halves' ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={detail.loading}
+                        onClick={() => open({ kind: 'split-halves', containerId: container.id })}
+                      >
+                        Dividir en medias cajas
+                      </Button>
+                    ) : null}
+                    {sealed &&
+                    container.kind === 'box' &&
+                    lot.packingModel === 'blister' &&
+                    lot.blistersPerBox !== null ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -548,7 +629,7 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                         Abrir caja
                       </Button>
                     ) : null}
-                    {sealed && container.kind === 'blister' ? (
+                    {sealed && container.kind === 'blister' && lot.packingModel === 'blister' ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -559,7 +640,10 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                         Abrir blíster
                       </Button>
                     ) : null}
-                    {container.quantity > 0 &&
+                    {lot.packingModel === 'blister' &&
+                    lot.halfPreparation === 'counted' &&
+                    lot.allowedPresentations.includes('half_box') &&
+                    container.quantity > 0 &&
                     ((sealed && (container.kind === 'box' || container.kind === 'blister')) ||
                       container.unit === 'loose_piece') ? (
                       <Button

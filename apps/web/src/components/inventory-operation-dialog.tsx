@@ -14,6 +14,7 @@ import {
 } from '@mm/domain';
 import { useCommand } from '@/lib/inventory-api';
 import { containerName } from '@/lib/stock-labels';
+import { productLabel } from '@/lib/commercial-ui';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Field, FieldGroup, FieldLabel, FieldDescription } from './ui/field';
 import { NativeSelect } from './ui/native-select';
@@ -24,12 +25,19 @@ import { Alert, AlertDescription } from './ui/alert';
 import { FormError, SaveButton } from './operations-ui';
 export type StockAction =
   | {
-      kind: 'open-box' | 'open-blister' | 'withdraw-blisters' | 'prepare-half' | 'adjust';
+      kind:
+        | 'open-box'
+        | 'split-halves'
+        | 'open-blister'
+        | 'withdraw-blisters'
+        | 'prepare-half'
+        | 'adjust';
       containerId?: string;
     }
   | { kind: 'reverse'; movement: InventoryMovement };
 const titles = {
   'open-box': 'Abrir caja',
+  'split-halves': 'Dividir en medias cajas',
   'open-blister': 'Abrir blíster',
   'withdraw-blisters': 'Retirar blíster',
   'prepare-half': 'Preparar media caja',
@@ -38,6 +46,7 @@ const titles = {
 };
 const confirmations = {
   'open-box': 'Confirmar apertura',
+  'split-halves': 'Confirmar división',
   'open-blister': 'Confirmar apertura',
   'withdraw-blisters': 'Confirmar retiro',
   'prepare-half': 'Confirmar media caja',
@@ -57,7 +66,8 @@ export function InventoryOperationDialog({
 }) {
   const eligible = detail.containers.filter((c) => {
     if (c.quantity <= 0 || c.state === 'empty' || c.state === 'dispatched') return false;
-    if (action.kind === 'open-box') return c.kind === 'box' && c.state === 'sealed';
+    if (action.kind === 'open-box' || action.kind === 'split-halves')
+      return c.kind === 'box' && c.state === 'sealed';
     if (action.kind === 'open-blister') return c.kind === 'blister' && c.state === 'sealed';
     if (action.kind === 'prepare-half')
       return (
@@ -102,7 +112,7 @@ export function InventoryOperationDialog({
       if (action.kind === 'withdraw-blisters') {
         body = { quantity: Number(quantity), reason };
         schema = withdrawBlistersSchema;
-      } else if (action.kind === 'open-box') {
+      } else if (action.kind === 'open-box' || action.kind === 'split-halves') {
         body = { containerId, reason };
         schema = openBoxSchema;
       } else if (action.kind === 'open-blister') {
@@ -124,12 +134,16 @@ export function InventoryOperationDialog({
         body = {
           containerId,
           quantityDelta: Number(delta),
-          piecesDelta:
-            selected?.unit === 'loose_piece'
-              ? Number(delta)
-              : piecesDelta === ''
-                ? null
-                : Number(piecesDelta),
+          ...(detail.lot.packingModel === 'blister'
+            ? {
+                piecesDelta:
+                  selected?.unit === 'loose_piece'
+                    ? Number(delta)
+                    : piecesDelta === ''
+                      ? null
+                      : Number(piecesDelta),
+              }
+            : {}),
           reason,
         };
         schema = adjustmentSchema;
@@ -152,7 +166,7 @@ export function InventoryOperationDialog({
           command.setError('El ajuste debe conservar un saldo válido para este contenedor.');
           return;
         }
-        if (selected.unit === 'prepared_half_box') {
+        if (selected.unit === 'prepared_half_box' && selected.countedPieces !== null) {
           const nextPieces = (selected.countedPieces ?? 0) + Number(piecesDelta || 0);
           if ((nextQuantity === 0 && nextPieces !== 0) || (nextQuantity === 1 && nextPieces <= 0)) {
             command.setError(
@@ -188,8 +202,7 @@ export function InventoryOperationDialog({
             {titles[action.kind]}
           </DialogTitle>
           <DialogDescription>
-            {detail.lot.fruit} {detail.lot.variety} · Calibre {detail.lot.caliber} · Lote{' '}
-            {detail.lot.code}
+            {productLabel(detail.lot)} · Lote {detail.lot.code}
           </DialogDescription>
         </DialogHeader>
         <form className="catalog-form" onSubmit={submit}>
@@ -218,6 +231,15 @@ export function InventoryOperationDialog({
                         Usa el identificador que aparece en el detalle físico del lote.
                       </FieldDescription>
                     </Field>
+                  ) : null}
+                  {action.kind === 'split-halves' ? (
+                    <Alert>
+                      <Info aria-hidden="true" />
+                      <AlertDescription>
+                        Una caja cerrada se dividirá en dos medias cajas comerciales. No se pide ni
+                        se inventa un conteo de frutas.
+                      </AlertDescription>
+                    </Alert>
                   ) : null}
                   {action.kind === 'open-box' ? (
                     <Alert>
@@ -353,8 +375,12 @@ export function InventoryOperationDialog({
                           placeholder="Ejemplo: -1"
                           onChange={(e) => {
                             setDelta(e.target.value);
-                            if (selected?.unit === 'prepared_half_box' && e.target.value === '-1')
-                              setPiecesDelta(String(-(selected.countedPieces ?? 0)));
+                            if (
+                              selected?.unit === 'prepared_half_box' &&
+                              selected.countedPieces !== null &&
+                              e.target.value === '-1'
+                            )
+                              setPiecesDelta(String(-selected.countedPieces));
                           }}
                         />
                         <FieldDescription>
@@ -365,7 +391,9 @@ export function InventoryOperationDialog({
                           documentado. No reemplaza el registro de una nueva recepción.
                         </FieldDescription>
                       </Field>
-                      {selected && selected.unit !== 'loose_piece' ? (
+                      {selected &&
+                      selected.unit !== 'loose_piece' &&
+                      detail.lot.packingModel === 'blister' ? (
                         <Field>
                           <FieldLabel htmlFor="adjust-pieces">Cambio en frutas contadas</FieldLabel>
                           <Input
@@ -428,6 +456,9 @@ export function InventoryOperationDialog({
                     <p>
                       <strong>Retiro interno:</strong> {String(review.quantity)} blíster intactos.
                     </p>
+                  ) : null}
+                  {action.kind === 'split-halves' ? (
+                    <p>Se conservarán dos medias cajas comerciales a partir de una caja cerrada.</p>
                   ) : null}
                   {action.kind === 'open-box' ? (
                     <p>

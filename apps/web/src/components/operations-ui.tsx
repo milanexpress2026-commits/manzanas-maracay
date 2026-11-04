@@ -70,7 +70,7 @@ export function PageFooter() {
   return (
     <footer className="page-footer">
       <span>Manzanas Maracay · Frutas importadas</span>
-      <span>Fase 2 · Inventario</span>
+      <span>Fase 3 · Gestión comercial</span>
     </footer>
   );
 }

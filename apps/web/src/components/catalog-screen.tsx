@@ -38,6 +38,11 @@ import {
 import { fetchCatalog } from '@/lib/catalog-api';
 import { CatalogForm, type FormKind } from './catalog-form';
 import { AppShell, type AppSession } from './app-shell';
+import { CatalogPrices } from './catalog-prices';
+import { packingLabel, productLabel, presentationNames } from '@/lib/commercial-ui';
+import { useCommand } from '@/lib/inventory-api';
+import { FormError, SaveButton } from './operations-ui';
+import { Field, FieldLabel } from './ui/field';
 const empty: Catalog = { fruits: [], varieties: [], calibers: [], configurations: [] };
 const tabLabels = {
   configurations: 'Empaques',
@@ -65,6 +70,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
   const [form, setForm] = useState<{ kind: FormKind; editing?: Configuration } | null>(null),
     [guide, setGuide] = useState(false),
     [offline, setOffline] = useState(false);
+  const [rename, setRename] = useState<{ id: string; name: string } | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   async function reload() {
     setLoading(true);
@@ -104,7 +110,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
   const configurations = catalog.configurations.filter(
     (c) =>
       (fruitFilter === 'all' || c.fruitId === fruitFilter) &&
-      match(`${c.fruit} ${c.variety} ${c.caliber}`),
+      match(`${c.fruit} ${c.variety ?? ''} ${c.caliber ?? ''} ${c.commercialLine}`),
   );
   const selected = configurations.find((c) => c.id === selectedId) ?? configurations[0];
   const fruitName = (id: string) => catalog.fruits.find((f) => f.id === id)?.name ?? 'Sin fruta';
@@ -148,7 +154,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
             }));
   const count = tab === 'configurations' ? configurations.length : masterRows.length;
   return (
-    <AppShell session={session} current="/" onGuide={() => setGuide(true)}>
+    <AppShell session={session} current="/catalogo" onGuide={() => setGuide(true)}>
       <main id="app-main" className="main-content">
         <div className="page-heading">
           <div>
@@ -275,7 +281,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                       {search || fruitFilter !== 'all'
                         ? 'Prueba otro nombre o quita el filtro.'
                         : tab === 'configurations'
-                          ? 'Crea una configuración para definir los blíster de cada caja.'
+                          ? 'Crea una configuración con las presentaciones permitidas para el producto.'
                           : `Agrega tu primer registro para organizar el catálogo.`}
                     </p>
                     {search || fruitFilter !== 'all' ? (
@@ -322,32 +328,41 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                               <button
                                 className="product-link"
                                 onClick={() => setSelectedId(c.id)}
-                                aria-label={`Ver ${c.fruit} ${c.variety} calibre ${c.caliber}`}
+                                aria-label={
+                                  'Ver ' +
+                                  c.fruit +
+                                  (c.variety ? ' ' + c.variety : '') +
+                                  (c.caliber ? ' calibre ' + c.caliber : '') +
+                                  (c.commercialLine !== 'Estándar' ? ' · ' + c.commercialLine : '')
+                                }
                                 aria-pressed={selected?.id === c.id}
                               >
                                 <span className="product-icon">
                                   <Apple aria-hidden="true" />
                                 </span>
                                 <span>
-                                  <strong>{c.variety}</strong>
-                                  <small>{c.fruit}</small>
+                                  <strong>{c.variety ?? c.fruit}</strong>
+                                  <small>
+                                    {c.variety ? c.fruit + ' · ' : ''}
+                                    {c.commercialLine}
+                                  </small>
                                 </span>
                               </button>
                             </td>
                             <td>
-                              <span className="caliber-label">{c.caliber}</span>
+                              <span className="caliber-label">{c.caliber ?? 'No aplica'}</span>
                             </td>
                             <td>
                               <span className="pack-label">
                                 <Package aria-hidden="true" />
-                                <strong>{c.blistersPerBox}</strong> blíster / caja
+                                {packingLabel(c)}
                               </span>
                             </td>
                             <td>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                aria-label={`Editar ${c.variety} calibre ${c.caliber}`}
+                                aria-label={`Editar ${c.variety ?? c.fruit}${c.caliber ? ' calibre ' + c.caliber : ''}`}
                                 onClick={() => openForm('configurations', c)}
                                 disabled={offline || !!error}
                               >
@@ -377,6 +392,16 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                           <small>{row.secondary}</small>
                         </div>
                         <span>{row.detail}</span>
+                        {tab === 'varieties' ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Renombrar ${row.name}`}
+                            onClick={() => setRename({ id: row.id, name: row.name })}
+                          >
+                            <Pencil />
+                          </Button>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -419,44 +444,75 @@ export function CatalogScreen({ session }: { session: AppSession }) {
               <>
                 <div className="detail-product">
                   <span className="detail-fruit">{selected.fruit}</span>
-                  <h3>{selected.variety}</h3>
-                  <span className="detail-caliber">Calibre {selected.caliber}</span>
+                  <h3>{selected.variety ?? selected.fruit}</h3>
+                  <span className="detail-caliber">
+                    {selected.caliber ? `Calibre ${selected.caliber} · ` : ''}
+                    {selected.commercialLine}
+                  </span>
                 </div>
                 <div
                   className="packing-visual"
-                  aria-label={`${selected.blistersPerBox} blíster en una caja`}
+                  aria-label={
+                    selected.packingModel === 'blister' && selected.blistersPerBox !== null
+                      ? selected.blistersPerBox + ' blíster en una caja'
+                      : packingLabel(selected)
+                  }
                 >
                   <div className="packing-visual-label">
                     <Box aria-hidden="true" />
-                    <span>1 caja cerrada</span>
+                    <span>{packingLabel(selected)}</span>
                   </div>
-                  <div className="blister-grid">
-                    {Array.from({ length: Math.min(selected.blistersPerBox, 12) }, (_, i) => (
-                      <div className="blister-unit" key={i}>
-                        <Layers3 aria-hidden="true" />
-                        <span>Blíster {i + 1}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {selected.blistersPerBox > 12 ? (
-                    <p>+ {selected.blistersPerBox - 12} blíster</p>
-                  ) : null}
+                  {selected.packingModel === 'blister' && selected.blistersPerBox != null ? (
+                    <div className="blister-grid">
+                      {Array.from({ length: Math.min(selected.blistersPerBox, 12) }, (_, i) => (
+                        <div className="blister-unit" key={i}>
+                          <Layers3 aria-hidden="true" />
+                          <span>Blíster {i + 1}</span>
+                        </div>
+                      ))}
+                      {selected.blistersPerBox > 12 ? (
+                        <p>+ {selected.blistersPerBox - 12} blíster</p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p>
+                      {selected.packingModel === 'halves'
+                        ? 'Dos mitades comerciales, sin conteo de piezas.'
+                        : selected.packingModel === 'whole'
+                          ? 'Se vende únicamente la caja completa.'
+                          : 'Contenido pendiente de confirmar.'}
+                    </p>
+                  )}
                 </div>
                 <dl className="packing-facts">
                   <div>
-                    <dt>Blíster por caja</dt>
-                    <dd>{selected.blistersPerBox}</dd>
-                  </div>
-                  <div>
-                    <dt>Cantidad de frutas</dt>
-                    <dd>Por conteo físico</dd>
+                    <dt>Venta permitida</dt>
+                    <dd>
+                      {selected.allowedPresentations.map((p) => presentationNames[p]).join(', ')}
+                    </dd>
                   </div>
                   <div>
                     <dt>Configuración</dt>
                     <dd>
-                      <Badge variant="secondary">Editable por lote</Badge>
+                      <Badge variant="secondary">
+                        {selected.confirmationStatus === 'confirmed'
+                          ? 'Confirmada'
+                          : 'Pendiente de confirmar'}
+                      </Badge>
                     </dd>
                   </div>
+                  {selected.packingModel === 'blister' ? (
+                    <div>
+                      <dt>Media caja</dt>
+                      <dd>
+                        {selected.halfPreparation === 'counted'
+                          ? 'Con conteo físico'
+                          : selected.halfPreparation === 'pending'
+                            ? 'Por confirmar'
+                            : 'No aplica'}
+                      </dd>
+                    </div>
+                  ) : null}
                 </dl>
                 <Button
                   variant="outline"
@@ -468,6 +524,11 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                   Editar empaque
                 </Button>
                 {selected.notes ? <p className="packing-notes">{selected.notes}</p> : null}
+                <CatalogPrices
+                  key={selected.id + ':' + selected.version}
+                  configuration={selected}
+                  onSaved={reload}
+                />
               </>
             ) : (
               <div className="detail-empty">
@@ -503,7 +564,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
         </section>
         <footer className="page-footer">
           <span>Manzanas Maracay · Frutas importadas</span>
-          <span>Fase 2 · Catálogo</span>
+          <span>Fase 3 · Catálogo</span>
         </footer>
       </main>
       <Dialog
@@ -549,6 +610,30 @@ export function CatalogScreen({ session }: { session: AppSession }) {
           ) : null}
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={!!rename}
+        onOpenChange={(open) => {
+          if (!open) setRename(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Renombrar variedad</DialogTitle>
+            <DialogDescription>
+              El nombre comercial se conserva en documentos ya confirmados.
+            </DialogDescription>
+          </DialogHeader>
+          {rename ? (
+            <RenameVariety
+              variety={rename}
+              onSaved={async () => {
+                setRename(null);
+                await reload();
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
       <Dialog open={guide} onOpenChange={setGuide}>
         <DialogContent>
           <DialogHeader>
@@ -562,7 +647,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
             </li>
             <li>
               <strong>Variedad</strong>
-              <p>La variedad dentro de esa fruta, por ejemplo Gala o Pink Lady.</p>
+              <p>La variedad comercial, si aplica. Conserva el nombre confirmado por el negocio.</p>
             </li>
             <li>
               <strong>Calibre</strong>
@@ -570,18 +655,63 @@ export function CatalogScreen({ session }: { session: AppSession }) {
             </li>
             <li>
               <strong>Empaque</strong>
-              <p>Combina fruta, variedad y calibre, e indica cuántos blíster contiene la caja.</p>
+              <p>
+                Define la línea comercial, el empaque y las presentaciones de venta. Variedad y
+                calibre son opcionales.
+              </p>
             </li>
           </ol>
           <Alert>
             <Info />
             <AlertDescription>
-              Las cantidades de fruta se cuentan físicamente. En Inventario puedes abrir empaques y
-              preparar medias cajas con ese conteo.
+              Los productos con blíster pueden requerir conteo al fraccionar. Granel y kiwi usan
+              mitades comerciales; uva se vende solo por caja.
             </AlertDescription>
           </Alert>
         </DialogContent>
       </Dialog>
     </AppShell>
+  );
+}
+
+function RenameVariety({
+  variety,
+  onSaved,
+}: {
+  variety: { id: string; name: string };
+  onSaved: () => Promise<void>;
+}) {
+  const [name, setName] = useState(variety.name);
+  const command = useCommand();
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        try {
+          await command.run(
+            `/api/catalog/varieties/${variety.id}`,
+            { name, expectedName: variety.name },
+            'PATCH',
+          );
+          await onSaved();
+        } catch {}
+      }}
+    >
+      <Field>
+        <FieldLabel htmlFor="rename-variety">Nombre comercial</FieldLabel>
+        <Input
+          id="rename-variety"
+          required
+          minLength={2}
+          maxLength={80}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </Field>
+      <FormError message={command.error} />
+      <div className="form-actions">
+        <SaveButton busy={command.busy}>Guardar nombre</SaveButton>
+      </div>
+    </form>
   );
 }

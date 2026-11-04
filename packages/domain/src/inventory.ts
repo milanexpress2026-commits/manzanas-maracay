@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js';
+import type { PackingModel, HalfPreparation, Presentation } from './index';
 
 const text = z.string().trim();
 const optionalText = (max: number) => text.max(max).default('');
@@ -33,6 +34,19 @@ export const receiptSchema = z
             boxes: z.number().int().min(1).max(1000),
             unitCostUsd: costSchema,
             blistersPerBox: z.number().int().min(1).max(100).optional(),
+            priceAction: z.enum(['keep', 'update']).default('keep'),
+            prices: z
+              .array(
+                z
+                  .object({
+                    presentation: z.enum(['box', 'half_box', 'blister']),
+                    promoUsd: costSchema,
+                    regularUsd: costSchema,
+                  })
+                  .strict(),
+              )
+              .max(3)
+              .default([]),
             notes: optionalText(500),
           })
           .strict(),
@@ -107,6 +121,7 @@ export type ContainerStock = {
   quantity: number;
   countedPieces: number | null;
   version: number;
+  costUsd?: string | null;
 };
 export type StockSummary = {
   closedBoxes: number;
@@ -117,22 +132,28 @@ export type StockSummary = {
   preparedPieces: number;
   loosePieces: number;
   equivalentIntactBlisters: number;
+  equivalentBoxes: number;
 };
 export type LotSummary = StockSummary & {
   id: string;
   code: string;
   configurationId: string;
   fruitId: string;
-  varietyId: string;
-  caliberId: string;
+  varietyId: string | null;
+  caliberId: string | null;
   fruit: string;
-  variety: string;
-  caliber: string;
+  variety: string | null;
+  caliber: string | null;
+  commercialLine: string;
   supplierId: string;
   supplier: string;
   receivedAt: string;
   receivedBoxes: number;
-  blistersPerBox: number;
+  blistersPerBox: number | null;
+  packingModel: PackingModel;
+  halfPreparation: HalfPreparation;
+  allowedPresentations: Presentation[];
+  boxWeightKgSnapshot: string | null;
   unitCostUsd: string;
   notes: string;
   isDemo: boolean;
@@ -154,6 +175,7 @@ export type InventoryMovement = {
     | 'open_box'
     | 'open_blister'
     | 'fraction'
+    | 'commercial_split'
     | 'adjustment'
     | 'transfer'
     | 'reversal';
@@ -197,11 +219,13 @@ export function emptyStockSummary(): StockSummary {
     preparedPieces: 0,
     loosePieces: 0,
     equivalentIntactBlisters: 0,
+    equivalentBoxes: 0,
   };
 }
 export function summarizeContainers(
   containers: ContainerStock[],
-  blistersPerBox: number,
+  blistersPerBox: number | null,
+  packingModel: PackingModel = 'blister',
 ): StockSummary {
   const total = emptyStockSummary();
   for (const container of containers) {
@@ -223,6 +247,11 @@ export function summarizeContainers(
       total.preparedPieces += container.countedPieces ?? 0;
     }
   }
-  total.equivalentIntactBlisters = total.closedBoxes * blistersPerBox + total.intactBlisters;
+  total.equivalentIntactBlisters = total.closedBoxes * (blistersPerBox ?? 0) + total.intactBlisters;
+  // Counted fruit/halves do not have an invented equivalence to sealed boxes.
+  total.equivalentBoxes =
+    total.closedBoxes +
+    (packingModel === 'halves' ? total.preparedHalfBoxes / 2 : 0) +
+    (packingModel === 'blister' && blistersPerBox ? total.intactBlisters / blistersPerBox : 0);
   return total;
 }

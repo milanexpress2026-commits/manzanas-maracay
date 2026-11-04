@@ -1,0 +1,1 @@
+ALTER TABLE "stock_balances" ADD CONSTRAINT "empty_stock_has_no_cost" CHECK ("stock_balances"."quantity">0 or "stock_balances"."cost_usd" is null or "stock_balances"."cost_usd"=0);

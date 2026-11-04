@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import dotenv from 'dotenv';
 import { loginRequest } from './helpers/auth';
-test.beforeEach(async ({ request }) => { await loginRequest(request); });
+test.beforeEach(async ({ request }) => {
+  await loginRequest(request);
+});
 dotenv.config({ quiet: true });
 const headers = (key = randomUUID()) => ({
   Origin: 'http://127.0.0.1:3200',
@@ -44,7 +46,11 @@ test('rechaza duplicados, cantidades inválidas y combinaciones de frutas distin
     ).status(),
   ).toBe(409);
   const catalog = await (await request.get('/api/catalog')).json();
-  const gala = catalog.configurations[0];
+  const gala = catalog.configurations.find(
+    (c: { fruit: string; varietyId: string | null; caliberId: string | null }) =>
+      c.fruit === 'Manzana' && c.varietyId && c.caliberId,
+  );
+  expect(gala).toBeDefined();
   const pear = catalog.fruits.find((f: { name: string }) => f.name === 'Pera');
   expect(
     (
@@ -114,7 +120,7 @@ async function withDatabase(fn: (client: Client) => Promise<void>) {
     await client.end();
   }
 }
-test('PostgreSQL: auditoría inmutable y rol de aplicación sin acceso a ventas', async () => {
+test('PostgreSQL: auditoría inmutable y rol comercial sin privilegios de superusuario', async () => {
   await withDatabase(async (c) => {
     const event = await c.query('select id from audit_events limit 1');
     await expect(
@@ -125,7 +131,7 @@ test('PostgreSQL: auditoría inmutable y rol de aplicación sin acceso a ventas'
     expect(
       (await c.query("select has_table_privilege('mm_app','sales','INSERT') as allowed")).rows[0]
         .allowed,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       (await c.query("select rolsuper from pg_roles where rolname='mm_app'")).rows[0].rolsuper,
     ).toBe(false);

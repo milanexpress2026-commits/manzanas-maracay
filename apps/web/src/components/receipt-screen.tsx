@@ -1,6 +1,16 @@
 'use client';
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import type { Presentation } from '@mm/domain';
+import { ReceiptPrices } from './receipt-prices';
+import {
+  caracasDateTime,
+  caracasInstant,
+  decimalTotal,
+  normalizedMoney,
+  productLabel,
+  packingLabel,
+} from '@/lib/commercial-ui';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Trash2, Truck, CheckCircle2, ArrowRight, Info } from 'lucide-react';
 import { receiptSchema, type Catalog, type Supplier, type ReceiptResult } from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
@@ -20,12 +30,9 @@ type LineDraft = {
   cost: string;
   blisters: string;
   notes: string;
+  priceAction: 'keep' | 'update';
+  prices: { presentation: Presentation; promoUsd: string; regularUsd: string }[];
 };
-function localDateTime() {
-  const date = new Date();
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-}
 const blankLine = (key: number): LineDraft => ({
   key,
   configurationId: '',
@@ -33,6 +40,8 @@ const blankLine = (key: number): LineDraft => ({
   cost: '',
   blisters: '',
   notes: '',
+  priceAction: 'keep',
+  prices: [],
 });
 export function ReceiptScreen({ session }: { session: AppSession }) {
   const catalog = useRemote<Catalog>('/api/catalog'),
@@ -46,6 +55,7 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
   const [review, setReview] = useState<ReturnType<typeof receiptSchema.parse> | null>(null),
     [saved, setSaved] = useState<ReceiptResult | null>(null);
   const command = useCommand();
+  useEffect(() => setDate(caracasDateTime()), []);
   const activeSuppliers = suppliers.data?.filter((s) => s.active) ?? [];
   const ready = !!catalog.data && !!suppliers.data && !catalog.error && !suppliers.error;
   const canReceive = ready && activeSuppliers.length > 0 && catalog.data!.configurations.length > 0;
@@ -58,18 +68,21 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
       current.map((line) => (line.key === key ? { ...line, ...changes } : line)),
     );
   }
+  const totalCost = decimalTotal(lines.map((line) => ({ quantity: line.boxes, price: line.cost })));
   function validate(e: FormEvent) {
     e.preventDefault();
     command.setError('');
-    const receivedDate = new Date(date);
-    if (!date || Number.isNaN(receivedDate.valueOf())) {
-      command.setError('Indica una fecha y hora válidas para la recepción.');
+    let receivedAt: string;
+    try {
+      receivedAt = caracasInstant(date);
+    } catch (e) {
+      command.setError(e instanceof Error ? e.message : 'Revisa la fecha.');
       return;
     }
     const result = receiptSchema.safeParse({
       supplierId,
       reference,
-      receivedAt: receivedDate.toISOString(),
+      receivedAt,
       notes,
       lines: lines.map((line) => ({
         configurationId: line.configurationId,
@@ -77,6 +90,17 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
         unitCostUsd: line.cost.trim().replace(',', '.'),
         ...(line.blisters ? { blistersPerBox: Number(line.blisters) } : {}),
         notes: line.notes,
+        priceAction: line.priceAction,
+        prices:
+          line.priceAction === 'update'
+            ? line.prices
+                .filter((p) => p.promoUsd.trim() || p.regularUsd.trim())
+                .map((p) => ({
+                  ...p,
+                  promoUsd: normalizedMoney(p.promoUsd),
+                  regularUsd: normalizedMoney(p.regularUsd),
+                }))
+            : [],
       })),
     });
     if (!result.success) {
@@ -98,7 +122,7 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
     setSaved(null);
     setReview(null);
     setReference('');
-    setDate(localDateTime());
+    setDate(caracasDateTime());
     setNotes('');
     setLines([blankLine(nextKey)]);
     setNextKey((key) => key + 1);
@@ -164,7 +188,8 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                   ) : null}
                   {catalog.data!.configurations.length === 0 ? (
                     <p>
-                      Primero <Link href="/">crea una configuración de empaque en el catálogo</Link>
+                      Primero{' '}
+                      <Link href="/catalogo">crea una configuración de empaque en el catálogo</Link>
                       .
                     </p>
                   ) : null}
@@ -216,12 +241,9 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                         type="datetime-local"
                         required
                         value={date}
-                        onFocus={() => {
-                          if (!date) setDate(localDateTime());
-                        }}
                         onChange={(e) => setDate(e.target.value)}
                       />
-                      <FieldDescription>Hora local de este dispositivo.</FieldDescription>
+                      <FieldDescription>Hora de Venezuela (America/Caracas).</FieldDescription>
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="receipt-notes">Observaciones generales</FieldLabel>
@@ -230,7 +252,7 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                         maxLength={500}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Estado de la mercancía, transporte…"
+                        placeholder="Estado de la mercancía…"
                       />
                     </Field>
                   </FieldGroup>
@@ -280,14 +302,34 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                                 updateLine(line.key, {
                                   configurationId: e.target.value,
                                   blisters: '',
+                                  priceAction: 'keep',
+                                  prices:
+                                    catalog
+                                      .data!.configurations.find((c) => c.id === e.target.value)
+                                      ?.allowedPresentations.map((presentation) => ({
+                                        presentation,
+                                        promoUsd:
+                                          catalog
+                                            .data!.configurations.find(
+                                              (c) => c.id === e.target.value,
+                                            )
+                                            ?.prices.find((p) => p.presentation === presentation)
+                                            ?.promoUsd ?? '',
+                                        regularUsd:
+                                          catalog
+                                            .data!.configurations.find(
+                                              (c) => c.id === e.target.value,
+                                            )
+                                            ?.prices.find((p) => p.presentation === presentation)
+                                            ?.regularUsd ?? '',
+                                      })) ?? [],
                                 })
                               }
                             >
                               <option value="">Selecciona un empaque del catálogo</option>
                               {catalog.data!.configurations.map((c) => (
                                 <option value={c.id} key={c.id}>
-                                  {c.fruit} · {c.variety} · calibre {c.caliber} · {c.blistersPerBox}{' '}
-                                  blíster/caja
+                                  {productLabel(c)} · {packingLabel(c)}
                                 </option>
                               ))}
                             </NativeSelect>
@@ -326,29 +368,34 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                               />
                               <FieldDescription>Hasta cuatro decimales.</FieldDescription>
                             </Field>
-                            <Field>
-                              <FieldLabel htmlFor={`line-blisters-${line.key}`}>
-                                Blíster por caja en este lote
-                              </FieldLabel>
-                              <Input
-                                id={`line-blisters-${line.key}`}
-                                type="number"
-                                inputMode="numeric"
-                                min={1}
-                                max={100}
-                                step={1}
-                                placeholder={
-                                  config
-                                    ? `${config.blistersPerBox} (habitual)`
-                                    : 'Elige un empaque'
-                                }
-                                value={line.blisters}
-                                onChange={(e) => updateLine(line.key, { blisters: e.target.value })}
-                              />
-                              <FieldDescription>
-                                Vacío conserva la regla habitual. Corregirlo solo cambia este lote.
-                              </FieldDescription>
-                            </Field>
+                            {config?.packingModel === 'blister' ? (
+                              <Field>
+                                <FieldLabel htmlFor={`line-blisters-${line.key}`}>
+                                  Blíster por caja en este lote
+                                </FieldLabel>
+                                <Input
+                                  id={`line-blisters-${line.key}`}
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  max={100}
+                                  step={1}
+                                  placeholder={
+                                    config?.blistersPerBox != null
+                                      ? `${config.blistersPerBox} (habitual)`
+                                      : 'Pendiente de confirmar'
+                                  }
+                                  value={line.blisters}
+                                  onChange={(e) =>
+                                    updateLine(line.key, { blisters: e.target.value })
+                                  }
+                                />
+                                <FieldDescription>
+                                  Vacío conserva la regla habitual. Corregirlo solo cambia este
+                                  lote.
+                                </FieldDescription>
+                              </Field>
+                            ) : null}
                           </div>
                           <Field>
                             <FieldLabel htmlFor={`line-notes-${line.key}`}>
@@ -361,6 +408,13 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                               onChange={(e) => updateLine(line.key, { notes: e.target.value })}
                             />
                           </Field>
+                          {config ? (
+                            <ReceiptPrices
+                              line={line}
+                              config={config}
+                              update={(changes) => updateLine(line.key, changes)}
+                            />
+                          ) : null}
                         </FieldGroup>
                       </section>
                     );
@@ -382,8 +436,10 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
               <FormError message={!review ? command.error : ''} />
               <div className="receipt-submit">
                 <div>
-                  <strong>{totalBoxes} cajas cerradas</strong>
-                  <p>La cantidad de frutas queda desconocida hasta realizar un conteo físico.</p>
+                  <strong>
+                    {totalBoxes} cajas cerradas · Costo total {displayMoney(totalCost)}
+                  </strong>
+                  <p>Solo costo de mercancía. No incluye gastos accesorios.</p>
                 </div>
                 <Button type="submit" disabled={command.busy || !canReceive}>
                   Revisar recepción
@@ -422,21 +478,29 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                       );
                       return (
                         <li key={index}>
-                          <strong>
-                            {config?.fruit} {config?.variety} · calibre {config?.caliber}
-                          </strong>
+                          <strong>{config ? productLabel(config) : 'Producto'}</strong>
                           <span>
-                            {line.boxes} cajas · {line.blistersPerBox ?? config?.blistersPerBox}{' '}
-                            blíster/caja
+                            {line.boxes} cajas ·{' '}
+                            {config?.packingModel === 'blister'
+                              ? (line.blistersPerBox ?? config.blistersPerBox ?? 'Pendiente') +
+                                ' blíster/caja'
+                              : config
+                                ? packingLabel(config)
+                                : ''}
                           </span>
                           <span>{displayMoney(line.unitCostUsd)} por caja</span>
+                          <span>
+                            {line.priceAction === 'update'
+                              ? 'Actualizar precios comerciales'
+                              : 'Conservar precios comerciales'}
+                          </span>
                         </li>
                       );
                     })}
                   </ul>
                   <p>
-                    Los empaques quedan guardados como historia de cada lote. Comprueba cantidades y
-                    costos antes de confirmar.
+                    Costo total: {displayMoney(totalCost)}. Los empaques quedan guardados como
+                    historia de cada lote. Comprueba cantidades y costos antes de confirmar.
                   </p>
                 </div>
                 <FormError message={command.error} />

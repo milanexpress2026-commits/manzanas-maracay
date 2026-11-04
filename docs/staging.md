@@ -1,61 +1,53 @@
-# Vista previa de Manzanas Maracay
+# Staging de Manzanas Maracay
 
-Staging activo: [https://manzanas.ganamosclub.net](https://manzanas.ganamosclub.net), con HTTPS y sesión invitada. Esta guía describe únicamente el entorno de pruebas. Release verificada: `phase2-7ae1d75`, commit `7ae1d7504d31623e771fba5015361ae04ca9a4ef`. La integración final y el smoke externo se aprobaron tras corregir la colisión de alias Docker documentada en la [entrega de fase 2](entrega-fase-2.md).
+URL: [manzanas.ganamosclub.net](https://manzanas.ganamosclub.net). Entorno de pruebas, nunca producción. La fase 3 se está verificando; el último despliegue completo confirmado es `phase2-7ae1d75`. El registro de entrega distinguirá la publicación intermedia de demo (solo web) de la actualización completa de API/esquema.
+
+## Acceso público e interno
+
+La nueva entrada `/` y `/demo` muestran ejemplos sintéticos sin contraseña. No consultan la base privada, no crean sesiones operativas y no guardan movimientos. `/login` conserva acceso privado; catálogo operativo en `/catalogo`, inventario, recepción, ventas y cobranza requieren sesión de servidor. Las APIs privadas rechazan lecturas y escrituras anónimas. La publicación intermedia web deja API y base de fase 2 intactas; los módulos comerciales internos solo se habilitan con el despliegue completo verificado.
+
+Cada socio que necesite operar debe tener su propia invitación. Seguir [autenticación](authentication.md); no compartir contraseñas en Git/chat ni crear registro público. La demo no requiere invitaciones.
 
 ## Recursos exclusivos
 
-- Directorio del servidor: `/opt/manzanas-maracay/staging`.
-- Proyecto Compose: `manzanas-maracay-staging`.
-- Base: `manzanas_maracay_staging`; propietario de migraciones `mm_owner` y aplicación `mm_app` sin superusuario.
-- Volumen `manzanas-maracay-staging_mm_staging_pg` y redes `database`, `application`, `edge` propias del proyecto.
-- PostgreSQL y API sin puertos publicados. El servicio web tiene el nombre exclusivo `mm-staging-web`, accesible por Caddy en la red de borde y por diagnóstico en `127.0.0.1:33100` del servidor.
-- PostgreSQL/API con 512 MiB cada uno y web con 384 MiB; una CPU por servicio. Reinicios limitados y health checks. Aplicaciones sin privilegios, con sistema de archivos de solo lectura y temporales acotados.
-- Base independiente de desarrollo, pruebas automatizadas y futura producción. Toda recepción en staging queda marcada DEMO. No hay facturación, cobros externos, WhatsApp ni BCV en vivo.
+- Directorio `/opt/manzanas-maracay/staging`, proyecto Compose `manzanas-maracay-staging`.
+- Base `manzanas_maracay_staging`, propietario `mm_owner`, aplicación `mm_app` sin superusuario.
+- Volumen `manzanas-maracay-staging_mm_staging_pg`; redes propias `database`, `application`, `edge`.
+- Servicio y alias **`mm-staging-web`**, nunca `web`. API y PostgreSQL sin puertos públicos; diagnóstico web solo `127.0.0.1:33100`.
+- PostgreSQL/API 512 MiB y web384 MiB, una CPU por servicio, health checks y reinicios limitados. Aplicación sin privilegios, archivos de solo lectura y temporales acotados.
+- Overlay opcional `compose.push.staging.yaml`: red de salida `push_egress` exclusiva para API, sin puertos ni conexión al proxy. Exige Compose compatible con `gw_priority`.
 
-## Secretos e invitaciones
+El proxy compartido ya resuelve `mm-staging-web` en la red de borde. Actualizar la aplicación NO requiere modificar DNS, Caddy ni conectar otra red al proxy. Cualquier cambio compartido futuro necesita aprobación específica. Se preserva la incidencia de alias de fase 2 en [infraestructura](infrastructure.md); no se afirma que nunca hubo afectación histórica.
 
-`shared/secrets` está fuera de los releases y del repositorio; su carpeta debe ser privada (0700). Contiene contraseñas diferentes de propietario/app, token interno e invitación inicial. Los tres secretos aleatorios requieren al menos 32 caracteres. No escribirlos en Compose, argumentos del terminal, logs, screenshots, GitHub ni el chat.
+## Secretos y avisos
 
-Compose monta archivos individuales de secretos. El token interno y la invitación pertenecen al UID 1000 y usan modo 0400; las contraseñas de PostgreSQL permiten lectura dentro de sus montajes. Aunque sus archivos sean legibles dentro del contenedor, la carpeta 0700 impide que usuarios ajenos del host los recorran. La API recibe solo su contraseña y el token interno, la web solo el token, y el migrador los accesos de administración. Consultar [documentación oficial de secretos Compose](https://docs.docker.com/compose/how-tos/use-secrets/).
+`shared/secrets` privado0700, fuera de releases/Git. Contraseñas separadas de propietario/aplicación, token interno e invitaciones. La web recibe solo el token; API su contraseña y token. VAPID, si se activa, se monta únicamente en API mediante archivos privados0400 del UID1000. No publicar claves, invitaciones, respaldos ni logs privados.
 
-La invitación inicial se realiza con el servicio de herramientas, sin endpoint público de registro. Más personas se invitan mediante el procedimiento administrativo de [autenticación](authentication.md), con contraseñas distintas entregadas por un canal privado elegido por el propietario.
+Push utiliza opt-in de una sola tablet Android corporativa. Configurar VAPID no suscribe dispositivos ni autoriza mensajes a clientes. Verificar cero dispositivos activos antes del primer arranque del dispatcher. Probar luego recepción real en la tablet y qué aplicación/perfil abre WhatsApp. No afirmar entrega física a partir de mocks. Ver [push](push-cobranza.md).
 
-## Desplegar una versión verificada
+BCV se informa no disponible mientras no haya fuente oficial verificable y vigente. No cargar una tasa DEMO en staging. USD continúa; VES se bloquea de forma explícita.
 
-Los comandos siguientes son para un operador con SSH, desde el release ya comprobado. El archivo privado `shared/staging.env` contiene únicamente `MM_RELEASE`, `MM_APP_ORIGIN` y `MM_SECRETS_DIR`; no contraseñas. `MM_RELEASE` debe identificar el commit/código, sin sobrescribir una etiqueta anterior.
+## Actualización completa
 
-```sh
-docker compose --env-file ../../shared/staging.env -p manzanas-maracay-staging -f compose.staging.yaml --profile tools config --quiet
-COMPOSE_PARALLEL_LIMIT=1 nice -n 15 docker compose --env-file ../../shared/staging.env -p manzanas-maracay-staging -f compose.staging.yaml --profile tools build
-docker compose --env-file ../../shared/staging.env -p manzanas-maracay-staging -f compose.staging.yaml up -d --wait postgres
-docker compose --env-file ../../shared/staging.env -p manzanas-maracay-staging -f compose.staging.yaml --profile tools run --rm --no-deps migrate migrate
-# Solo al crear una invitación nueva (no repetir para el mismo usuario):
-docker compose --env-file ../../shared/staging.env -p manzanas-maracay-staging -f compose.staging.yaml --profile tools run --rm --no-deps migrate invite
-docker compose --env-file ../../shared/staging.env -p manzanas-maracay-staging -f compose.staging.yaml up -d --wait api mm-staging-web
-```
+1. Compilar un commit exacto, revisado y publicado. Cada release tiene su archivo de entorno no secreto y etiquetas propias; nunca sobrescribir imágenes previas.
+2. Registrar identidad, imagen, inicio, salud, redes y puertos propios/ajenos; hash y rutas del proxy; cinco GET de Socios y Pedal antes y después.
+3. Validar Compose y construir con prioridad baja y paralelismo1, sin detener servicios previos.
+4. Detener únicamente API y web propios durante el cambio del esquema: la API antigua no debe escribir en el nuevo libro de costos.
+5. Crear respaldo definitivo sin escritores y probar restauración aislada. Confirmar checksum y conservar imagen/esquema anteriores.
+6. Aplicar migraciones nuevas con herramientas propias. Comparar hashes previos, conteos comerciales, historial físico/auditoría y costo reconstruido. Los cambios de catálogo esperados se registran aparte.
+7. Arrancar solo API/web con `--no-deps`, conservar PostgreSQL, alias y redes; comprobar release, salud, acceso anónimo/demo, acceso interno y denegaciones.
+8. Guardar reporte sin secretos. Mostrar la versión en pantalla; no equiparar un HTTP200 con éxito de migración o integridad.
 
-Antes de actualizar: ejecutar typecheck, unitarios, build y E2E; respaldar la base propia y registrar imágenes previas. Inspeccionar el diff para excluir secretos. La compilación utiliza Node 24 y PostgreSQL 18.6; el volumen de PostgreSQL 18 se monta en `/var/lib/postgresql` según la [imagen oficial](https://hub.docker.com/_/postgres).
+Los scripts públicos `staging-backup.sh` y `staging-restore-check.sh` verifican propiedad, rutas y etiquetas de recursos temporales. El ensayo usa un contenedor sin red y volumen temporal exclusivo, retirados al finalizar. En esquemas de fase 3 verifica además costo/proyección, ventas/asignaciones, abonos y saldos, en modo de solo lectura.
 
-## HTTPS y proxy compartido
+## Reversión
 
-`infra/caddy-staging.snippet` contiene solamente el host nuevo. Se debe agregar al archivo existente, conservando su contenido anterior, después de comprobar su hash, guardar respaldo privado y validar la configuración completa. El proxy necesita acceso a la red `manzanas-maracay-staging_edge` para resolver `mm-staging-web`; no necesita las redes internas de la API o de la base.
+Una publicación **solo web**, sin migración, puede revertirse a la imagen web anterior con manifiesto compatible y `--no-deps`, comprobando API/base y otros hosts intactos.
 
-La adición del registro A de `manzanas` al VPS, la conexión del proxy a esa red y la recarga de Caddy recibieron aprobación específica y se ejecutaron. El registro usa modo DNS only; HTTPS y redirección desde HTTP se verifican por la URL real. Los futuros cambios de infraestructura compartida requieren una autorización acorde con su alcance. No reemplazar configuraciones ni reiniciar servicios ajenos. Una recarga validada usa el mecanismo de [Caddy reload](https://caddyserver.com/docs/command-line#caddy-reload). Staging obliga cookies Secure y origen HTTPS. Un DNS correcto por sí solo no demuestra un despliegue exitoso.
+Después de migrar a fase 3, NO ejecutar escritores de fase 2 sobre el nuevo esquema. Ante fallo, detener solo API/web propios, conservar la base y el respaldo validado, evaluar corrección hacia delante. Si se decide restaurar, preparar un plan concreto únicamente para esta base desde el respaldo de la ventana sin escritores y verificarlo antes de arrancar las imágenes compatibles. No improvisar migraciones inversas, borrar volúmenes ni restaurar todo el proxy.
 
-El nombre del servicio Compose también se anuncia como alias DNS en sus redes. Por eso el servicio se llama `mm-staging-web`, no `web`: conectar el proxy a una red que ofrece otro alias genérico `web` puede desviar solicitudes de aplicaciones ya existentes. Antes de conectar la red, verificar nombres y alias; después, realizar solicitudes GET a cada host afectado además de comprobar la salud de contenedores. La incidencia detectada y su resolución se registran en [infrastructure.md](infrastructure.md).
+Prohibidos `docker system prune`, `down -v`, paradas globales y cambios de proyectos ajenos. Una nueva conexión o recreación del proxy corresponde a su propietario.
 
-Una conexión de red añadida a un contenedor existente puede perderse si su propietario lo recrea. El operador debe documentar y comprobar esa conexión después de cualquier recreación del proxy; no editar por su cuenta el Compose de otro proyecto.
+## Límites
 
-Al conectar la red de borde propia al proxy, usar una prioridad de gateway inferior (`docker network connect --gw-priority -1 ...`) para preservar su ruta de salida existente. Registrar y comparar la ruta antes y después; no asumir que añadir una red deja intacta la selección de gateway. Este control acompaña la comprobación de alias exclusivos y de GET por host.
-
-## Comprobación y reversión
-
-Verificar health checks, login/logout, denegación anónima de API y pantallas, etiqueta de pruebas y una operación DEMO. Comparar identificadores, tiempos de inicio y salud de los contenedores ajenos antes y después; no corregir problemas preexistentes de otras apps durante este despliegue.
-
-Para revertir la aplicación, seleccionar las etiquetas de imágenes anteriores compatibles y conservar **el manifiesto corregido con servicio `mm-staging-web`**, el volumen y los secretos. Nunca reutilizar el Compose antiguo con servicio `web`: reintroduciría el alias que colisionó con Socios. Una migración incompatible requiere restauración del respaldo validado, en una ventana explícita; no ejecutar migraciones inversas improvisadas ni borrar el volumen.
-
-Para retirar la vista previa, detener solo los servicios `mm-staging-web` y `api` del proyecto y desconectar su red de borde. Retirar únicamente el bloque nuevo de Manzanas del proxy con autorización, revisar el diff y validar antes de recargar. La copia previa es una referencia de recuperación, no un archivo para reemplazar ciegamente toda la configuración: otras rutas podrían haber cambiado después. No usar `docker system prune`, paradas globales ni `down -v`.
-
-Los scripts `staging-backup.sh` y `staging-restore-check.sh` respaldan esta base y ensayan la restauración en recursos temporales propios. Los respaldos contienen credenciales con hash y datos: mantenerlos privados, fuera de Git y con copia segura fuera del servidor antes de utilizar información comercial real.
-
-El 4 de noviembre de 2026 se restauró correctamente el respaldo de las 20:47 UTC en un contenedor sin red y volumen propios, verificando tablas, migraciones, usuarios e inventario y retirando después ambos recursos temporales. La copia fuera del VPS y la revisión del propietario son pasos previos al uso de datos reales, no impedimentos para la demostración invitada.
+La restauración de fase 2 fue verificada y su evidencia histórica se conserva. Cada nuevo despliegue completo exige su propio respaldo/ensayo. Sigue pendiente una copia segura fuera del VPS; los dumps contienen datos y hashes privados. Antes de producción también faltan validación fiscal y pruebas en dispositivos reales. Los PDF son comprobantes comerciales, no facturas fiscales SENIAT.

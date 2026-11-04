@@ -1,79 +1,78 @@
 # Reglas permanentes del negocio
 
-Fuentes: prompts de fases 1 y 2 entregados por el propietario y autorización de fase 2 del 4 de noviembre de 2026. Este documento manda sobre ejemplos, imágenes y datos de prueba. El alcance actual incluye catálogo, proveedores, recepción, inventario y autenticación; ventas, cobranza y BCV en vivo siguen fuera de esta fase.
+Fuente primaria: [brief de fase 3](referencias/brief-fase-3.txt), ejecutado por autorización expresa del propietario el 4 de noviembre de 2026. Las entregas de fases 1 y 2 son evidencia histórica; las reglas nuevas de este documento prevalecen sobre sus ejemplos. No se autoriza producción ni fiscalidad SENIAT.
 
-## Catálogo
+## Productos y configuraciones
 
-1. Jerarquía: fruta → variedad → calibre → configuración de empaque → lote.
-2. Se admite cualquier fruta importada. El nombre de variedad y la etiqueta del calibre pertenecen a una fruta. Una combinación no puede mezclar la variedad de una fruta con el calibre de otra.
-3. Calibre es una clasificación comercial de tamaño. Puede ser `80`, `180`, `70/75` u otra etiqueta; **no es una cantidad de frutas**.
-4. Gala 80 con 5 blíster y Gala 180 con 4 blíster son ejemplos editables. No hay bifurcaciones por calibre en el código.
-5. La regla habitual puede cambiar. Un lote conserva referencia, versión y número de blíster que se registraron al recibirlo. Editar el catálogo no modifica lotes existentes.
-6. El catálogo permite crear y consultar frutas, variedades y calibres, y crear/editar empaques. No elimina productos utilizados por otros registros.
+- Fruta → variedad opcional → calibre opcional → línea comercial → configuración → lote. Variedad/calibre, cuando existen, pertenecen a la misma fruta. Una combinación vacía no se representa con una variedad ficticia. Calibre es etiqueta de tamaño, nunca conteo de frutas.
+- Manzana con blíster: Verde, Lady y Gala son nombres comerciales comunicados. Se conserva Pink Lady existente sin asumir equivalencia con Lady. Calibres comunicados: 88, 100, 113, 125, 135, 150, 163, 175 y 198; no se presume que todas las variedades tienen todos ellos. Venta caja/media/blíster, nunca pieza suelta.
+- Manzana granel es una línea de presentación, no variedad. Calibres 150, 163, 175, 198, 216, 232. Caja/media, sin blíster ni conteo por manzana.
+- Pera FORELLE/PACKCAM conserva esos nombres, editables. Calibres comunicados 90, 100, 110, 120 y 135. Caja/media/blíster; cantidad de blíster y preparación de mitad pendientes de confirmación, sin valores inventados.
+- Kiwi no exige variedad ni calibre: caja de 10 kg y media de 5 kg, sin pesar cada venta ni contar kiwis. Uva ROJA/MORADA solo caja, sin pedir kilos, racimos, blíster ni medias.
+- Nuevas frutas pueden definir campos opcionales y presentaciones autorizadas. Mandarina permanece sin reglas hasta confirmación.
+- La configuración usa capacidades genéricas: `packingModel=blister|halves|whole`, `halfPreparation=counted|commercial|pending|none`, presentaciones autorizadas y peso definido opcional. No hay excepciones de código por nombre de fruta.
+- Blíster por caja es editable/sobrescribible por lote; desconocido permanece null. Los ejemplos antiguos Gala80=5 y Gala180=4 no son reglas reales confirmadas. La configuración puede estar pendiente; se bloquean operaciones que necesitan datos ausentes, no se inventan cantidades.
+- Renombrar una variedad requiere nombre anterior coincidente y auditoría. No cambia descripciones históricas de comprobantes.
 
-## Proveedores, recepción y lotes
+## Recepción y precios
 
-- Proveedores: nombre, identificación opcional, teléfono, notas y estado activo. La edición comprueba versión; desactivar no borra su historia. Un proveedor inactivo no puede recibir nuevas recepciones.
-- Una recepción pertenece a un proveedor y tiene referencia única para ese proveedor, fecha, notas y una o varias líneas. Todas las líneas se confirman en una transacción o ninguna se registra.
-- La fase 2 recibe cajas cerradas. Cada línea crea un lote con cantidad recibida, costo unitario USD y empaque histórico. El valor habitual procede del catálogo, pero se permite un empaque de 1 a 100 blíster por caja específico de la línea.
-- Límite operativo por recepción: 50 líneas y 1.000 cajas en total. No son equivalencias de fruta. Las recepciones mayores se dividen.
-- Los datos históricos del lote no se editan después de recibirlo; su versión de inventario avanza con los movimientos. Revertir una recepción conserva su documento, lote y eventos.
-- Se utiliza `Almacén principal`; no hay interfaz de sucursales ni transferencias en esta fase. La migración no carga proveedores ni stock ficticio.
+Una recepción contiene varias líneas revisables antes de confirmar: proveedor, referencia, fecha, configuración, cajas, costo USD y notas. Límite operativo 50 líneas/1.000 cajas; dividir documentos mayores. Recibir crea cajas cerradas con piezas desconocidas. Referencia única por proveedor, idempotencia por operación y transacción única para documento, lotes, stock y cambios explícitos de precios.
 
-## Inventario y conservación
+Cada lote conserva costo, empaque, versión de configuración, modalidad, presentaciones, peso definido y fecha de ingreso. Cambiar catálogo o costo de otra recepción no reescribe estos snapshots. Proveedores se desactivan, no se borran silenciosamente. Un almacén inicial, sin sistema multisucursal todavía.
 
-- Un contenedor identifica un recipiente físico; no constituye una cantidad adicional. Cada caja, blíster intacto y media caja preparada ocupa una identidad con saldo 0 o 1; la fruta suelta usa piezas enteras.
-- Solo las existencias de los elementos terminales se suman. Una caja cerrada con existencia no tiene blíster interiores contabilizados a la vez. Una caja abierta es un contenedor del contenido restante, sin saldo de caja cerrada.
-- Un blíster abierto puede contener fruta suelta contada. Una media caja preparada requiere conteo físico explícito; no es `0,5 × calibre`, ni necesariamente la mitad de los blíster de una caja.
-- `counted_pieces = null` significa **cantidad física desconocida**, nunca cero. Al fraccionar fruta se registra un conteo real. El conteo de empaques intactos se conserva por separado de la cantidad de fruta.
-- Recepción de 3 cajas de 5 blíster y retiro de 1 blíster: 2 cajas cerradas y 4 blíster intactos en un contenedor abierto. Hay 14 blíster equivalentes; no 3 cajas más 4 blíster. Este retiro interno no factura ni crea deuda.
-- Si se cuentan 37 frutas y se entregan 18, deben registrarse 19 restantes. Una media caja preparada no tiene una cantidad fija universal.
-- No se permite saldo negativo, ciclos de contenedores ni un contenedor simultáneamente contado junto con sus descendientes.
-- Tras vaciar una caja abierta se cambia su estado a vacía. Los recipientes vacíos o retirados permanecen en el historial, pero no aumentan el inventario disponible.
-- El retiro consume primero blíster ya disponibles en cajas abiertas y abre cajas cerradas únicamente si hacen falta. Todo ocurre dentro de la misma transacción.
-- Los resúmenes separan cajas cerradas, cajas abiertas con contenido, blíster intactos y abiertos, medias cajas preparadas y piezas contadas. La equivalencia en blíster intactos solo incluye cajas cerradas y blíster intactos; no convierte fracciones o fruta suelta.
+Dos listas independientes por presentación, ambas expresadas en USD: promocional efectivo USD y normal para equivalencia VES. El operador elige Conservar/Actualizar precios; costo de compra no cambia lista automáticamente. Media y blíster no tienen que valer proporcionalmente a la caja. Solo costo de mercancía; no flete, descarga ni gastos accesorios. Margen mostrado es ganancia bruta estimada.
 
-## Contrato de movimientos implementado
+## Inventario físico y costos
 
-La API de fase 2 aplica esta secuencia a recepción, apertura, retiro, preparación, ajuste y reversa:
+- Un recipiente no es otra cantidad adicional. Solo se suman existencias terminales. Caja abierta saldo de caja cerrada cero; hijos disponibles en su interior. Vacíos y retirados permanecen en historial, fuera del disponible.
+- Tres cajas de cinco blíster menos uno: dos cajas cerradas y cuatro blíster en una caja abierta; catorce equivalentes. El retiro prioriza blíster abiertos dentro del lote antes de abrir otra caja.
+- Mitad con conteo: registrar piezas reales contadas = preparadas + remanentes. 37 = 18 + 19; rechazar 18 + 20. No ofrecer esas piezas como presentación de venta.
+- Mitad comercial granel/kiwi: dividir una caja en dos recipientes de media, piezas null. Diez cajas menos caja+media dejan ocho cajas cerradas y una media (8,5 equivalentes), nunca 8,5 cajas cerradas. Kiwi mantiene equivalencia de 5 kg por media.
+- Desconocido null no equivale a cero. Medias contadas no se convierten a una equivalencia ficticia universal. Pera pendiente no habilita fraccionar hasta configurar un método confirmado.
+- Costos NUMERIC/Decimal a cuatro decimales. Abrir/fraccionar distribuye el costo existente: porciones anteriores redondean hacia abajo y la última conserva el residuo. Ejemplo 25/3: 8,3333 + 8,3333 + 8,3334. No crear costo al abrir.
+- Una entrada de costo inmutable acompaña cada movimiento físico; la proyección de costo se concilia con ese historial. La ampliación de fase 2 usa una base de costo trazable reconstruida desde sus snapshots sin editar eventos antiguos. Un costo que no pueda reconstruirse queda desconocido y bloquea vender ese recipiente.
+- Ajustes con motivo conservan historial; reducción de fruta contada reduce proporcionalmente su valor a cuatro decimales. Recuperar existencia desde cero exige reversa admisible o recepción, para conservar fuente/costo. No borrar eventos.
 
-1. Validar sesión, comando y clave de idempotencia; calcular una huella del contenido normalizado y del actor autenticado. El cliente no puede elegir el actor.
-2. Abrir transacción, bloquear la clave, el árbol, el lote y los saldos afectados en orden estable. Repetir una clave con el mismo contenido y actor devuelve el mismo resultado; reutilizarla con otros datos produce conflicto.
-3. Leer empaque del lote, estado y existencias. No consultar servicios externos dentro de esta transacción.
-4. Elaborar salidas y entradas compensadas; en fraccionamientos verificar `contado = entregado + restante`. En apertura de caja conservar blíster según la configuración del lote, sin fabricar conteos de fruta.
-5. Insertar movimiento y entradas inmutables, actualizar proyecciones y contenedores, registrar auditoría y respuesta idempotente en la misma transacción.
-6. Confirmar todo o revertir todo. Reintentar bloqueos transitorios o una respuesta perdida con la misma clave; nunca emitir un segundo movimiento para el mismo intento.
+## Transacciones y FIFO
 
-Las restricciones diferidas de PostgreSQL validan al confirmar el árbol del lote, los saldos no negativos, la ausencia de doble conteo, la suma de entradas por unidad, el estado de la proyección y la secuencia de versiones. El bloqueo del árbol sigue siendo global y conservador: limita escrituras simultáneas entre lotes y requiere revisión antes de una escala mayor.
+Orden común: clave idempotente y huella con actor → bloqueo del árbol → lotes/saldos y documentos en orden estable. Actor siempre de la sesión. Una misma clave/datos/actor devuelve mismo resultado; una clave reutilizada con datos diferentes falla. Todos los cambios, auditoría y respuesta se confirman juntos. Nada de red externa dentro de la transacción.
 
-Movimientos, entradas y auditoría son inmutables. La migración `0005_inventory_history_guard.sql` también impide añadir entradas a un movimiento ya confirmado: deben crearse en su misma transacción y coincidir con sus estados históricos.
+Ventas asignan automáticamente lotes por recepción/creación/ID, compatibles con variante/presentación y entorno DEMO/real. El operario no elige lotes. Se conserva asignación por línea, lote, recipiente, movimiento y costo. Un comprobante y su salida de stock usan el mismo PoolClient/commit; no se crea un segundo stock. Una caja completa requiere caja cerrada; no se arma ficticiamente con equivalentes.
 
-Un ajuste exige motivo y cantidades enteras. En fruta suelta la cantidad y las piezas cambian juntas; una media caja conserva un conteo explícito. No se transforma una cantidad desconocida en cero por conveniencia.
+10 cajas a 25 más 10 a 27, vender 12 a 40: costo 304, ingreso 480, bruto 176; quedan ocho cajas del segundo lote. FIFO es asignación contable; se documenta que la selección física puede diferir. No reescribir documentos históricos para corregir esa diferencia.
 
-La reversa crea un movimiento compensatorio y restaura estados y cantidades anteriores. Solo admite el último movimiento de un lote, una vez, sin movimientos posteriores y sin revertir otra reversa. Los contenedores que se crearon se conservan vacíos. No se permite borrar historial para corregir una operación. Consulta [inventory-model.md](inventory-model.md) para contratos y ejemplos.
+PostgreSQL impide cantidades negativas, padres incompatibles/ciclos, doble conteo, proyección sin ledger, modificaciones históricas y entradas tardías. La serialización conservadora puede limitar escala; se prioriza integridad y no se hacen llamadas de red dentro del bloqueo.
 
-## Precios y ventas futuras
+## Ventas, documentos y correcciones
 
-- Dos bases de precio por producto y presentación: promoción USD efectivo y regular para bolívares. Ambas referencias están expresadas en USD.
-- El propietario puede pactar precio unitario. Se conservan precio de referencia, precio pactado, cantidad, presentación y descripción del producto como instantáneas de la venta.
-- 5 cajas pactadas a USD 38 suman USD 190; esto no altera el precio del catálogo.
-- Contado o crédito se eligen libremente. No introducir jerarquías de aprobación o bloqueos administrativos.
-- Importes en PostgreSQL `numeric(18,4)`; tasas `numeric(20,8)`. En TypeScript se utilizan cadenas decimales y Decimal; no aritmética financiera con `number`. Totales presentados/cobrados se redondean a 2 decimales con criterio explícito.
+Clientes con teléfono internacional normalizado opcional. Múltiples líneas, cantidad entera por presentación autorizada, precio de referencia obtenido del servidor y pactado editable. Caja+media se expresan como dos líneas, no 1,5 cajas cerradas. Cinco cajas a 38 totalizan 190 sin modificar lista.
 
-## Cobros y BCV futuros
+Contado/crédito sin aprobaciones ni límites comerciales. Crédito puede tener pago inicial cero (ausencia de abono, no asiento cero), fecha pactada o ninguna. Confirmar descuenta stock una sola vez. Moneda de referencia/deuda USD; mostrar bruto estimado sin otros gastos.
 
-- La deuda permanece denominada en USD. Las cuentas por cobrar se derivan de ventas confirmadas y aplicaciones de pagos, no de un saldo editable independiente.
-- Un cobro en VES requiere una tasa BCV positiva, oficial, verificada y vigente en el momento del cobro. Se conserva referencia a su registro histórico inmutable.
-- Vigencia con intervalo `[valid_from, valid_until)`. Una tasa futura, vencida o no verificada bloquea la conversión; no se reemplaza silenciosamente por la última conocida.
-- Nunca usar tasas paralelas ni proveedor alternativo. No afirmar que hay API oficial sin verificarlo.
-- Existe la interfaz desacoplada `OfficialRateProvider`. `UnconfiguredBcvProvider` devuelve `null`; no contiene números ficticios. Los valores de los tests son sintéticos y no llegan a la interfaz ni a las semillas.
-- Antes de habilitar cobranza se deben implementar verificaciones transaccionales de aplicación máxima por factura/pago, cliente coincidente, redondeo, reversas, tasas e inmutabilidad de documentos confirmados. La estructura SQL por sí sola no es un sistema contable listo.
+PDF con logo y numeración única comercial, fecha Caracas, cliente, productos, cantidades, precio pactado, total, abonos y saldo. Etiqueta COMPROBANTE DE VENTA, sin afirmar validez fiscal. El PDF del cliente no expone costos de compra internos.
 
-## Datos y seguridad operativa
+Anular o corregir genera eventos compensatorios; nunca borra ventas confirmadas. Anulación completa solo cuando no hay abonos activos y el movimiento de cada lote puede revertirse sin dependencias posteriores; restituye la misma fuente/costo. Reversar abono genera evento nuevo. Devoluciones parciales y condiciones particulares siguen pendientes de decisión, sin un flujo improvisado.
 
-- No tocar otras bases, archivos privados, volúmenes, servicios, DNS, firewall ni certificados de proyectos existentes.
-- Staging está autorizado en una base y recursos exclusivos del proyecto, con HTTPS, sesión y etiqueta `ENTORNO DE PRUEBAS`. La URL confirmada es `https://manzanas.ganamosclub.net`; su publicación efectiva debe comprobarse en la entrega. No se autoriza producción. Los cambios concretos de DNS/proxy u otra infraestructura compartida requieren aprobación específica.
-- Credenciales fuera de Git, capturas, logs y documentación. El rol de la aplicación no es superusuario; recibe solo los permisos de catálogo, recepción, inventario, sesiones, auditoría e idempotencia necesarios. La creación de usuarios utiliza el rol de preparación, no un endpoint público.
-- Los usuarios invitados comparten las funciones de esta fase; no se inventan roles administrativos. La API exige sesión para las operaciones, valida origen en mutaciones y obtiene el actor del usuario autenticado.
-- Historial y auditoría son append-only. Corregir hechos históricos mediante un evento compensatorio, no borrándolos.
-- No representar nombres de ejemplo como existencias, ventas o indicadores reales. Staging y pruebas usan bases separadas, y el servidor marca sus nuevas recepciones como DEMO. No copiar inventario comercial real para una demostración.
+## Abonos, fechas y BCV
+
+Saldo USD derivado de venta confirmada menos aplicaciones de abonos activos. Desde un comprobante se preselecciona; desde cliente se elige explícitamente. Reparto entre varias facturas tiene suma revisable exacta. No aplicar exceso ni asignarlo a otra deuda automáticamente. Bloqueos y restricciones impiden sobrepago concurrente. USD y VES son las únicas monedas habilitables; no USDT.
+
+Cada abono positivo confirmado conserva importe/moneda original, equivalente USD, fecha, método, actor, aplicaciones y saldo restante, con recibo PDF comercial. No se envía automáticamente a WhatsApp. Pagada queda saldo cero y fuera de pendientes.
+
+Fecha pactada y recordatorio interno son distintos; 7/15 días o calendario personalizado. Cambios dejan eventos; no se sobrescribe vencimiento original. Reloj y agrupación comerciales America/Caracas en servidor, no zona del navegador.
+
+Una conversión VES necesita registro BCV oficial positivo, verificado y vigente al momento del cobro, leído por servidor. Intervalo [validFrom,validUntil); fuente HTTPS oficial, hash y fechas históricas. Nunca número del navegador, tasa paralela, futura/vencida ni fixture como tasa real. Si no puede verificarse origen/vigencia, tasa no disponible y VES bloqueado; USD sigue funcionando. Deuda histórica USD no varía con BCV posterior. No hay API oficial supuesta ni TLS desactivado. Procedimiento manual de verificación requiere decisión específica antes de activarlo.
+
+## Cobranza y comunicaciones
+
+Centro in-app hoy/próximas/vencidas y fallback permanente. WhatsApp usa chat del número internacional guardado con texto prellenado y saldo actual; el operador pulsa Enviar. No envíos autónomos ni Meta Cloud API. El dispositivo debe comprobar qué aplicación/perfil abre.
+
+Push requiere configuración VAPID externa y opt-in explícito de una sola tablet corporativa, reemplazo auditable y deduplicación factura/fecha. No se suscriben todos los socios. Aviso agrupado genérico sin datos privados en pantalla bloqueada; el centro autenticado muestra detalle. Sin configuración/dispositivo, informar estado y no afirmar entrega probada.
+
+## Demo, acceso y operación segura
+
+Demo pública en /demo con datos sintéticos claramente marcados, solo lectura o simulación aislada sin persistencia operativa. No consulta GET privados ni recibe sesión/token interno. Acceso interno autenticado, cookies seguras, CSRF y límites de intentos siguen activos. La publicidad del repositorio no publica datos.
+
+Staging tiene base/recursos propios, datos DEMO y etiqueta ENTORNO DE PRUEBAS. Producción no autorizada. No tocar aplicaciones/bases/volúmenes ajenos; alias único mm-staging-web. DNS/proxy/firewall/red compartida requieren autorización concreta adicional. Secretos, sesiones, claves y backups fuera de Git, capturas y logs. Rol aplicación con privilegios mínimos; invitaciones mediante herramienta privada.
+
+Revisar build/tipos/unitarias/E2E, base limpia y actualización desde fase2, concurrency, accesibilidad y tamaños 390/800/1024/1440. No declarar producción lista sin copia externa del respaldo, revisión fiscal y prueba en dispositivos reales. Aplicar la skill manzanas-inventory-integrity y registrar resultados actuales, no solo textos o capturas.

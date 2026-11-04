@@ -375,7 +375,9 @@ test('PostgreSQL rechaza proyección sin ledger y modificación de instantáneas
   const box = state.containers[0];
   await database(async (client) => {
     await client.query("update containers set state='empty' where id=$1", [box.id]);
-    await client.query('update stock_balances set quantity=0 where container_id=$1', [box.id]);
+    await client.query('update stock_balances set quantity=0,cost_usd=0 where container_id=$1', [
+      box.id,
+    ]);
     await expect(client.query('set constraints all immediate')).rejects.toMatchObject({
       code: '23514',
     });

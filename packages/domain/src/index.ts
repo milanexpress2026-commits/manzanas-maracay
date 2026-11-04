@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js';
+import { presentationSchema, type Presentation } from './commerce';
 export * from './inventory';
+export * from './commerce';
 
 export const nameSchema = z
   .string()
@@ -9,25 +11,73 @@ export const nameSchema = z
   .max(80, 'Usa como máximo 80 caracteres.');
 export const fruitSchema = z.object({ name: nameSchema }).strict();
 export const varietySchema = z.object({ name: nameSchema, fruitId: z.uuid() }).strict();
+export const updateVarietySchema = z
+  .object({ name: nameSchema, expectedName: nameSchema })
+  .strict();
 export const caliberSchema = z
   .object({ label: z.string().trim().min(1).max(30), fruitId: z.uuid() })
   .strict();
+export type PackingModel = 'blister' | 'halves' | 'whole';
+export type HalfPreparation = 'counted' | 'commercial' | 'pending' | 'none';
+const packingFields = {
+  blistersPerBox: z.number().int().min(1).max(100).nullable().default(null),
+  packingModel: z.enum(['blister', 'halves', 'whole']).default('blister'),
+  halfPreparation: z.enum(['counted', 'commercial', 'pending', 'none']).default('counted'),
+  allowedPresentations: z
+    .array(presentationSchema)
+    .min(1)
+    .max(3)
+    .default(['box', 'half_box', 'blister']),
+  boxWeightKg: z
+    .string()
+    .regex(/^\d{1,4}(\.\d{1,3})?$/)
+    .refine((v) => new Decimal(v).gt(0))
+    .nullable()
+    .default(null),
+  confirmationStatus: z.enum(['confirmed', 'pending']).default('pending'),
+  notes: z.string().trim().max(500).default(''),
+};
+function validPacking(value: {
+  packingModel: PackingModel;
+  halfPreparation: HalfPreparation;
+  allowedPresentations: Presentation[];
+  blistersPerBox: number | null;
+}) {
+  const p = value.allowedPresentations;
+  if (new Set(p).size !== p.length || !p.includes('box')) return false;
+  if (value.packingModel === 'whole')
+    return value.blistersPerBox === null && p.length === 1 && value.halfPreparation === 'none';
+  if (value.packingModel === 'halves')
+    return (
+      value.blistersPerBox === null &&
+      !p.includes('blister') &&
+      value.halfPreparation === 'commercial'
+    );
+  return ['counted', 'pending', 'none'].includes(value.halfPreparation);
+}
 export const configurationSchema = z
   .object({
     fruitId: z.uuid(),
-    varietyId: z.uuid(),
-    caliberId: z.uuid(),
-    blistersPerBox: z.number().int().min(1).max(100),
-    notes: z.string().trim().max(500).default(''),
+    varietyId: z.uuid().nullable().default(null),
+    caliberId: z.uuid().nullable().default(null),
+    commercialLine: z.string().trim().min(1).max(80).default('Estándar'),
+    ...packingFields,
   })
-  .strict();
+  .strict()
+  .refine(
+    validPacking,
+    'Las presentaciones y el método de preparación no corresponden al empaque.',
+  );
 export const updatePackingSchema = z
   .object({
-    blistersPerBox: z.number().int().min(1).max(100),
-    notes: z.string().trim().max(500).default(''),
+    ...packingFields,
     version: z.number().int().positive(),
   })
-  .strict();
+  .strict()
+  .refine(
+    validPacking,
+    'Las presentaciones y el método de preparación no corresponden al empaque.',
+  );
 export type Fruit = { id: string; name: string };
 export type Variety = Fruit & { fruitId: string };
 export type Caliber = { id: string; fruitId: string; label: string };
@@ -35,12 +85,19 @@ export type Configuration = {
   id: string;
   variantId: string;
   fruitId: string;
-  varietyId: string;
-  caliberId: string;
+  varietyId: string | null;
+  caliberId: string | null;
   fruit: string;
-  variety: string;
-  caliber: string;
-  blistersPerBox: number;
+  variety: string | null;
+  caliber: string | null;
+  commercialLine: string;
+  blistersPerBox: number | null;
+  packingModel: PackingModel;
+  halfPreparation: HalfPreparation;
+  allowedPresentations: Presentation[];
+  boxWeightKg: string | null;
+  confirmationStatus: 'confirmed' | 'pending';
+  prices: { presentation: Presentation; promoUsd: string | null; regularUsd: string | null }[];
   notes: string;
   version: number;
 };

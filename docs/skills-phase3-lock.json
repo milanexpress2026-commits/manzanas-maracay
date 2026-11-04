@@ -1,0 +1,529 @@
+{
+  "auditedAt": "2026-11-04",
+  "skills": [
+    {
+      "name": "supabase-postgres-best-practices",
+      "repository": "https://github.com/supabase/agent-skills",
+      "commit": "c9be0e931b7930f7d02126d04774d904c381e7d7",
+      "sourcePath": "skills/supabase-postgres-best-practices",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "CHANGELOG.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/CHANGELOG.md",
+          "sha256": "751ad110037c85d400018c9894716a04fa46357ff55c22b1169b280752e19e88"
+        },
+        {
+          "path": "LICENSE",
+          "sourcePath": "LICENSE",
+          "sha256": "b65e575eb4f04a13c187d64e958321298e2ab84d67aa8428819f362056ba292c"
+        },
+        {
+          "path": "references/_contributing.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/_contributing.md",
+          "sha256": "191e039e7d94764e6073410b513b559f9a594e0fdf0252a30c2a2986df2ab3bc"
+        },
+        {
+          "path": "references/_sections.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/_sections.md",
+          "sha256": "c9e992612b422c7122de0b7542ebc2450db283edaab08cfe86c6d657fcccccd5"
+        },
+        {
+          "path": "references/_template.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/_template.md",
+          "sha256": "6299954250f212caabe339d752c3e5313a8e07d1a182a4e4b425baee91df1bd2"
+        },
+        {
+          "path": "references/advanced-full-text-search.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/advanced-full-text-search.md",
+          "sha256": "40c2606bbb4c4dce31308f201b24cc7f58c7df05b1d9c6856fe2b888d3b7cf28"
+        },
+        {
+          "path": "references/advanced-jsonb-indexing.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/advanced-jsonb-indexing.md",
+          "sha256": "24cacf6a8bc35901dd566d24502ce8e57f810a5c196b897e61d52726e521d106"
+        },
+        {
+          "path": "references/conn-idle-timeout.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/conn-idle-timeout.md",
+          "sha256": "630588902c00fcec59a5988cc5d042f76dcf2c923a535abfd8c47dca205eaed5"
+        },
+        {
+          "path": "references/conn-limits.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/conn-limits.md",
+          "sha256": "11b2a67a7c7679cbbc5d807bbb17e69c98484a581d0c8b929c03408f412b81b2"
+        },
+        {
+          "path": "references/conn-pooling.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/conn-pooling.md",
+          "sha256": "88cf086bf98ba865d2e9d0579974e1366b14157619d6a93e7da77be91084e4a5"
+        },
+        {
+          "path": "references/conn-prepared-statements.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/conn-prepared-statements.md",
+          "sha256": "174e9332fe3dda5c99b2b00159fb1915ae36c00bab3a7882c14e73e4344e946e"
+        },
+        {
+          "path": "references/data-batch-inserts.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/data-batch-inserts.md",
+          "sha256": "531933b82d6a622d0fae29e0ea80be6fe5d78655adf2804c271ea84a1930de37"
+        },
+        {
+          "path": "references/data-n-plus-one.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/data-n-plus-one.md",
+          "sha256": "21a44905e5b16a42741892ec34bb1bfef124d049b140a76934a9acd0f46f5fc2"
+        },
+        {
+          "path": "references/data-pagination.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/data-pagination.md",
+          "sha256": "73c9fa10a3d439bedea0e11b640bd25bf30dd50f0d9006cf85baf7c3151543fa"
+        },
+        {
+          "path": "references/data-upsert.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/data-upsert.md",
+          "sha256": "2612af83b20a2701dde30ef1f8d7efd26b7e9eef84717226b8f038a2d2150ff7"
+        },
+        {
+          "path": "references/lock-advisory.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/lock-advisory.md",
+          "sha256": "c88d259dbf81c3771438f59a165f7eab8acd09999dd370bdf807521c73f35aab"
+        },
+        {
+          "path": "references/lock-deadlock-prevention.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/lock-deadlock-prevention.md",
+          "sha256": "09aee46f51d7178c8e55fe056cd5a94a64ba2c122fe418e6900cd99f297b2347"
+        },
+        {
+          "path": "references/lock-short-transactions.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/lock-short-transactions.md",
+          "sha256": "5aa7f61095916986d39644b446cdbcd2bacca7ef698a3bb50b3f82dd60207602"
+        },
+        {
+          "path": "references/lock-skip-locked.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/lock-skip-locked.md",
+          "sha256": "6c45077f430f29cd9cd8f448c94d578e827e7bd023fcdaf717a756acb116fa4b"
+        },
+        {
+          "path": "references/monitor-explain-analyze.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/monitor-explain-analyze.md",
+          "sha256": "4cb67ffbf8e57f2e5b380b0beb4242528b513723ce314a2c2ffcf083bd4203d7"
+        },
+        {
+          "path": "references/monitor-pg-stat-statements.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/monitor-pg-stat-statements.md",
+          "sha256": "89dca99d4e894fcbdcac136be7ad9fbc03d1342904f065c1b198dc9cf495f098"
+        },
+        {
+          "path": "references/monitor-vacuum-analyze.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/monitor-vacuum-analyze.md",
+          "sha256": "2892272011710eb49b3f185ec12f15ce9ce4c365792c672f6e2a9c90da426a1a"
+        },
+        {
+          "path": "references/query-composite-indexes.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/query-composite-indexes.md",
+          "sha256": "73e42424e671f0266e74fdb220db3196790f69fb43e2b19c7b9483eb4971b554"
+        },
+        {
+          "path": "references/query-covering-indexes.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/query-covering-indexes.md",
+          "sha256": "daf2a7f0477fb7357b62b5fb5b185b1995a77a186347e45cb780e25e7a7589b6"
+        },
+        {
+          "path": "references/query-index-types.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/query-index-types.md",
+          "sha256": "472a74f22c2df203bd0154999b3a5a0187cca2ab3d9a3978e305bb7c32f1a282"
+        },
+        {
+          "path": "references/query-missing-indexes.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/query-missing-indexes.md",
+          "sha256": "91ad8b0ff4365704b4830a7f077c6f140f7140fd5d3ce5cd0b92b160cf9e25f1"
+        },
+        {
+          "path": "references/query-partial-indexes.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/query-partial-indexes.md",
+          "sha256": "6448982bc8558c6555284958edc331b29239c6a0130e6b4501dd6d4da607a6dd"
+        },
+        {
+          "path": "references/schema-constraints.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/schema-constraints.md",
+          "sha256": "90e8efda3e9e81095e642911ad4aae2809d160f29414338fa997253238f510f8"
+        },
+        {
+          "path": "references/schema-data-types.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/schema-data-types.md",
+          "sha256": "e01b58c14c7f3f65d8ead580b9a4fcf70b83baaab0f9a5f83c569c9fd113e8c8"
+        },
+        {
+          "path": "references/schema-foreign-key-indexes.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/schema-foreign-key-indexes.md",
+          "sha256": "7587713d12a65a212365459b3d39e4717d8a79e4073b10bd62f1054d8192c0dd"
+        },
+        {
+          "path": "references/schema-lowercase-identifiers.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/schema-lowercase-identifiers.md",
+          "sha256": "4bc80f70865f2390872591f326c8a6be6456a0aeb5a7e5a2475d7cd9d43059ab"
+        },
+        {
+          "path": "references/schema-partitioning.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/schema-partitioning.md",
+          "sha256": "541e13fbeaf4bb1485c9059d4c9417dbdb766cf16f4237cd63a04ada7ec45b90"
+        },
+        {
+          "path": "references/schema-primary-keys.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/schema-primary-keys.md",
+          "sha256": "3c8beabef82066f9a0838b926da0885117fd2d9a263aaf84cb5ca9e5f0d400e9"
+        },
+        {
+          "path": "references/security-privileges.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/security-privileges.md",
+          "sha256": "095909274a4fb43df785d7144cf674eeb40284d2d45628f14af4108737b93663"
+        },
+        {
+          "path": "references/security-rls-basics.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/security-rls-basics.md",
+          "sha256": "e04dd1a3a382aafdaaa73fe9f7976352acdde6e90c2a2470d281b94d4f44b096"
+        },
+        {
+          "path": "references/security-rls-performance.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/references/security-rls-performance.md",
+          "sha256": "2e1faeca7d5746e246b1c78f9492fe2a9cfa41c4d7fa1e23c402d58fa18ea014"
+        },
+        {
+          "path": "SKILL.md",
+          "sourcePath": "skills/supabase-postgres-best-practices/SKILL.md",
+          "sha256": "ad65e776f45e761bafc609d3f506c77c1032225aa65e0c4c02f241b8071e5855"
+        }
+      ]
+    },
+    {
+      "name": "docker-compose-patterns",
+      "repository": "https://github.com/docker/skills",
+      "commit": "090ff3d39db5f8bc55d4e951c26218e7c95ea2d3",
+      "sourcePath": "skills/docker-compose-patterns",
+      "license": "Apache-2.0",
+      "files": [
+        {
+          "path": "agents/openai.yaml",
+          "sourcePath": "skills/docker-compose-patterns/agents/openai.yaml",
+          "sha256": "aec9d1df3cb1ce775e36d499da60ee728ad079516e26865a59007af276e1a424"
+        },
+        {
+          "path": "assets/bad-vs-good.md",
+          "sourcePath": "skills/docker-compose-patterns/assets/bad-vs-good.md",
+          "sha256": "f7de35332fa1c57f141a3df2e30fa82d109858ed00609a566536625b3df9eef8"
+        },
+        {
+          "path": "assets/compose-dev-override.yaml",
+          "sourcePath": "skills/docker-compose-patterns/assets/compose-dev-override.yaml",
+          "sha256": "d01ff97e0860e712c981c7100d1ce8f5e0cd18ed4a55b2237bbff604be01c2ad"
+        },
+        {
+          "path": "assets/compose-web-app.yaml",
+          "sourcePath": "skills/docker-compose-patterns/assets/compose-web-app.yaml",
+          "sha256": "b9fa2b9162533724f3295b06377f76f8be5d13a428cb5572865c9d1420ded7e4"
+        },
+        {
+          "path": "checks/verification.md",
+          "sourcePath": "skills/docker-compose-patterns/checks/verification.md",
+          "sha256": "0b41c98fc7f76d878f26187395df50c95ad9882b90d0c0a86536ab3e617956f5"
+        },
+        {
+          "path": "LICENSE",
+          "sourcePath": "LICENSE",
+          "sha256": "3bb33f65872155f0801efc9f6732e2868eb338c5ed6a81eec5c775c1382761cb"
+        },
+        {
+          "path": "references/service-dependencies.md",
+          "sourcePath": "skills/docker-compose-patterns/references/service-dependencies.md",
+          "sha256": "54f2d8a2b0b84e5639da76c9c0b85a4b5f12f33cff407fd1a44febc7ba8f12bb"
+        },
+        {
+          "path": "references/volumes-and-networks.md",
+          "sourcePath": "skills/docker-compose-patterns/references/volumes-and-networks.md",
+          "sha256": "b7d077cbb3ddbdf3c1cc3fae0475604477f30ee8a905c4c5feb0ac42ffa66c23"
+        },
+        {
+          "path": "scripts/verify-compose.sh",
+          "sourcePath": "skills/docker-compose-patterns/scripts/verify-compose.sh",
+          "sha256": "42ba672ba1b933f00c2871c37c1e60067685b5ff58d25b1f1264f171c219ebd2"
+        },
+        {
+          "path": "SKILL.md",
+          "sourcePath": "skills/docker-compose-patterns/SKILL.md",
+          "sha256": "b43f4d71a18159de5868e0f1a352f0dd091bb81fe3ad29b24d79cffce6adfc4c"
+        },
+        {
+          "path": "skill.yaml",
+          "sourcePath": "skills/docker-compose-patterns/skill.yaml",
+          "sha256": "2f00f4fb618c32a8ace611dc66267572036e5494ec183ae53350107f35f4e342"
+        }
+      ]
+    },
+    {
+      "name": "docker-build-strategies",
+      "repository": "https://github.com/docker/skills",
+      "commit": "090ff3d39db5f8bc55d4e951c26218e7c95ea2d3",
+      "sourcePath": "skills/docker-build-strategies",
+      "license": "Apache-2.0",
+      "files": [
+        {
+          "path": "agents/openai.yaml",
+          "sourcePath": "skills/docker-build-strategies/agents/openai.yaml",
+          "sha256": "9fc985ee4a18fefaf4e50e078f3469f80f60713ae87698303a2a9d95f3b91176"
+        },
+        {
+          "path": "assets/Dockerfile.go",
+          "sourcePath": "skills/docker-build-strategies/assets/Dockerfile.go",
+          "sha256": "04a56fd7b3617dbf83cc177532f216e999112c59e5e2f66f7fdde9c219eccdd7"
+        },
+        {
+          "path": "assets/Dockerfile.nodejs",
+          "sourcePath": "skills/docker-build-strategies/assets/Dockerfile.nodejs",
+          "sha256": "0758d34aaba0879fc88fc7e4f1a9716b23af0b7ef0aee7c394498e67871266eb"
+        },
+        {
+          "path": "assets/Dockerfile.python",
+          "sourcePath": "skills/docker-build-strategies/assets/Dockerfile.python",
+          "sha256": "c3f4c4d3f0ee27f6dbe5022db721daf641a569d34ae017d0999b251f00d0a78b"
+        },
+        {
+          "path": "assets/dockerignore-example",
+          "sourcePath": "skills/docker-build-strategies/assets/dockerignore-example",
+          "sha256": "c6a9a826899d82de2203ae47821bb08eb878b5370ac3cb92013f1ab9259bd500"
+        },
+        {
+          "path": "checks/verification.md",
+          "sourcePath": "skills/docker-build-strategies/checks/verification.md",
+          "sha256": "71e6e6f55d5754304e8e04281d5e6dec2ad8ba36d0460f716c3c4b4d18457d19"
+        },
+        {
+          "path": "LICENSE",
+          "sourcePath": "LICENSE",
+          "sha256": "3bb33f65872155f0801efc9f6732e2868eb338c5ed6a81eec5c775c1382761cb"
+        },
+        {
+          "path": "references/layer-caching.md",
+          "sourcePath": "skills/docker-build-strategies/references/layer-caching.md",
+          "sha256": "bacaf379622bd018e5aa2c0b20ff9ae94fcf9b8640ff7b75f2b4b8b17b6f25c7"
+        },
+        {
+          "path": "references/multi-stage-builds.md",
+          "sourcePath": "skills/docker-build-strategies/references/multi-stage-builds.md",
+          "sha256": "0faf45c4ce1582ab78ce15b5e918ca57d783bb261e9e97d7d807115c5b46a337"
+        },
+        {
+          "path": "scripts/verify-build.sh",
+          "sourcePath": "skills/docker-build-strategies/scripts/verify-build.sh",
+          "sha256": "d52633ba734587b1a0513366a4e13f771edff538492c42df8020d74d2ba7532b"
+        },
+        {
+          "path": "SKILL.md",
+          "sourcePath": "skills/docker-build-strategies/SKILL.md",
+          "sha256": "7ff24758ebacdf2b3010f75ec3fe4b6692661ca6202e813520b37d3975392b1c"
+        },
+        {
+          "path": "skill.yaml",
+          "sourcePath": "skills/docker-build-strategies/skill.yaml",
+          "sha256": "ada7a02bd259603e0b6850e642d258a01f7b6db016c5fa3543a280b2ad6be8ad"
+        }
+      ]
+    },
+    {
+      "name": "docker-destructive-guardrails",
+      "repository": "https://github.com/docker/skills",
+      "commit": "090ff3d39db5f8bc55d4e951c26218e7c95ea2d3",
+      "sourcePath": "skills/docker-destructive-guardrails",
+      "license": "Apache-2.0",
+      "files": [
+        {
+          "path": "agents/openai.yaml",
+          "sourcePath": "skills/docker-destructive-guardrails/agents/openai.yaml",
+          "sha256": "cc3084947725e24bde5c52dddc4faa544696afb4f6390e1119595d069aa842c6"
+        },
+        {
+          "path": "checks/verification.md",
+          "sourcePath": "skills/docker-destructive-guardrails/checks/verification.md",
+          "sha256": "5d598d6987b75463e81b7d58fa4ecc979d84e27bf92b4a11d782948c90acb75a"
+        },
+        {
+          "path": "LICENSE",
+          "sourcePath": "LICENSE",
+          "sha256": "3bb33f65872155f0801efc9f6732e2868eb338c5ed6a81eec5c775c1382761cb"
+        },
+        {
+          "path": "references/cross-skill-destructive-command-index.md",
+          "sourcePath": "skills/docker-destructive-guardrails/references/cross-skill-destructive-command-index.md",
+          "sha256": "9966353cd1d057757ca653b745593cc0b3d6eb3ef192fe0545737a52acf9fbec"
+        },
+        {
+          "path": "references/docker-cli-destructive-commands.md",
+          "sourcePath": "skills/docker-destructive-guardrails/references/docker-cli-destructive-commands.md",
+          "sha256": "7dd1df8187883d3b73fb7d3a941d590f18650667e25cbf779cba4ccf5eef56ef"
+        },
+        {
+          "path": "SKILL.md",
+          "sourcePath": "skills/docker-destructive-guardrails/SKILL.md",
+          "sha256": "d64c2b7a497aff8b48e4e70432e274267cc201be67c3be8e2852f506d02f68de"
+        },
+        {
+          "path": "skill.yaml",
+          "sourcePath": "skills/docker-destructive-guardrails/skill.yaml",
+          "sha256": "8b61688ab0bf60f4540d687f6519619fe2ad9b7e15c290ebeafa82b6cd0366dc"
+        }
+      ]
+    },
+    {
+      "name": "security-review",
+      "repository": "https://github.com/getsentry/skills",
+      "commit": "0c464f411bdfb8d4c12314b36264d06cb2f60270",
+      "sourcePath": "skills/security-review",
+      "license": "CC-BY-SA-4.0 (OWASP references); Apache-2.0 (repository)",
+      "files": [
+        {
+          "path": "infrastructure/docker.md",
+          "sourcePath": "skills/security-review/infrastructure/docker.md",
+          "sha256": "84bd49469c5a0cbd42fecdcce752de98cf6821b601dfef6a1920df61f030ae62"
+        },
+        {
+          "path": "languages/javascript.md",
+          "sourcePath": "skills/security-review/languages/javascript.md",
+          "sha256": "f4226c82de13da9dec9be7b509932d74a4ade2c8d46b98a078a5b38bf8aa3319"
+        },
+        {
+          "path": "languages/python.md",
+          "sourcePath": "skills/security-review/languages/python.md",
+          "sha256": "32d0b1304d132fc582320d584d54bbaea566d51700cd16b3f0be723ed834a556"
+        },
+        {
+          "path": "LICENSE",
+          "sourcePath": "skills/security-review/LICENSE",
+          "sha256": "0fc858d87f467971ee612fc183896257a1c160a1610a443896b33ae4d2a44ef7"
+        },
+        {
+          "path": "LICENSE-repository",
+          "sourcePath": "LICENSE",
+          "sha256": "96e78a9ce85795b117c8929887bdb78f88bf23f7b85a31f0872cde4dff7e92cd"
+        },
+        {
+          "path": "references/api-security.md",
+          "sourcePath": "skills/security-review/references/api-security.md",
+          "sha256": "65b2456b4c5ae0d6d9849eac8196ac03fbefbf88657c5e069a8aa5063dd6afbf"
+        },
+        {
+          "path": "references/authentication.md",
+          "sourcePath": "skills/security-review/references/authentication.md",
+          "sha256": "7bc598cd4af33bb62406f5a0e8ff7adebff83c04e5fb449e6738f96ae0e26be6"
+        },
+        {
+          "path": "references/authorization.md",
+          "sourcePath": "skills/security-review/references/authorization.md",
+          "sha256": "5ccfd579a1eca4d9d374eb00b04ba33cc9a2918e14e5cb7620c136a6feaeffff"
+        },
+        {
+          "path": "references/business-logic.md",
+          "sourcePath": "skills/security-review/references/business-logic.md",
+          "sha256": "fc8ec30eb19f73759e8901e58d7ca66fc87035703325cc8a844298102fa6298a"
+        },
+        {
+          "path": "references/cryptography.md",
+          "sourcePath": "skills/security-review/references/cryptography.md",
+          "sha256": "1e1301624e0c9b1699e1d95af11df06a67d104ff06443e93711bb656152f364c"
+        },
+        {
+          "path": "references/csrf.md",
+          "sourcePath": "skills/security-review/references/csrf.md",
+          "sha256": "7b57ba0a45a291eee24578af8b0c69515c76e452c33d8c2d717c66ee3bbdda20"
+        },
+        {
+          "path": "references/data-protection.md",
+          "sourcePath": "skills/security-review/references/data-protection.md",
+          "sha256": "920b7dfb86dc696002d31022c1f7665ef602dd1ed76f1124ad937d488ce2b381"
+        },
+        {
+          "path": "references/deserialization.md",
+          "sourcePath": "skills/security-review/references/deserialization.md",
+          "sha256": "be9946daf389ad594fbc4065246ff334c389da1e2cf593180ca150b0204287fb"
+        },
+        {
+          "path": "references/error-handling.md",
+          "sourcePath": "skills/security-review/references/error-handling.md",
+          "sha256": "e12d3c9f713614223ce797935f3a4c2ac1a7f1fcf0ea24e865a1a70efeab4fb9"
+        },
+        {
+          "path": "references/file-security.md",
+          "sourcePath": "skills/security-review/references/file-security.md",
+          "sha256": "a0a001fb79fe9f1169fa3ba523225164744c42d8779341f15d3d0fc349185f2a"
+        },
+        {
+          "path": "references/injection.md",
+          "sourcePath": "skills/security-review/references/injection.md",
+          "sha256": "d3989e97af773f521170b430a0e629b26c6ff2051cd826fa62a895523f268178"
+        },
+        {
+          "path": "references/logging.md",
+          "sourcePath": "skills/security-review/references/logging.md",
+          "sha256": "acca4eeebfc451bb62a7c085d1121ffa443e8cd0831548c2ae6f7fc606056cbc"
+        },
+        {
+          "path": "references/misconfiguration.md",
+          "sourcePath": "skills/security-review/references/misconfiguration.md",
+          "sha256": "919c44e309eaa6427a8bb44a2ed645fbf2b46d9dfe86a0fcdb2d084201898390"
+        },
+        {
+          "path": "references/modern-threats.md",
+          "sourcePath": "skills/security-review/references/modern-threats.md",
+          "sha256": "d2ac69d91ade6df9c4bf89b2be0d203651d1a0cc5a67d03db8013af52c8ffe6b"
+        },
+        {
+          "path": "references/ssrf.md",
+          "sourcePath": "skills/security-review/references/ssrf.md",
+          "sha256": "646a8244fa61997b9b4f093169be1af4f94e6a3d04dcae8d426bb821870b2bff"
+        },
+        {
+          "path": "references/supply-chain.md",
+          "sourcePath": "skills/security-review/references/supply-chain.md",
+          "sha256": "ef3000d91763ccdddfbce2660943c4090b4c16b3b33afe980f4e10947729e1f1"
+        },
+        {
+          "path": "references/xss.md",
+          "sourcePath": "skills/security-review/references/xss.md",
+          "sha256": "4735df1e581b757b078605fbc27d37e85cfe182c45ab326c9e536c71a930680c"
+        },
+        {
+          "path": "SKILL.md",
+          "sourcePath": "skills/security-review/SKILL.md",
+          "sha256": "26db9a5b1999adc19c4bf6eb7fbe37b56f0135b79f3054f33fd03baefa8e93ed"
+        },
+        {
+          "path": "SPEC.md",
+          "sourcePath": "skills/security-review/SPEC.md",
+          "sha256": "e8dcb0a851bc70a99f7fcab3e10da0045c615415245463d808e08104b1917b42"
+        }
+      ]
+    },
+    {
+      "name": "review-animations",
+      "repository": "https://github.com/emilkowalski/skills",
+      "commit": "c8a79627b59d72d764d6ab6f2c87c09a48169833",
+      "sourcePath": "skills/review-animations",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sourcePath": "LICENSE",
+          "sha256": "4ff5bdb7887ec1435c9cab0e8d1a7caee704d894d65c2a008ccc68b1cc2f260b"
+        },
+        {
+          "path": "SKILL.md",
+          "sourcePath": "skills/review-animations/SKILL.md",
+          "sha256": "5f9fb98b69cace7107af8b393a4196fd42fa42d98bce0e5afc1f866ff3b8a41c"
+        },
+        {
+          "path": "STANDARDS.md",
+          "sourcePath": "skills/review-animations/STANDARDS.md",
+          "sha256": "8f5fe3f5a04537556dd4e6a37f7a8d6f616d840eb80f2f68b5b594febb170657"
+        }
+      ]
+    }
+  ]
+}

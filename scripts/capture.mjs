@@ -40,7 +40,7 @@ try {
     { width: 390, height: 844 },
   ]) {
     await page.setViewportSize(viewport);
-    await page.goto('http://127.0.0.1:3100/');
+    await page.goto('http://127.0.0.1:3100/catalogo');
     await page.waitForLoadState('networkidle');
     await page.getByText('Guardado en PostgreSQL').waitFor();
     await page.getByRole('button', { name: 'Ver Manzana Gala calibre 80', exact: true }).click();

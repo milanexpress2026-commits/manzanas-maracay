@@ -114,7 +114,7 @@ if ! docker exec -i "$container" psql -X -U mm_owner -d "$database" -v ON_ERROR_
 BEGIN READ ONLY;
 SET LOCAL statement_timeout='60s';
 DO $$
-DECLARE required_table text;
+DECLARE required_table text; commercial_document uuid;
 BEGIN
   IF current_database()<>'manzanas_maracay_staging' THEN RAISE EXCEPTION 'Unexpected database'; END IF;
   FOREACH required_table IN ARRAY ARRAY['fruits','varieties','calibers','packing_rules','suppliers','purchases','purchase_lines','lots','containers','stock_balances','inventory_movements','inventory_entries','audit_events','app_users','auth_sessions','auth_login_buckets'] LOOP
@@ -150,6 +150,74 @@ BEGIN
        FROM inventory_movements WHERE lot_id=l.id) m ON true
     WHERE l.inventory_version<>coalesce(m.last_version,0) OR m.total<>l.inventory_version OR m.versions<>m.total
   ) THEN RAISE EXCEPTION 'Restored lot history disagrees'; END IF;
+
+  -- Phase 2 archives have neither cost ledger nor commercial allocations. Keep
+  -- their rehearsal valid while checking every available Phase 3 extension.
+  IF to_regclass('public.inventory_cost_entries') IS NOT NULL THEN
+    IF to_regclass('public.inventory_cost_openings') IS NULL THEN
+      RAISE EXCEPTION 'Missing restored cost opening table';
+    END IF;
+    IF EXISTS(
+      SELECT 1 FROM stock_balances balance
+      LEFT JOIN LATERAL (
+        SELECT id,after_usd FROM inventory_cost_entries
+        WHERE container_id=balance.container_id ORDER BY entry_order DESC LIMIT 1
+      ) latest ON true
+      LEFT JOIN inventory_cost_openings opening ON opening.container_id=balance.container_id
+      WHERE (latest.id IS NULL AND opening.container_id IS NULL)
+        OR balance.cost_usd IS DISTINCT FROM CASE WHEN latest.id IS NULL THEN opening.cost_usd ELSE latest.after_usd END
+        OR (balance.quantity=0 AND balance.cost_usd>0)
+    ) THEN RAISE EXCEPTION 'Restored stock cost and its ledger disagree'; END IF;
+    IF EXISTS(
+      SELECT 1 FROM (
+        SELECT container_id,before_usd,
+          lag(after_usd) OVER(PARTITION BY container_id ORDER BY entry_order) AS previous_cost,
+          row_number() OVER(PARTITION BY container_id ORDER BY entry_order) AS position
+        FROM inventory_cost_entries
+      ) history LEFT JOIN inventory_cost_openings opening ON opening.container_id=history.container_id
+      WHERE history.before_usd IS DISTINCT FROM
+        CASE WHEN history.position=1 THEN opening.cost_usd ELSE history.previous_cost END
+    ) THEN RAISE EXCEPTION 'Restored cost ledger chain disagrees'; END IF;
+    IF EXISTS(
+      SELECT 1 FROM inventory_cost_entries entry
+      JOIN inventory_movements movement ON movement.id=entry.movement_id
+      LEFT JOIN LATERAL (
+        SELECT value FROM jsonb_array_elements(movement.after_state) AS snapshot(value)
+        WHERE snapshot.value->>'id'=entry.container_id::text
+      ) after_snapshot ON true
+      LEFT JOIN LATERAL (
+        SELECT value FROM jsonb_array_elements(movement.before_state) AS snapshot(value)
+        WHERE snapshot.value->>'id'=entry.container_id::text
+      ) before_snapshot ON true
+      WHERE after_snapshot.value IS NULL OR NOT(after_snapshot.value ? 'costUsd')
+        OR entry.after_usd IS DISTINCT FROM (after_snapshot.value->>'costUsd')::numeric
+        OR (before_snapshot.value ? 'costUsd' AND entry.before_usd IS DISTINCT FROM (before_snapshot.value->>'costUsd')::numeric)
+    ) THEN RAISE EXCEPTION 'Restored cost entries and movement snapshots disagree'; END IF;
+    RAISE NOTICE 'Phase 3 cost projection, chain and snapshots verified';
+  END IF;
+
+  IF to_regclass('public.sale_allocations') IS NOT NULL THEN
+    FOREACH required_table IN ARRAY ARRAY['sales','sale_lines','clients','payments','payment_applications','sale_date_events','sale_cancellations','payment_reversals'] LOOP
+      IF to_regclass('public.'||required_table) IS NULL THEN RAISE EXCEPTION 'Missing restored commercial table'; END IF;
+    END LOOP;
+    IF to_regprocedure('public.validate_commercial_sale(uuid)') IS NULL
+      OR to_regprocedure('public.validate_commercial_payment(uuid)') IS NULL THEN
+      RAISE EXCEPTION 'Missing restored commercial validators';
+    END IF;
+    -- These validators only SELECT. Reuse the database's authoritative checks
+    -- for line totals, FIFO sources/costs, atomic movement snapshots, payment
+    -- allocation and historical BCV, without writing a document or firing DML.
+    FOR commercial_document IN SELECT id FROM sales LOOP
+      PERFORM validate_commercial_sale(commercial_document);
+    END LOOP;
+    FOR commercial_document IN SELECT id FROM payments LOOP
+      PERFORM validate_commercial_payment(commercial_document);
+    END LOOP;
+    IF EXISTS(SELECT 1 FROM receivables WHERE balance_usd<0 OR total_usd-paid_usd<>balance_usd) THEN
+      RAISE EXCEPTION 'Restored receivable balances disagree';
+    END IF;
+    RAISE NOTICE 'Phase 3 sales, FIFO allocations, payments and receivables verified';
+  END IF;
 END $$;
 SELECT 'lots' AS object,count(*) AS restored_rows FROM lots
 UNION ALL SELECT 'movements',count(*) FROM inventory_movements

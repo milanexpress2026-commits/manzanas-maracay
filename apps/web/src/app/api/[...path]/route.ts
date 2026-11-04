@@ -6,21 +6,41 @@ const UUID = '[0-9a-fA-F-]{36}';
 function allowedRoute(method: string, endpoint: string) {
   if (method === 'GET')
     return (
-      ['catalog', 'health', 'auth/me', 'suppliers', 'inventory'].includes(endpoint) ||
-      new RegExp(`^inventory/lots/${UUID}$`).test(endpoint)
+      [
+        'catalog',
+        'health',
+        'auth/me',
+        'suppliers',
+        'inventory',
+        'clients',
+        'prices',
+        'sales',
+        'payments',
+        'collections',
+        'push/status',
+        'rates/current',
+      ].includes(endpoint) ||
+      new RegExp(`^inventory/lots/${UUID}$`).test(endpoint) ||
+      new RegExp(`^(clients|sales|payments)/${UUID}$`).test(endpoint) ||
+      new RegExp(`^(sales|payments)/${UUID}/document$`).test(endpoint)
     );
   if (method === 'POST')
     return (
-      /^(auth\/(login|logout)|catalog\/(fruits|varieties|calibers|configurations)|suppliers|receipts)$/.test(
+      /^(auth\/(login|logout)|catalog\/(fruits|varieties|calibers|configurations)|suppliers|receipts|clients|prices|sales|payments|push\/(subscribe|unsubscribe))$/.test(
         endpoint,
       ) ||
       new RegExp(
-        `^inventory/lots/${UUID}/(open-box|withdraw-blisters|open-blister|prepare-half|adjust)$`,
+        `^inventory/lots/${UUID}/(open-box|split-halves|withdraw-blisters|open-blister|prepare-half|adjust)$`,
       ).test(endpoint) ||
-      new RegExp(`^inventory/movements/${UUID}/reverse$`).test(endpoint)
+      new RegExp(`^inventory/movements/${UUID}/reverse$`).test(endpoint) ||
+      new RegExp(`^sales/${UUID}/(dates|cancel)$`).test(endpoint) ||
+      new RegExp(`^payments/${UUID}/reverse$`).test(endpoint)
     );
   return (
-    method === 'PATCH' && new RegExp(`^(catalog/configurations|suppliers)/${UUID}$`).test(endpoint)
+    method === 'PATCH' &&
+    new RegExp(`^(catalog/configurations|catalog/varieties|suppliers|clients)/${UUID}$`).test(
+      endpoint,
+    )
   );
 }
 
@@ -49,6 +69,11 @@ async function limitedBody(request: NextRequest) {
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const endpoint = path.join('/');
+  if (request.method === 'DELETE')
+    return NextResponse.json(
+      { message: 'No se permite borrar operaciones ni documentos.' },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+    );
   if (!allowedRoute(request.method, endpoint))
     return NextResponse.json({ message: 'Ruta no disponible.' }, { status: 404 });
   const config = webAuthConfig();
@@ -90,10 +115,21 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
     };
     const cookie = response.headers.get('set-cookie');
     if (cookie && ['auth/login', 'auth/logout'].includes(endpoint)) headers['Set-Cookie'] = cookie;
     if (response.status === 429) headers['Retry-After'] = '60';
+    if (
+      response.ok &&
+      new RegExp(`^(sales|payments)/${UUID}/document$`).test(endpoint) &&
+      response.headers.get('content-type')?.startsWith('application/pdf')
+    ) {
+      headers['Content-Type'] = 'application/pdf';
+      headers['Content-Disposition'] =
+        response.headers.get('content-disposition') ?? 'attachment; filename="comprobante.pdf"';
+      return new NextResponse(await response.arrayBuffer(), { status: response.status, headers });
+    }
     return new NextResponse(await response.text(), { status: response.status, headers });
   } catch {
     return NextResponse.json(
@@ -104,4 +140,4 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     );
   }
 }
-export { proxy as GET, proxy as POST, proxy as PATCH };
+export { proxy as GET, proxy as POST, proxy as PATCH, proxy as DELETE };

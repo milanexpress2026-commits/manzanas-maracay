@@ -1,6 +1,4 @@
-import { CatalogScreen } from '@/components/catalog-screen';
-import { requireSession } from '@/lib/server-auth';
-export default async function Page() {
-  const session = await requireSession();
-  return <CatalogScreen session={session} />;
+import { PublicHome } from '@/components/public-home';
+export default function Page() {
+  return <PublicHome />;
 }

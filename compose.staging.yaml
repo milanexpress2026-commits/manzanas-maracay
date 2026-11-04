@@ -42,7 +42,7 @@ services:
     restart: 'no'
     profiles: [tools]
     image: manzanas-maracay-tools:${MM_RELEASE:?Identifica la versión}
-    build: {context: ., dockerfile: infra/Dockerfile, target: tools}
+    build: {context: ., dockerfile: infra/Dockerfile, target: tools, args: {MM_RELEASE: '${MM_RELEASE:?Identifica la versión}'}}
     environment:
       MM_APP_ENV: staging
       MM_APP_ORIGIN: ${MM_APP_ORIGIN:?Configura el dominio HTTPS confirmado}
@@ -57,9 +57,10 @@ services:
   api:
     <<: *runtime
     image: manzanas-maracay-api:${MM_RELEASE:?Identifica la versión}
-    build: {context: ., dockerfile: infra/Dockerfile, target: api}
+    build: {context: ., dockerfile: infra/Dockerfile, target: api, args: {MM_RELEASE: '${MM_RELEASE:?Identifica la versión}'}}
     environment:
       MM_APP_ENV: staging
+      MM_RELEASE: ${MM_RELEASE:?Identifica la versión}
       MM_APP_ORIGIN: ${MM_APP_ORIGIN:?Configura el dominio HTTPS confirmado}
       MM_API_HOST: 0.0.0.0
       MM_API_PORT: '3101'
@@ -79,9 +80,10 @@ services:
   mm-staging-web:
     <<: *runtime
     image: manzanas-maracay-web:${MM_RELEASE:?Identifica la versión}
-    build: {context: ., dockerfile: infra/Dockerfile, target: web}
+    build: {context: ., dockerfile: infra/Dockerfile, target: web, args: {MM_RELEASE: '${MM_RELEASE:?Identifica la versión}'}}
     environment:
       MM_APP_ENV: staging
+      MM_RELEASE: ${MM_RELEASE:?Identifica la versión}
       MM_APP_ORIGIN: ${MM_APP_ORIGIN:?Configura el dominio HTTPS confirmado}
       MM_API_BASE_URL: http://api:3101
       MM_INTERNAL_TOKEN_FILE: /run/secrets/internal_token

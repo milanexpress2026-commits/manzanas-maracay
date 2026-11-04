@@ -23,7 +23,7 @@ test('sin sesión: pantalla privada redirige y las APIs rechazan lectura y escri
   page,
   request,
 }) => {
-  await page.goto('/');
+  await page.goto('/catalogo');
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: 'Bienvenido a Manzanas Maracay' })).toBeVisible();
   for (const endpoint of ['catalog', 'suppliers', 'inventory', 'auth/me'])
@@ -47,7 +47,7 @@ test('login real, persistencia al recargar, cookie protegida, CSRF y logout', as
   await page.getByLabel('Usuario', { exact: true }).fill(credentials.username);
   await page.getByLabel('Contraseña', { exact: true }).fill(credentials.password);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-  await expect(page).toHaveURL('http://127.0.0.1:3200/');
+  await expect(page).toHaveURL('http://127.0.0.1:3200/catalogo');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Catálogo de productos' })).toBeVisible();
   const cookie = (await context.cookies()).find((c) => c.name === 'mm_session');
