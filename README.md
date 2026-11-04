@@ -50,6 +50,8 @@ docs/                     Arquitectura, reglas, revisión y capturas
 
 ## Verificación
 
+`npm run typecheck` genera primero los tipos de rutas de Next.js. Puede ejecutarse después de `npm ci` en un clon nuevo, sin iniciar la aplicación ni compilarla antes. El archivo generado `apps/web/next-env.d.ts` y la carpeta `.next` no se versionan.
+
 ```powershell
 npm run typecheck
 npm test
