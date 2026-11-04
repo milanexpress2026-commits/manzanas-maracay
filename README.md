@@ -4,7 +4,9 @@ Aplicación para una distribuidora venezolana de frutas importadas. La **fase 2*
 
 Repositorio público por autorización del propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-2/inventario-staging`, basada en `phase-1/foundations`. [Contexto para continuar la revisión en otro chat](docs/continuar-en-chatgpt.md).
 
-La visibilidad del código no da acceso a la aplicación ni a sus datos. La URL de staging confirmada es [manzanas.ganamosclub.net](https://manzanas.ganamosclub.net): su publicación, DNS, proxy y HTTPS están pendientes de verificación al redactar este documento. No es una entrega de producción. El estado de infraestructura se registra en [docs/infrastructure.md](docs/infrastructure.md).
+La vista previa está activa en **[manzanas.ganamosclub.net](https://manzanas.ganamosclub.net)**, con HTTPS y acceso invitado, sobre la release `phase2-7ae1d75` (`7ae1d7504d31623e771fba5015361ae04ca9a4ef`). Las pruebas externas y el ensayo de restauración están aprobados. Durante la integración hubo un 502 temporal en Socios por una colisión de alias Docker; se corrigió y cinco rondas GET verificaron Manzanas, Socios y Pedal después de reconectar. La visibilidad pública del código no permite consultar datos sin sesión. Evidencia: [entrega de fase 2](docs/entrega-fase-2.md).
+
+Para revisar el código, está abierto el [PR #1 en borrador](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1). Para entrar desde teléfono o computadora, utiliza la cuenta entregada por un canal privado. Las cuentas individuales de los socios se preparan al recibir sus nombres de usuario; no se comparten contraseñas por chat.
 
 ## Abrir en esta computadora
 
@@ -77,7 +79,7 @@ Cierra `npm run dev` antes de las pruebas de extremo a extremo: ambas usan el pu
 
 El esquema evoluciona con `npm run db:generate` y `npm run db:migrate`. No uses `drizzle-kit push` ni reescribas migraciones aplicadas. Hay seis migraciones, de `0000` a `0005`; las últimas añaden inventario operativo, sesiones y cierre de escritura del historial. El migrador admite únicamente las bases locales del proyecto o su base de staging aislada con configuración explícita. Las pruebas nunca usan staging.
 
-La fase 1 conserva sus resultados históricos en su entrega. La verificación final de fase 2 está en curso; no se deduce un resultado aprobado de la mera existencia de tests.
+Fase 2 verificada: tipos y compilación aprobados, 23/23 pruebas unitarias y 32/32 escenarios de navegador/API/PostgreSQL. Se aplicaron las seis migraciones desde una base de pruebas nueva. La [entrega de fase 2](docs/entrega-fase-2.md) contiene resultados, capturas y el estado externo del staging; la entrega de fase 1 conserva su evidencia histórica.
 
 ## Docker como alternativa de desarrollo
 
@@ -88,16 +90,19 @@ Después de generar `.env` con el iniciador y detenerlo, una máquina con Docker
 ## Documentación
 
 - [Entrega de la fase 1](docs/entrega-fase-1.md)
+- [Entrega y staging verificados de fase 2](docs/entrega-fase-2.md)
 - [Plan autorizado de fase 2](docs/plan-fase-2.md)
 - [Revisión del punto de partida](docs/revision-fase-1.md)
 - [Inventario operativo y garantías](docs/inventory-model.md)
 - [Reglas permanentes del negocio](docs/domain-rules.md)
 - [Arquitectura y modelo de datos](docs/architecture.md)
 - [Inspección de infraestructura](docs/infrastructure.md)
+- [Operación, respaldo y reversión de staging](docs/staging.md)
+- [Acceso por invitación y sesiones](docs/authentication.md)
 - [Skills y revisión de procedencia](docs/skills.md)
 - [Revisión visual y accesibilidad](docs/visual-review.md)
-- [Descripción preparada para el PR](docs/pull-request.md)
+- [Descripción histórica de revisión de fase 1](docs/pull-request.md)
 - [Continuar la revisión en otro chat](docs/continuar-en-chatgpt.md)
 - [Logo oficial y activos de marca](docs/brand-assets.md)
 
-El logo oficial del propietario se conserva en `apps/web/public/brand/logo-manzanas-maracay.png` y se usa como fuente de las versiones para interfaz e instalación. La PWA ofrece instalación y una página sin conexión; no guarda datos operativos en caché ni registra operaciones comerciales sin conexión. Las tablas comerciales futuras no habilitan ventas, cobranza, WhatsApp ni BCV. La publicación de staging requiere completar la verificación de aislamiento, HTTPS, acceso y respaldo.
+El logo oficial del propietario se conserva en `apps/web/public/brand/logo-manzanas-maracay.png` y se usa como fuente de las versiones para interfaz e instalación. La PWA ofrece instalación y una página sin conexión; no guarda datos operativos en caché ni registra operaciones comerciales sin conexión. Las tablas comerciales futuras no habilitan ventas, cobranza, WhatsApp ni BCV. Antes de incorporar datos comerciales reales, corresponde revisar el flujo con el propietario y guardar una copia segura del respaldo fuera del VPS.

@@ -1,0 +1,111 @@
+{
+  "release_commit": "7ae1d7504d31623e771fba5015361ae04ca9a4ef",
+  "environment": "staging",
+  "url": "https://manzanas.ganamosclub.net",
+  "https_and_auth": {
+    "health": 200,
+    "anonymousApi": 401,
+    "anonymousPage": 307,
+    "authenticated": true,
+    "demoOnly": true,
+    "secureCookie": true,
+    "csrfRejected": true,
+    "logoutRevoked": true,
+    "httpRedirect": 308,
+    "tls": {
+      "authorized": true,
+      "issuer": "Let's Encrypt",
+      "validUntil": "Feb  2 19:54:31 2027 GMT"
+    }
+  },
+  "public_hosts_after_correction": {
+    "verifiedAt": "2026-11-04T21:08:33.062Z",
+    "rounds": [
+      {
+        "attempt": 1,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 2,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 3,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 4,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 5,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      }
+    ]
+  }
+}

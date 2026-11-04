@@ -33,7 +33,7 @@ La ejecución final confirmó tipos, compilación, 23 pruebas unitarias y 32 esc
 - Recepción de dos líneas, revisión antes de confirmar y conservación del formulario ante pérdida de la respuesta. El reintento mantiene la misma clave y devuelve una sola recepción.
 - Detalle de lote DEMO, apertura de caja y blíster, conteo de 37 piezas, rechazo de 18 + 20, preparación de 18 + 19, ajuste y reversa. La recarga conserva cantidades e historial.
 - Error explícito al fallar la consulta de inventario y recuperación mediante `Reintentar`; sin errores de página en el escenario de navegación auditado.
-- [auth.spec.ts](../tests/e2e/auth.spec.ts) comprueba redirección de visitantes al acceso, inicio de sesión, persistencia al recargar y cierre de sesión. No confundir estas pruebas locales con una verificación HTTPS externa ya terminada.
+- [auth.spec.ts](../tests/e2e/auth.spec.ts) comprueba redirección de visitantes al acceso, inicio de sesión, persistencia al recargar y cierre de sesión. Las comprobaciones externas de HTTPS y sesión se registran por separado en la entrega.
 
 ## Capturas reales de fase 2
 
@@ -50,6 +50,10 @@ Las capturas proceden del entorno local autenticado. El lote DEMO muestra tres c
 | Revisión de media caja      | [1440 × 1000](capturas/fase2-media-caja-escritorio.png)  | [390 × 844](capturas/fase2-media-caja-movil.png)  |
 
 Las imágenes `modelo-*` de `docs/referencias` siguen siendo conceptos del propietario. Las capturas del catálogo se actualizaron con la interfaz actual; los PNG anteriores se conservan en el historial Git de fase 1. Sus cifras y conclusiones históricas permanecen en aquella entrega. Las imágenes de fase 2 proceden de datos de demostración; no documentan ventas, cuentas por cobrar ni una tasa BCV.
+
+## Comprobación visual de staging
+
+Se abrió la URL HTTPS, se inició sesión con la cuenta invitada del propietario y se consultó el inventario DEMO. Tras desplegar la corrección `7ae1d75` se recargó la aplicación y se actualizó la [captura real de staging](capturas/staging-escritorio.jpg) de página completa. Se inspeccionó la versión final: muestra el logo, la navegación, la franja `ENTORNO DE PRUEBAS` y dos cajas cerradas más cuatro blíster intactos, equivalencia catorce. La imagen no contiene credenciales. Esta evidencia añade una captura remota a las trece locales; no sustituye la revisión operativa del proxy ni las pruebas de dispositivos reales.
 
 ## Límites
 

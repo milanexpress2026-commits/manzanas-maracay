@@ -99,9 +99,9 @@ El migrador solo admite bases del proyecto en loopback/puerto 55432 o `manzanas_
 | --------------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
 | Local                 | `127.0.0.1:3100` / `127.0.0.1:3101`             | `manzanas_maracay_dev`, PostgreSQL portable en `127.0.0.1:55432` |
 | Pruebas automatizadas | `127.0.0.1:3200` / `127.0.0.1:3201`             | `manzanas_maracay_test`, nunca staging                           |
-| Staging previsto      | `https://manzanas.ganamosclub.net`, API interna | Base, red, volumen y credenciales exclusivos                     |
+| Staging activo        | `https://manzanas.ganamosclub.net`, API interna | Base, red, volumen y credenciales exclusivos                     |
 
-La URL de staging está confirmada; su publicación y verificación externa están pendientes al redactar este documento. [infrastructure.md](infrastructure.md) contiene el estado operativo. No se afirma un despliegue de producción.
+Staging está activo sobre `phase2-7ae1d75`, commit `7ae1d7504d31623e771fba5015361ae04ca9a4ef`. Tras la aprobación específica se añadió DNS y el host de Caddy, con recarga sin reiniciar servicios. Una colisión del alias genérico `web` produjo un 502 temporal en Socios; se corrigió renombrando el servicio propio a `mm-staging-web`. La red se reconectó con prioridad de gateway −1, conservando la ruta por defecto y las demás rutas previas del proxy. Cinco rondas GET verificaron Manzanas, Socios y Pedal, y se repitió el smoke HTTPS de sesión. API y PostgreSQL permanecen internos. [infrastructure.md](infrastructure.md) registra la incidencia y su resolución. No se desplegó producción.
 
 `npm run dev` prepara e inicia el entorno local; `npm run check` ejecuta tipos, unitarias y compilación; `npm run test:e2e` administra sus servicios de prueba. PostgreSQL portable mediante `embedded-postgres` se limita a desarrollo/pruebas. El flujo Docker local es una alternativa que requiere validación en una máquina con Docker; no debe usar el puerto 55432 a la vez que la base portable.
 
@@ -109,4 +109,4 @@ La URL de staging está confirmada; su publicación y verificación externa est�
 
 El manifiesto y los iconos derivan del logo oficial, documentado en [brand-assets.md](brand-assets.md). El service worker ofrece una página de desconexión; no guarda respuestas operativas ni encola escrituras. Las capturas de Chromium no equivalen a validación en todos los dispositivos o Safari.
 
-Antes de producción deben revisarse restauración y retención de respaldos, observabilidad, recuperación de acceso, volumen real, paginación y contención del inventario. Esta fase no incorpora ventas, cobranza, listas de precios operativas, WhatsApp, transferencias entre almacenes ni proveedor BCV en vivo. El cierre de pruebas y la publicación se documentarán cuando se verifiquen, sin confundir código preparado con servicios desplegados.
+El ensayo de restauración de staging se completó en recursos aislados y se verificó su limpieza. Antes de usar datos comerciales reales falta una copia segura fuera del VPS y la revisión del propietario; antes de producción deben revisarse además retención, observabilidad, recuperación de acceso, volumen real, paginación y contención del inventario. Esta fase no incorpora ventas, cobranza, listas de precios operativas, WhatsApp, transferencias entre almacenes ni proveedor BCV en vivo. La [entrega de fase 2](entrega-fase-2.md) distingue pruebas locales, comprobaciones externas y release desplegada.
