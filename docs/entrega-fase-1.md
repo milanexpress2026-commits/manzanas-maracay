@@ -99,7 +99,7 @@ El archivo de accesos del propietario y su llave no forman parte del proyecto, d
 ## Limitaciones y pendientes
 
 1. **Logo oficial pendiente:** adjuntar el archivo original, preferiblemente SVG o PNG de buena calidad.
-2. **GitHub pendiente:** no se proporcionó un remoto autorizado. Hay repositorio Git local en `phase-1/foundations` y [descripción preparada para el PR](pull-request.md), pero no existe PR publicado.
+2. **Repositorio privado autorizado:** [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay), rama de trabajo `phase-1/foundations`. Se conserva la [descripción preparada para revisión](pull-request.md). No hay PR porque el repositorio nuevo no tiene aún una rama base distinta; no se realizó merge ni despliegue.
 3. **Docker Compose preparado, no ejecutado:** Docker no está instalado en esta computadora. Se verificó PostgreSQL real portable. Antes de adoptar Compose se debe validar ese camino en un entorno aislado.
 4. **Acceso solo local:** esta fase no incorpora autenticación de producción y no debe exponerse a Internet. El token entre interfaz y API no sustituye el inicio de sesión de personas.
 5. **BCV desacoplado, sin conexión automática:** no se obtuvo un dato oficial vigente verificable ni se afirmó que exista una API oficial. El proveedor sin configurar devuelve ausencia de tasa.
@@ -111,6 +111,8 @@ El archivo de accesos del propietario y su llave no forman parte del proyecto, d
 En la carpeta del proyecto, ejecutar `npm run dev` y abrir **http://127.0.0.1:3100**. Instrucciones completas en [README](../README.md). Los servicios se dejan detenidos al finalizar la revisión; el iniciador los vuelve a levantar sin perder registros.
 
 Próximo paso recomendado: revisar el catálogo con el propietario, recibir el logo oficial y confirmar las configuraciones de empaque. Después de aprobar esta fase, diseñar e implementar recepción de lotes y fraccionamientos con conteos físicos, reversas y pruebas de concurrencia. No se avanzó automáticamente a esa fase.
+
+Para trasladar el contexto a otra conversación, utiliza el [prompt de continuación](continuar-en-chatgpt.md), que señala los documentos y límites que deben conservarse.
 
 ## Fuentes técnicas consultadas
 

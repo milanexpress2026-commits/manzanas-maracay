@@ -42,6 +42,6 @@ Durante QA se resolvió un problema de Windows: el cierre del grupo de procesos 
 
 ## GitHub
 
-No se proporcionó ni se detectó un remoto autorizado de Manzanas Maracay. No se creó un repositorio público ni se envió código a uno ajeno. El código queda en Git local y la descripción del PR está preparada.
+Repositorio privado autorizado por el propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). La rama de trabajo es `phase-1/foundations`. Esta autorización corresponde al código de Manzanas Maracay; no incluye publicar la aplicación ni acceder a proyectos ajenos.
 
-Para habilitar revisión: crear o indicar el repositorio de este proyecto, autenticar Git/GitHub en el propio equipo (o conectar el plugin GitHub), añadir ese remoto y subir `phase-1/foundations`. No pegar tokens, contraseñas ni llaves en el chat. Crear el PR hacia la rama base elegida; no hacer merge automático.
+No hay PR: el repositorio es nuevo y todavía no dispone de una rama base distinta para comparar esta primera entrega. La descripción de revisión se conserva en `docs/pull-request.md`. No se realizó merge ni despliegue. Las credenciales, llaves, bases locales y dependencias quedan fuera del código versionado; no compartirlas en el chat.

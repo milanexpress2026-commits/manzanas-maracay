@@ -2,6 +2,8 @@
 
 Aplicación comercial para una distribuidora venezolana de frutas importadas. Esta entrega cubre la **fase 1: fundamentos y catálogo**, con datos reales en PostgreSQL local. No incluye facturación, cobranza ni despliegue público.
 
+Repositorio privado autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-1/foundations`. [Contexto para continuar la revisión en otro chat](docs/continuar-en-chatgpt.md).
+
 ## Abrir en esta computadora
 
 1. Abre una terminal en esta carpeta.
@@ -80,5 +82,6 @@ Después de generar `.env` con el iniciador y detenerlo, una máquina con Docker
 - [Skills y revisión de procedencia](docs/skills.md)
 - [Revisión visual y accesibilidad](docs/visual-review.md)
 - [Descripción preparada para el PR](docs/pull-request.md)
+- [Continuar la revisión en otro chat](docs/continuar-en-chatgpt.md)
 
 El logo oficial sigue pendiente. El encabezado y el icono de instalación usan texto temporal. El acceso actual es local y no sustituye una autenticación de producción. La PWA ofrece instalación y una página sin conexión; no guarda operaciones comerciales sin conexión.

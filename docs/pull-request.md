@@ -26,4 +26,4 @@ Ver resultados finales en `docs/entrega-fase-1.md`: tipos, compilación, 11 prue
 
 No se implementan ventas, cobranza ni movimientos completos. No se publica el sitio ni se modifica el VPS. La autenticación productiva y el logo oficial siguen pendientes. Docker no se probó en esta máquina. El esquema comercial futuro requiere sus servicios e invariantes adicionales antes de habilitarlo.
 
-Rama local: `phase-1/foundations`. No hay remoto GitHub ni PR publicado. El propietario debe indicar el repositorio autorizado y la rama base antes de subir y abrir la revisión. No hacer merge automáticamente.
+Repositorio privado autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-1/foundations`. No hay PR porque el repositorio nuevo todavía no dispone de una rama base distinta con la que comparar esta entrega. Esta descripción queda preparada para la revisión. No se realizó merge ni despliegue; no hacerlos automáticamente.
