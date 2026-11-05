@@ -49,11 +49,13 @@ Se usan CSS y Radix existentes; no se agregó una librería de animación. Los d
 
 Revisión de código siguiendo la skill local `review-animations` (Emil Kowalski, MIT; procedencia en docs/skills.md):
 
-| Antes de revisar | Resultado aplicado | Motivo |
-| --- | --- | --- |
-| Salida con `ease-in` | Curva de salida rápida común | La respuesta comienza de inmediato. |
-| Animación de pestañas, indicador activo y mensajes | Eliminada | Son interacciones frecuentes y no necesitan movimiento. |
-| Transiciones de colores y movimiento sin curva común | Transformación con curva explícita; colores instantáneos | Reducir trabajo visual y mantener consistencia. |
-| Diálogos controlados sin referencia al disparador | Restauración de foco conectada al elemento de apertura | Permitir continuar operando con teclado. |
+| Antes de revisar                                     | Resultado aplicado                                       | Motivo                                                  |
+| ---------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------- |
+| Salida con `ease-in`                                 | Curva de salida rápida común                             | La respuesta comienza de inmediato.                     |
+| Animación de pestañas, indicador activo y mensajes   | Eliminada                                                | Son interacciones frecuentes y no necesitan movimiento. |
+| Transiciones de colores y movimiento sin curva común | Transformación con curva explícita; colores instantáneos | Reducir trabajo visual y mantener consistencia.         |
+| Diálogos controlados sin referencia al disparador    | Restauración de foco conectada al elemento de apertura   | Permitir continuar operando con teclado.                |
 
 Las capturas de fase 2 conservan la referencia anterior. La suite UI de fase 3 genera capturas reales en `docs/capturas/fase3`; los resultados y el vídeo se documentan una vez ejecutados y revisados. Esta especificación describe decisiones y no sustituye esa verificación visual.
+
+La ejecución final de la fase 3 produjo 30 capturas sin hallazgos axe ni desbordamiento y un vídeo de 17,56 s inspeccionado. La comparación con fase 2, las correcciones móviles y los límites verificados están en [revisión visual de fase 3](docs/visual-review-fase-3.md). Veredicto de movimiento: aprobado para el recorrido Chromium evaluado, con navegación por teclado y movimiento reducido comprobados.

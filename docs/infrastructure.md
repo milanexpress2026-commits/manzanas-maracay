@@ -64,8 +64,16 @@ El propietario confirmó `manzanas.ganamosclub.net` y aprobó específicamente l
 
 La [guía de staging](staging.md) documenta secretos, límites, actualización, backup y rollback. La [entrega de fase 2](entrega-fase-2.md) registra el estado final de publicación.
 
+## Demo pública temporal de Fase 3
+
+El 4 de noviembre de 2026 a las 23:33:21 UTC quedó saludable la web `demo-db16c5745423`, commit `db16c574542347cc15c89498184873b9e5953d84`, rama `phase-3/demo-publica-temporal`. La actualización reemplazó solo la web propia y conservó API, PostgreSQL, esquema, proxy y rutas existentes. Cinco rondas GET conservaron Socios 302 y Pedal 200. No se aplicaron migraciones de Fase 3 ni se desplegó la API comercial completa.
+
+A las 23:42:14 UTC se verificó en navegador externo fresco la raíz y seis rutas demo: siete respuestas 200, sin llamadas a API privada ni cookie de sesión operativa. Cuatro GET/POST/PATCH privados devolvieron 401; login interno, cookie Secure y revocación de sesión al salir aprobaron. Evidencia sin secretos en [verificacion-demo-publica.json](verificacion-demo-publica.json).
+
+La verificación local completa de Fase 3 aprobó typecheck/build, 90 unitarias, 53 E2E y once migraciones fresh/upgrade. La [revisión visual](visual-review-fase-3.md) incluye 30 vistas/axe, vídeo real de 17,56 segundos y cuatro muestras de rendimiento emulado; no acredita un dispositivo físico. Se crearon y validaron tres archivos VAPID privados, sin arrancar servicios, suscribir tablet ni enviar avisos. El despliegue comercial completo y su respaldo/restauración/smoke siguen pendientes.
+
 ## GitHub
 
-Repositorio público autorizado por el propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). La rama de trabajo es `phase-2/inventario-staging`, basada en `phase-1/foundations`. El cambio de visibilidad del código no da acceso a la aplicación ni modifica el VPS.
+Repositorio público autorizado por el propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). La rama de trabajo actual es `phase-3/comercial-demo`, basada en `phase-2/inventario-staging`. Código publicado en `28110ef0f0bf1079ffa60b3f60545c2bfd194290` y [PR #2 en borrador](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/2) dirigido a la rama de Fase 2; el PR #1 anterior se conserva. El cambio de visibilidad del código no da acceso a la aplicación ni modifica el VPS.
 
 El [PR #1 está en borrador](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1), dirigido a `phase-1/foundations`. No se realizó merge ni despliegue de producción. Las credenciales, llaves, bases locales, respaldos y dependencias quedan fuera del código versionado. El informe de entrega enlaza la revisión de fase 2 y sus commits. Las futuras invitaciones individuales de socios requieren sus nombres de usuario y entrega privada de credenciales; no falta ese dato para utilizar la cuenta invitada existente ni la URL activa.

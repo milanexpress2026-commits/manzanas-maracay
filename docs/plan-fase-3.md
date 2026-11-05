@@ -6,9 +6,9 @@ Autorización expresa: «Ejecutar la fase 3 y actualizar staging», 4 de noviemb
 
 La implementación está integrada y verificada localmente: typecheck/build aprobados, **90/90 unitarias** (11 archivos, 17,59 s) y **53/53 E2E** (4,3 min). El ensayo fresh/upgrade de **once migraciones** conservó 16 tablas previas y seis hashes y retiró ambas bases temporales. El despliegue comercial de Fase 3 permanece pendiente.
 
-La última release de staging comprobada continúa siendo `phase2-7ae1d75`, commit `7ae1d7504d31623e771fba5015361ae04ca9a4ef`. Sus endpoints internos siguen protegidos. HEAD local y documentación de Fase 3 no equivalen al código publicado. [entrega-fase-3.md](entrega-fase-3.md) mantiene la matriz de veinte casos y [staging.md](staging.md) la release efectivamente verificada.
+Web de staging activa: `demo-db16c5745423`, commit `db16c574542347cc15c89498184873b9e5953d84`, saludable a las 23:33:21 UTC. API/esquema siguen en `phase2-7ae1d75`. Navegador externo fresco aprobó demo y acceso privado a las 23:42:14 UTC; [informe](verificacion-demo-publica.json). El código comercial está publicado en `28110ef0f0bf1079ffa60b3f60545c2bfd194290` y [PR #2 en borrador](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/2), sin merge. Publicar la web no habilita el esquema ni comercio de Fase 3.
 
-Preview web temporal: rama `phase-3/demo-publica-temporal`, commit `db16c574542347cc15c89498184873b9e5953d84` ya publicado en GitHub. Transferencia VPS en curso al corte; conserva API y esquema de Fase 2. No equivale al despliegue completo de la fase.
+La publicación temporal preservó API, PostgreSQL, esquema, proxy y rutas; cinco GET mantuvieron Socios 302 y Pedal 200. El despliegue comercial completo necesita su propia ventana, respaldo/restauración y smoke.
 
 ## Baseline y evidencia vigente
 
@@ -26,22 +26,22 @@ Con rol `mm_app`, una venta a crédito y otra al contado pasaron validación com
 
 ## Matriz de funcionalidades
 
-| Requisito                                  | Estado de implementación                                                                     | Verificación o dependencia pendiente                                                               |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Catálogo opcional y modalidades de empaque | Implementado: blíster, mitades comerciales y cajas; sin lógica por nombre de fruta.          | E2E integrado aprobado; confirmación de datos comerciales particulares pendiente.                  |
-| Snapshots y costo histórico                | Implementado: modalidad/peso/presentaciones y ledger de costo con precisión decimal.         | Migración fresh/upgrade y E2E de movimientos aprobados.                                            |
-| Recepción y dos precios por presentación   | Implementado: conservación/actualización explícita dentro de la misma transacción.           | Conflictos entre líneas repetidas rechazados; regresión E2E aprobada.                              |
-| FIFO y venta con stock                     | Implementado: mismo PoolClient/commit y asignación por recipiente, lote y costo.             | Casos exactos 304/480/176 y 3 cajas×5−1 en E2E.                                                    |
-| Clientes, venta y PDF                      | Implementado: snapshot, negociación, numeración comercial y documento privado.               | PDF visual y API/UI integrada aprobados. No factura fiscal.                                        |
-| Crédito y fechas independientes            | Implementado: sin pago/fecha pactada obligatoria; eventos de reprogramación.                 | Unitarias y suite integrada aprobadas.                                                             |
-| Abonos explícitos por comprobante          | Implementado: reparto exacto, recibo, idempotencia, bloqueo de sobrepago.                    | Concurrencia y pérdida de respuesta en suite integrada.                                            |
-| BCV oficial                                | Caché validada y bloqueo seguro implementados.                                               | Fuente real no verificable; VES bloqueado sin registro válido. No inventar tasa ni desactivar TLS. |
-| Cobranza y WhatsApp                        | Implementado: centro privado y chat manual con saldo actual.                                 | Validar perfil corporativo en tablet real. No autoenvíos.                                          |
-| Push de una tablet                         | Backend/PWA implementados con opt-in, reemplazo explícito, deduplicación y avisos genéricos. | VAPID externo, suscripción voluntaria y entrega real Android/iOS pendientes.                       |
-| Demo pública                               | Implementada con datos sintéticos estáticos; no consulta API privada ni crea sesión.         | E2E adversarial aprobado; incógnito externo posterior al despliegue pendiente.                     |
-| Diseño, movimiento y accesibilidad         | Implementados marca, navegación y formularios responsive; reducción de movimiento.           | Suite 390/800/1024/1440 aprobada y capturas disponibles; grabación/dispositivo real pendientes.    |
-| Skills y revisión de seguridad             | Selección fijada, skill propia de integridad y revisión documentadas.                        | Incorporar resultados finales y resolver hallazgos verificables; ver [skills.md](skills.md).       |
-| Staging y respaldo                         | Infraestructura exclusiva previa conservada; release de Fase 3 pendiente.                    | Respaldo/restauración y smoke de nueva release; copia segura fuera del VPS pendiente.              |
+| Requisito                                  | Estado de implementación                                                                     | Verificación o dependencia pendiente                                                                        |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Catálogo opcional y modalidades de empaque | Implementado: blíster, mitades comerciales y cajas; sin lógica por nombre de fruta.          | E2E integrado aprobado; confirmación de datos comerciales particulares pendiente.                           |
+| Snapshots y costo histórico                | Implementado: modalidad/peso/presentaciones y ledger de costo con precisión decimal.         | Migración fresh/upgrade y E2E de movimientos aprobados.                                                     |
+| Recepción y dos precios por presentación   | Implementado: conservación/actualización explícita dentro de la misma transacción.           | Conflictos entre líneas repetidas rechazados; regresión E2E aprobada.                                       |
+| FIFO y venta con stock                     | Implementado: mismo PoolClient/commit y asignación por recipiente, lote y costo.             | Casos exactos 304/480/176 y 3 cajas×5−1 en E2E.                                                             |
+| Clientes, venta y PDF                      | Implementado: snapshot, negociación, numeración comercial y documento privado.               | PDF visual y API/UI integrada aprobados. No factura fiscal.                                                 |
+| Crédito y fechas independientes            | Implementado: sin pago/fecha pactada obligatoria; eventos de reprogramación.                 | Unitarias y suite integrada aprobadas.                                                                      |
+| Abonos explícitos por comprobante          | Implementado: reparto exacto, recibo, idempotencia, bloqueo de sobrepago.                    | Concurrencia y pérdida de respuesta en suite integrada.                                                     |
+| BCV oficial                                | Caché validada y bloqueo seguro implementados.                                               | Fuente real no verificable; VES bloqueado sin registro válido. No inventar tasa ni desactivar TLS.          |
+| Cobranza y WhatsApp                        | Implementado: centro privado y chat manual con saldo actual.                                 | Validar perfil corporativo en tablet real. No autoenvíos.                                                   |
+| Push de una tablet                         | Backend/PWA implementados con opt-in, reemplazo explícito, deduplicación y avisos genéricos. | Tres archivos VAPID creados/validados; activación, opt-in y entrega real Android/iOS pendientes.            |
+| Demo pública                               | Implementada con datos sintéticos estáticos; no consulta API privada ni crea sesión.         | E2E adversarial y demo en navegador externo fresco aprobados; API comercial nueva aún no desplegada.        |
+| Diseño, movimiento y accesibilidad         | Implementados marca, navegación y formularios responsive; reducción de movimiento.           | Cuatro anchos, 30 vistas/axe y vídeo aprobados; cuatro muestras de rendimiento. Dispositivo real pendiente. |
+| Skills y revisión de seguridad             | Selección fijada, skill propia de integridad y revisión documentadas.                        | Incorporar resultados finales y resolver hallazgos verificables; ver [skills.md](skills.md).                |
+| Staging y respaldo                         | Infraestructura exclusiva previa conservada; release de Fase 3 pendiente.                    | Respaldo/restauración y smoke de nueva release; copia segura fuera del VPS pendiente.                       |
 
 ## Hitos secuenciales
 
@@ -50,8 +50,8 @@ Con rol `mm_app`, una venta a crédito y otra al contado pasaron validación com
 3. **Recepción y precios — implementados.** Formulario contextual y confirmación atómica. Conflictos entre líneas repetidas rechazados y regresión E2E aprobada.
 4. **Ventas FIFO — implementadas y verificadas localmente.** Clientes, negociación, asignaciones, stock y documentos; PDF visual y descarga integrada aprobados.
 5. **Abonos y cobranza — implementados con dependencias.** USD operativo en código; VES depende de fuente oficial válida. Push depende de configuración y tablet opt-in. Prueba física pendiente.
-6. **Demo y experiencia visual — implementadas y verificadas en Chromium local.** Rutas sintéticas aisladas, cuatro tamaños, accesibilidad y capturas disponibles. Grabación/revisión física pendientes.
-7. **Verificación local completada; staging pendiente.** Preparación de preview temporal web publicada en GitHub y transferencia VPS en curso, sin API/esquema nuevos. Falta ensayo de restauración/smoke y release comercial trazable sin merge.
+6. **Demo pública activa y experiencia visual verificada.** Navegador externo fresco aprobado; 30 vistas, 30 auditorías axe, vídeo real de 17,56 s y cuatro muestras de rendimiento documentados en [revisión visual](visual-review-fase-3.md). Dispositivos físicos pendientes.
+7. **Verificación local y demo temporal completadas; staging comercial pendiente.** Código publicado en PR #2; API/esquema conservados durante publicación web. Falta respaldo/restauración y release comercial completa con smoke propio.
 
 ## Decisiones de integridad
 

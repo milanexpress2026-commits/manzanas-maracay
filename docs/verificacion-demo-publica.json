@@ -1,0 +1,60 @@
+{
+  "checkedAt": "2026-11-04T23:42:14.647Z",
+  "release": "demo-db16c5745423",
+  "publicRoutes": [
+    {
+      "route": "/",
+      "status": 200
+    },
+    {
+      "route": "/demo",
+      "status": 200
+    },
+    {
+      "route": "/demo/catalogo",
+      "status": 200
+    },
+    {
+      "route": "/demo/inventario",
+      "status": 200
+    },
+    {
+      "route": "/demo/recepciones",
+      "status": 200
+    },
+    {
+      "route": "/demo/ventas",
+      "status": 200
+    },
+    {
+      "route": "/demo/cobranza",
+      "status": 200
+    }
+  ],
+  "privateDenied": [
+    {
+      "method": "GET",
+      "route": "/api/inventory",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "route": "/api/catalog",
+      "status": 401
+    },
+    {
+      "method": "POST",
+      "route": "/api/receipts",
+      "status": 401
+    },
+    {
+      "method": "PATCH",
+      "route": "/api/catalog/configurations/00000000-0000-4000-8000-000000000000",
+      "status": 401
+    }
+  ],
+  "freshBrowser": true,
+  "privateLogin": true,
+  "secureCookie": true,
+  "logoutRevoked": true
+}
