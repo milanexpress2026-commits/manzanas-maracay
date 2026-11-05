@@ -7,11 +7,14 @@
   "build": "passed",
   "unit": {
     "files": 13,
-    "passed": 136
+    "passed": 137,
+    "codeCommit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0"
   },
   "regressionE2E": {
     "durationMinutes": 4.8,
-    "passed": 53
+    "passed": 53,
+    "codeCommit": "49044263d6f74940e388817179ba6df3eff1f8ba",
+    "repeatedAfterPasswordValidationFix": false
   },
   "productionQA": {
     "apiTests": 6,
@@ -19,9 +22,9 @@
     "emptyTests": 2,
     "uiTests": 4,
     "execution": {
-      "runId": "67a94e711faec9abdb1bff9a",
-      "startedAt": "2026-11-05T06:00:41.369Z",
-      "baseCommit": "f6cff80ddaea19fa9c2ac1954cf0b4f6c6de4e94",
+      "runId": "15e7b61dec37a0978b7f3451",
+      "startedAt": "2026-11-05T07:54:15.489Z",
+      "baseCommit": "49044263d6f74940e388817179ba6df3eff1f8ba",
       "environment": "production",
       "purpose": "isolated_synthetic_regression",
       "origin": "https://localhost:3143",
@@ -30,7 +33,7 @@
       "databaseCleaned": true,
       "emptyBusinessTablesVerified": 20,
       "limitedMigrationOwner": true,
-      "finishedAt": "2026-11-05T06:02:18.425Z"
+      "finishedAt": "2026-11-05T07:56:43.984Z"
     }
   },
   "migrations": {
@@ -42,12 +45,29 @@
     "realBackup": false,
     "passed": 11
   },
-  "deployedProduction": false,
+  "deployedProduction": true,
   "publishedProduction": false,
   "limitations": [
     "Chromium local; tablet física pendiente",
     "VES bloqueado sin fuente oficial verificable",
     "Pruebas sintéticas solo en bases temporales",
-    "Restauración real en contenedor y copia externa aún pendientes de preparación remota"
-  ]
+    "Producción remota saludable y cerrada; activación, cambio de tráfico y cron pendientes. Copia externa real verificada por separado."
+  ],
+  "codeCommit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/3",
+  "latestChange": "Validación compartida de contraseña de 8 a 256 caracteres para alta y renovación del acceso.",
+  "visualReview": {
+    "report": "visual-review-fase-4.md",
+    "reviewedRunId": "67a94e711faec9abdb1bff9a",
+    "reviewedCodeCommit": "49044263d6f74940e388817179ba6df3eff1f8ba",
+    "screenshots": 6,
+    "viewportWidths": [390, 800, 1024, 1440],
+    "uiUnchangedByLatestFix": true,
+    "physicalTabletTested": false
+  },
+  "remoteStatus": "healthy_closed_not_activated",
+  "productionActivated": false,
+  "remoteVerificationReport": "verificacion-produccion-fase4.json",
+  "remoteCandidateValidated": true,
+  "remoteApprovalReceived": false
 }

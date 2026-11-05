@@ -2,7 +2,7 @@
 
 ## Estado de esta preparación
 
-Los scripts y controles descritos están implementados. **Todavía no acreditan un respaldo real cifrado fuera del VPS ni una restauración de la nueva producción.** Las pruebas sintéticas del cifrado y los ensayos de fases anteriores no reemplazan esas evidencias. El estado final se registra en [entrega de fase 4](entrega-fase-4-produccion.md).
+**Respaldo real externo verificado:** la copia de phase4-2a81817fe2c1 se cifró en esta computadora mediante AES-256-GCM y DPAPI CurrentUser, se descifró y se restauró en un entorno aislado el 5 de noviembre de 2026 a las 08:32:19 UTC. El resultado confirma copia externa, restauración desde esa copia y limpieza; no se creó un archivo local de dump sin cifrar ni se registraron operaciones comerciales. La base respaldada estaba comercialmente vacía y tenía una cuenta legítima. [Evidencia pública](verificacion-produccion-fase4.json).
 
 La copia de producción corresponde exclusivamente a `manzanas_maracay_production`, del proyecto Docker `manzanas-maracay-production`. No se copia staging para comenzar a operar. Los archivos de respaldo contienen información privada: permanecen fuera del repositorio, del directorio servido por la web y de las imágenes Docker.
 
@@ -59,4 +59,4 @@ El tamaño máximo del dump sin cifrar es **128 MiB** y el script trabaja en mem
 4. Preparar una nueva instancia exclusiva de recuperación con los roles y secretos correspondientes. El helper de ensayo elimina sus recursos al terminar: no promueve automáticamente esa base a producción.
 5. Comparar la información recuperada con los comprobantes y operaciones posteriores. Preparar la activación vinculada a la release, origen y UUID recuperados; aprobar de forma concreta cualquier cambio de tráfico compartido. Verificar acceso, permisos y otras aplicaciones antes y después.
 
-El procedimiento de contingencia no equivale a un simulacro completo ya ejecutado. El tiempo de recuperación y la pérdida máxima de datos todavía requieren medición con un respaldo real y una política de copia externa mantenida.
+La restauración aislada desde la copia externa sí se ejecutó y está verificada. Esto no equivale a recuperar todo el VPS después de una pérdida real, ni acredita recuperación tras perder el PC/perfil DPAPI. El tiempo de recuperación y la pérdida máxima de datos aún requieren una política de copia externa mantenida y el ensayo de esos escenarios adicionales.
