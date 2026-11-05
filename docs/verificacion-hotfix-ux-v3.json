@@ -1,0 +1,200 @@
+{
+  "recordedAt": "2026-11-05T16:28:37.401564+00:00",
+  "sourceCommit": "8612e8230bb5f228b0a61553dbc8a3703767c665",
+  "stagingRelease": "hotfix-8612e8230bb5",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/4",
+  "scope": "QA/staging only; no new production release or owner-data correction",
+  "local": {
+    "finalCheck": {
+      "typecheck": true,
+      "unitTestsPassed": 188,
+      "unitFiles": 19,
+      "apiBuild": true,
+      "webBuild": true
+    },
+    "httpSuite": {
+      "passed": 74,
+      "failed": 0,
+      "sourceCommit": "8bed277fd2a216f2e4305ebd404bad2faeeacb49",
+      "durationMinutes": 10
+    },
+    "productionModeQa": {
+      "runId": "56e4bb9e49ba629ce9ecfa43",
+      "startedAt": "2026-11-05T15:37:35.273Z",
+      "baseCommit": "8bed277fd2a216f2e4305ebd404bad2faeeacb49",
+      "environment": "production",
+      "purpose": "isolated_synthetic_regression",
+      "origin": "https://localhost:3143",
+      "emptyPassed": true,
+      "operationsPassed": true,
+      "databaseCleaned": true,
+      "emptyBusinessTablesVerified": 21,
+      "limitedMigrationOwner": true,
+      "emptyUxPassed": true,
+      "finishedAt": "2026-11-05T15:40:23.792Z",
+      "testsPassed": 13,
+      "remoteProductionWrites": false,
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    "laterCollectorParserCorrection": {
+      "onlyRuntimeFile": "packages/domain/src/rate-sources.ts",
+      "beforeExpectedFailures": 4,
+      "afterTargetedPassed": 11,
+      "includedInFinalCheck": true
+    },
+    "migrations": {
+      "fresh": {
+        "migrationCount": 14,
+        "noSyntheticOperationalData": true,
+        "constraintsValidated": true
+      },
+      "upgrade": {
+        "oldConfirmationNotInvented": true,
+        "cancelledSaleAndReversedPaymentPreserved": true,
+        "preservedTables": 35,
+        "preservedOldMigrationHashes": 11,
+        "closedBoxes": 2,
+        "intactBlisters": 4,
+        "equivalentBlisters": 14,
+        "remainingCostUsd": "84.0000",
+        "originalCostUsd": "90.0000",
+        "unknownPiecesPreserved": true,
+        "costOpeningRows": 0
+      },
+      "phase4Upgrade": {
+        "fromMigrationCount": 13,
+        "toMigrationCount": 14,
+        "preservedTables": 35,
+        "preservedPriorMigrationHashes": 13,
+        "runtimeBindingPreserved": true,
+        "oldSalesRemainLegacyBcv": true,
+        "historicalPaymentsNotReclassified": true,
+        "noSyntheticRates": true
+      },
+      "finishedAt": "2026-11-05T15:43:51.390Z"
+    },
+    "migrationScratchDatabasesRemoved": true
+  },
+  "staging": {
+    "verifiedAt": "2026-11-05T16:01:26.507942+00:00",
+    "healthy": true,
+    "access": "VPS loopback 127.0.0.1:33100, internal authenticated access",
+    "migrationCount": 14,
+    "comparedBusinessDataPreserved": true,
+    "comparisonIncludes": [
+      "counts",
+      "catalog_bootstrap_count",
+      "movement_fingerprint",
+      "entry_fingerprint",
+      "physical_fingerprint",
+      "audit_fingerprint",
+      "catalog_fingerprint",
+      "commercial_fingerprint",
+      "cost_fingerprint"
+    ],
+    "allTablesByteForByteClaimed": false,
+    "backupIncludesPrivileges": false,
+    "restorationChecks": {
+      "beforeMigration": true,
+      "afterMigration": true,
+      "afterCollector": true
+    },
+    "postgresContainerPreserved": true,
+    "sharedProxyAndObservedPeersPreserved": true,
+    "integrity": {
+      "active_devices": 0,
+      "pending_notices": 0,
+      "unknown_available_costs": 0,
+      "empty_nonzero_costs": 0,
+      "cost_projection_errors": 0,
+      "unvalidated_constraints": 0
+    },
+    "images": {
+      "tools": "sha256:fb6be8eb2a9c0ddf8eef0ed16c33769c589cc0b8a5b535d975400f06ab5d19ce",
+      "api": "sha256:60a1ba0701f3f49aa6e35b08b4ee65a8c7083eaf987fc3f636331123d5b47472",
+      "web": "sha256:0493bc01185e91a3ae5b3c84cc9e9222199d11a31c512435bc588e21da24704a"
+    },
+    "collector": {
+      "checkedAt": "2026-11-05T16:21:18.860315+00:00",
+      "dedicatedRole": true,
+      "applicationCannotInsertRates": true,
+      "collector": {
+        "checkedAt": "2026-11-05T16:21:08.873Z",
+        "BCV": {
+          "status": "verified",
+          "rate": "894.88760000",
+          "validFrom": "2026-11-05T04:00:00.000Z",
+          "validUntil": "2026-11-06T04:00:00.000Z",
+          "sourceHash": "a1c0a67b545b514f60f03bb07bb6cfc858aa1bb0b92d467eef089c3557f78d15"
+        },
+        "USDT": {
+          "status": "verified",
+          "rate": "1009.88000000",
+          "validFrom": "2026-11-05T16:21:08.842Z",
+          "validUntil": "2026-11-05T16:31:08.842Z",
+          "sourceHash": "ab4c4d3fad03d333d3c1dcc062d49d6fc6c315bc1c94c4550997e247939bdc79"
+        }
+      },
+      "scheduled": true,
+      "preexistingContainerIdentitiesAndStableStatesPreserved": true,
+      "preexistingUnrelatedRestarting": 1,
+      "productionPublicReady": true,
+      "productionChanged": false
+    },
+    "collectorIntervalMinutes": 5,
+    "publicCaReadOnlyMount": true,
+    "automaticRefreshObserved": {
+      "checkedAt": "2026-11-05T16:25:14.128Z",
+      "BCV": {
+        "status": "unchanged",
+        "rate": "894.88760000",
+        "validUntil": "2026-11-06T04:00:00.000Z"
+      },
+      "USDT": {
+        "status": "verified",
+        "rate": "1009.79000000",
+        "validFrom": "2026-11-05T16:25:14.114Z",
+        "validUntil": "2026-11-05T16:35:14.114Z",
+        "sourceHash": "53a2c321f50a344c640a93f08ced27dabe1620079d27084da6d7d8d74cda8557"
+      }
+    },
+    "authenticatedReadChecks": {
+      "passed": true,
+      "exactRelease": true,
+      "healthyStaging": true,
+      "anonymousDenied": true,
+      "loginAccepted": true,
+      "secureCookie": true,
+      "authenticatedStaging": true,
+      "catalogReadable": true,
+      "inventoryReadable": true,
+      "salesReadable": true,
+      "paymentsReadable": true,
+      "collectionsReadable": true,
+      "bcvAvailableVerified": true,
+      "usdtAvailableVerified": true,
+      "logoutAccepted": true,
+      "oldCookieRejected": true,
+      "commit": "8612e8230bb5f228b0a61553dbc8a3703767c665",
+      "release": "hotfix-8612e8230bb5",
+      "checkedAt": "2026-11-05T16:21:48.378351+00:00"
+    }
+  },
+  "production": {
+    "commit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
+    "release": "phase4-2a81817fe2c1",
+    "newReleaseDeployed": false,
+    "publicReadyObserved": true
+  },
+  "limits": [
+    "Physical Android/keyboard/touch not tested",
+    "Corporate WhatsApp profile and actual push delivery not tested",
+    "Physical HP printing not tested",
+    "Commercial PDFs are not fiscal invoices",
+    "USDT BUY is a general reference without bank or amount filtering",
+    "BCV validity is conservative; no automatic weekend/holiday carry"
+  ]
+}

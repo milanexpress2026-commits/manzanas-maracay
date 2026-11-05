@@ -1,10 +1,10 @@
 # Hotfix UX V3: prueba de cinco minutos para los propietarios
 
-**Estado: sujeto a QA.** Esta guía describe el resultado que debe comprobarse en la versión candidata. No acredita por sí sola pruebas ejecutadas ni un despliegue. El alcance autorizado del hotfix es QA/staging; no usar esta prueba para crear datos sintéticos en producción.
+**Estado: validado en QA local y desplegado en staging interno.** Los resultados y la release exacta están en el [informe del hotfix](hotfix-ux-v3.md). Esta guía es la comprobación manual pendiente en el dispositivo de los propietarios; no usarla para crear datos sintéticos en producción.
 
 ## Antes de empezar
 
-Abrir el enlace de QA indicado en la entrega y comprobar su etiqueta de pruebas y la versión candidata. Usar exclusivamente un proveedor, productos y un cliente de QA identificables; el teléfono del cliente puede quedar vacío. Debe haber un proveedor de prueba disponible. Si faltan esos preparativos, hacerlos antes de contar los cinco minutos.
+El staging actual es interno al VPS; todavía no tiene una URL pública para la tablet. Esta prueba manual se realizará cuando se disponga de acceso a QA, comprobando su etiqueta de pruebas y versión. Mientras tanto, el informe incluye el vídeo del recorrido. Usar exclusivamente un proveedor, productos y un cliente de QA identificables; el teléfono del cliente puede quedar vacío. Debe haber un proveedor de prueba disponible. Si faltan esos preparativos, hacerlos antes de contar los cinco minutos.
 
 No se necesita activar notificaciones ni enviar mensajes para completar este recorrido. Las cantidades, empaques y precios siguientes son ejemplos sintéticos que solo se confirman en QA.
 
