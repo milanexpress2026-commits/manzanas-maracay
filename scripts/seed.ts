@@ -13,7 +13,15 @@ import {
 import { assertDatabase } from './migrate';
 import { randomUUID } from 'node:crypto';
 import { addCommercialCatalog } from './commercial-catalog';
+import { appEnvironmentSchema } from '../packages/domain/src/auth';
+export function assertSeedEnvironment() {
+  if (appEnvironmentSchema.parse(process.env.MM_APP_ENV ?? 'local') === 'production')
+    throw new Error(
+      'Producción comienza vacía: no se permite cargar catálogo ni datos de ejemplo.',
+    );
+}
 async function seed() {
+  assertSeedEnvironment();
   const pool = new Pool({
     connectionString: assertDatabase(process.env.MIGRATION_DATABASE_URL),
     max: 1,
@@ -72,7 +80,8 @@ async function seed() {
     await pool.end();
   }
 }
-seed().catch((e) => {
-  console.error(e.message);
-  process.exitCode = 1;
-});
+if (process.argv[1]?.endsWith('seed.ts'))
+  seed().catch((e) => {
+    console.error(e.message);
+    process.exitCode = 1;
+  });

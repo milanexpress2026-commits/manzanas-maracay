@@ -1,0 +1,219 @@
+.operation-lock {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+.operation-preparation {
+  display: flex;
+  gap: 12px;
+  padding: 18px 40px;
+  background: #f4edce;
+  color: #644b11;
+}
+.operation-preparation > svg {
+  flex: 0 0 22px;
+  margin-top: 2px;
+}
+.operation-preparation p {
+  margin: 4px 0 0;
+  max-width: 75ch;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.operation-overview {
+  background: white;
+  border-block: 1px solid var(--border);
+  margin: 24px 0 32px;
+}
+.operation-overview dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+.operation-overview dl > div {
+  padding: 24px;
+}
+.operation-overview dl > div + div {
+  border-left: 1px solid var(--border);
+}
+.operation-overview dt {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.operation-overview dt svg {
+  width: 19px;
+  height: 19px;
+  color: var(--leaf);
+  flex-shrink: 0;
+}
+.operation-overview dd {
+  margin: 0;
+}
+.operation-overview-value {
+  display: block;
+  margin: 12px 0 16px;
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.operation-overview a,
+.operation-checklist a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--leaf);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.operation-overview a svg,
+.operation-checklist a svg {
+  width: 15px;
+  height: 15px;
+}
+.operation-home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(250px, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.operation-start {
+  padding: 28px;
+}
+.operation-start > h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+.operation-start > p {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 22px;
+  max-width: 65ch;
+}
+.operation-start .operation-readiness {
+  color: #644b11;
+}
+.operation-checklist {
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.operation-checklist summary {
+  padding: 18px 0;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+}
+.operation-checklist ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.operation-checklist li {
+  display: flex;
+  gap: 14px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+}
+.operation-checklist li > svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-top: 2px;
+  color: var(--muted-foreground);
+}
+.operation-checklist li[data-complete='true'] > svg {
+  color: var(--leaf);
+}
+.operation-checklist h3 {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.operation-checklist h3 span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+}
+.operation-checklist p {
+  margin: 5px 0 10px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 62ch;
+}
+.operation-guidance {
+  min-width: 0;
+}
+.operation-guidance > section {
+  padding: 0 0 24px;
+  margin: 0 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+.operation-guidance > section > svg {
+  color: var(--leaf);
+  width: 25px;
+  height: 25px;
+  margin-bottom: 12px;
+}
+.operation-guidance h2 {
+  font-size: 17px;
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+.operation-guidance p {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  line-height: 1.8;
+  margin: 0;
+  max-width: 65ch;
+}
+.operation-guidance a {
+  font-size: 13px;
+  color: var(--leaf);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 1000px) {
+  .operation-home-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .operation-preparation {
+    padding: 16px 20px;
+  }
+  .operation-overview dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .operation-overview dl > div {
+    padding: 20px;
+  }
+  .operation-overview dl > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .operation-overview-value {
+    font-size: 26px;
+    margin: 8px 0 12px;
+  }
+  .operation-start {
+    padding: 22px 20px;
+  }
+  .operation-checklist h3 {
+    gap: 6px 10px;
+  }
+}

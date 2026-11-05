@@ -12,6 +12,8 @@ import { z } from 'zod';
 import Decimal from 'decimal.js';
 import { allocateCost, replayLegacyCosts } from '../../../packages/domain/src/costing';
 import { applyPresentationPrices } from './commerce-prices';
+import { assertBusinessWritesReady, commandIsDemo } from './production-state';
+import { authConfig } from './auth/config';
 import {
   supplierSchema,
   updateSupplierSchema,
@@ -206,6 +208,7 @@ export class InventoryService implements OnModuleDestroy {
     fn: (client: PoolClient, hash: string) => Promise<T>,
     inventory = true,
   ): Promise<T> {
+    assertBusinessWritesReady();
     if (!actor) throw new UnauthorizedException('Inicia sesión para registrar esta operación.');
     if (!key || !z.uuid().safeParse(key).success)
       throw new BadRequestException('Falta una clave válida para guardar sin duplicados.');
@@ -552,8 +555,7 @@ export class InventoryService implements OnModuleDestroy {
         await client.query('select id from warehouses order by created_at,id limit 1')
       ).rows[0];
       if (!warehouse) throw new NotFoundException('Falta el almacén inicial.');
-      const demo =
-        data.isDemo || ['staging', 'test', 'preview'].includes(process.env.MM_APP_ENV ?? '');
+      const demo = commandIsDemo(data.isDemo);
       const purchaseId = (
         await client.query(
           `insert into purchases(supplier_id,reference,purchased_at,status,notes,is_demo) values($1,$2,$3,'received',$4,$5) returning id`,
@@ -570,6 +572,10 @@ export class InventoryService implements OnModuleDestroy {
         ).rows[0];
         if (!rule)
           throw new BadRequestException('Una configuración ya no existe. Actualiza el catálogo.');
+        if (authConfig().environment === 'production' && rule.confirmation_status !== 'confirmed')
+          throw new ConflictException(
+            'Confirma la configuración comercial antes de recibir mercancía real.',
+          );
         if (rule.packing_model !== 'blister' && line.blistersPerBox !== undefined)
           throw new BadRequestException('Este empaque no utiliza blíster.');
         if (line.priceAction === 'update') {
@@ -604,8 +610,8 @@ export class InventoryService implements OnModuleDestroy {
           code = `MM-${data.receivedAt.slice(0, 10).replaceAll('-', '')}-${id.slice(0, 8).toUpperCase()}`;
         const blisterCount = line.blistersPerBox ?? rule.blisters_per_box;
         await client.query(
-          `insert into lots(id,code,variant_id,supplier_id,purchase_line_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd,received_boxes,notes,is_demo,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,box_weight_kg_snapshot)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+          `insert into lots(id,code,variant_id,supplier_id,purchase_line_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd,received_boxes,notes,is_demo,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,box_weight_kg_snapshot,confirmation_status_snapshot)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
           [
             id,
             code,
@@ -624,6 +630,7 @@ export class InventoryService implements OnModuleDestroy {
             rule.half_preparation,
             rule.allowed_presentations,
             rule.box_weight_kg,
+            rule.confirmation_status,
           ],
         );
         const state: StateMap = new Map();

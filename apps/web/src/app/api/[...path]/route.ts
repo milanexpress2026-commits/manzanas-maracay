@@ -19,6 +19,7 @@ function allowedRoute(method: string, endpoint: string) {
         'collections',
         'push/status',
         'rates/current',
+        'operations/overview',
       ].includes(endpoint) ||
       new RegExp(`^inventory/lots/${UUID}$`).test(endpoint) ||
       new RegExp(`^(clients|sales|payments)/${UUID}$`).test(endpoint) ||
@@ -80,7 +81,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const read = request.method === 'GET';
   if (!read) {
     const allowed = new Set([config.origin]);
-    if (config.environment !== 'staging') {
+    if (['local', 'test'].includes(config.environment)) {
       const port = new URL(config.origin).port;
       allowed.add(`http://127.0.0.1:${port}`);
       allowed.add(`http://localhost:${port}`);

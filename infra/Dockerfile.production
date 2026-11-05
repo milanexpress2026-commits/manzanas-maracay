@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1
+ARG NODE_IMAGE
+FROM ${NODE_IMAGE} AS dependencies
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY packages/domain/package.json ./packages/domain/package.json
+COPY packages/database/package.json ./packages/database/package.json
+RUN npm ci --no-audit --no-fund
+
+FROM dependencies AS build
+ARG MM_RELEASE
+ARG MM_COMMIT
+ARG MM_APP_ORIGIN
+ENV MM_STANDALONE=1 MM_APP_ENV=production MM_RELEASE=${MM_RELEASE} MM_COMMIT=${MM_COMMIT} MM_APP_ORIGIN=${MM_APP_ORIGIN}
+COPY apps ./apps
+COPY packages ./packages
+COPY scripts ./scripts
+COPY tsconfig.base.json tsconfig.check.json ./
+RUN npm run build
+
+FROM build AS tools
+ENV NODE_ENV=production MM_APP_ENV=production
+USER 1000:1000
+ENTRYPOINT ["node", "scripts/production-runtime.mjs"]
+CMD ["migrate"]
+
+FROM dependencies AS production-dependencies
+RUN npm prune --omit=dev --no-audit --no-fund
+
+FROM ${NODE_IMAGE} AS api
+WORKDIR /app
+ENV NODE_ENV=production MM_APP_ENV=production MM_API_HOST=0.0.0.0 MM_API_PORT=3101
+LABEL org.opencontainers.image.source="https://github.com/milanexpress2026-commits/manzanas-maracay"
+COPY --from=production-dependencies /app/node_modules ./node_modules
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/web/public/brand/logo-manzanas-maracay.png ./apps/api/assets/brand/logo-manzanas-maracay.png
+COPY scripts/production-runtime.mjs scripts/production-health.mjs ./scripts/
+USER 1000:1000
+EXPOSE 3101
+ENTRYPOINT ["node", "scripts/production-runtime.mjs"]
+CMD ["api"]
+
+FROM ${NODE_IMAGE} AS web
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 MM_APP_ENV=production PORT=3100 HOSTNAME=0.0.0.0
+LABEL org.opencontainers.image.source="https://github.com/milanexpress2026-commits/manzanas-maracay"
+COPY --from=build --chown=1000:1000 /app/apps/web/.next/standalone ./
+COPY --from=build --chown=1000:1000 /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=1000:1000 /app/apps/web/public ./apps/web/public
+COPY scripts/production-runtime.mjs scripts/production-health.mjs ./scripts/
+USER 1000:1000
+EXPOSE 3100
+ENTRYPOINT ["node", "scripts/production-runtime.mjs"]
+CMD ["web"]

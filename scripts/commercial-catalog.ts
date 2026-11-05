@@ -6,6 +6,10 @@ export async function addCommercialCatalog(pool: Pool) {
   const c = await pool.connect();
   try {
     await c.query('begin');
+    const environment = (await c.query('select mm_runtime_environment() as environment')).rows[0]
+      ?.environment;
+    if (!['local', 'test', 'staging'].includes(environment))
+      throw new Error('El catálogo de ejemplos no se incorpora a una base de producción.');
     await c.query('select pg_advisory_xact_lock(68493002)');
     if (
       (

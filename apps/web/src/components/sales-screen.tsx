@@ -161,6 +161,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   useEffect(() => setDate(caracasDateTime()), []);
   const ready = !!catalog.data && !!clients.data && !catalog.error && !clients.error;
   const activeClients = clients.data?.filter((c) => c.active) ?? [];
+  const sellingConfigurations =
+    catalog.data?.configurations.filter(
+      (c) => session.environment !== 'production' || c.confirmationStatus === 'confirmed',
+    ) ?? [];
   let total = new Decimal(0),
     referenceTotal = new Decimal(0);
   for (const line of lines) {
@@ -315,6 +319,16 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
           <LoadError error={clients.error} retry={() => void clients.reload()} />
         ) : null}
         {!ready && (catalog.loading || clients.loading) ? <LoadingRows /> : null}
+        {ready && !sellingConfigurations.length ? (
+          <Alert>
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              Antes de vender,{' '}
+              <Link href="/catalogo">agrega un producto y confirma su empaque</Link>. Después
+              registra su recepción y los precios de las presentaciones que vas a vender.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {ready ? (
           <form onSubmit={submit} className="commercial-layout">
             <div>
@@ -471,7 +485,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                               }
                             >
                               <option value="">Selecciona un producto</option>
-                              {catalog.data!.configurations.map((c) => (
+                              {sellingConfigurations.map((c) => (
                                 <option key={c.id} value={c.id}>
                                   {productLabel(c)}
                                 </option>

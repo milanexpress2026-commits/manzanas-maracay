@@ -1,0 +1,197 @@
+{
+  "phase": 4,
+  "commit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
+  "release": "phase4-2a81817fe2c1",
+  "project": "manzanas-maracay-production",
+  "database": "manzanas_maracay_production",
+  "status": "published_active",
+  "externalBackup": {
+    "checkedAt": "2026-11-05T08:32:19.718885+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "localPlaintextFileCreated": false,
+    "productionBusinessWrites": false,
+    "keyProtection": "DPAPI-CurrentUser",
+    "encryption": "AES-256-GCM"
+  },
+  "productionActivated": true,
+  "publicTrafficChanged": true,
+  "sharedProxyChangeAuthorized": true,
+  "cronInstalled": true,
+  "caddyCandidateValidation": "validated_and_applied",
+  "publicProjectionOnly": true,
+  "approvalRequested": true,
+  "approvalReceived": true,
+  "preCutoverEvidence": {
+    "historical": true,
+    "scope": "Before the authorized cutover; closed gate and unchanged proxy fields are historical.",
+    "initialization": {
+      "healthy": true,
+      "ready": false,
+      "migrationCount": 13,
+      "emptyBusinessTables": 19,
+      "legitimateOwnerAccounts": 1,
+      "demoRows": 0,
+      "costAndCommerceIntegrity": true,
+      "anonymousPrivateDenied": true,
+      "demoRoutesAbsent": true,
+      "preexistingContainersPreserved": true,
+      "publicProxyUnchanged": true
+    },
+    "pushPreparation": {
+      "devices": 0,
+      "activeDevices": 0,
+      "notices": 0,
+      "sent": 0,
+      "prepared": true,
+      "subscriptionsCreatedByHelper": false,
+      "notificationsSentByHelper": false,
+      "authenticatedStatusCheckedByHelper": false
+    },
+    "authentication": {
+      "passed": true,
+      "exactRelease": true,
+      "healthyClosed": true,
+      "privateInvitationValidated": true,
+      "loginAccepted": true,
+      "persistentSecureCookie": true,
+      "authenticatedClosedSession": true,
+      "emptyOverview": true,
+      "pushConfiguredWithoutDevice": true,
+      "logoutAccepted": true,
+      "oldCookieRejected": true,
+      "checkedAt": "2026-11-05T08:31:41.786234+00:00"
+    },
+    "crossApplicationCheck": {
+      "checkedAt": "2026-11-05T08:43:31.103054+00:00",
+      "remoteMutations": false,
+      "preExistingContainersUnchanged": true,
+      "proxyUnchanged": true,
+      "routesUnchanged": true,
+      "containerCount": 16,
+      "preExistingContainerCount": 13,
+      "ownContainerCount": 3,
+      "noPreExistingUnhealthy": true,
+      "routes": [
+        {
+          "url": "https://manzanas.ganamosclub.net/",
+          "status": 200
+        },
+        {
+          "url": "https://pedal.ganamosclub.net/",
+          "status": 200
+        },
+        {
+          "url": "https://socios.ganamosclub.net/",
+          "status": 302
+        },
+        {
+          "url": "https://manzanas.ganamosclub.net/api/health",
+          "status": 200
+        },
+        {
+          "url": "https://manzanas.ganamosclub.net/login",
+          "status": 200
+        },
+        {
+          "url": "https://manzanas.ganamosclub.net/demo",
+          "status": 200
+        }
+      ]
+    },
+    "caddyValidation": {
+      "prepared": true,
+      "candidateValidated": true,
+      "sharedProxyChanged": false,
+      "networkConnected": false,
+      "productionActivated": false,
+      "temporaryContainerCleaned": true,
+      "validationEnvironmentContext": {
+        "PORTAL_DOMAIN": "socios.ganamosclub.net"
+      },
+      "beforeSha256": "f216f47723557a02435e11afd588e0064f5d195331b8fb1e65a57313a254c0de",
+      "candidateSha256": "2ba9b689fa13f5edc575e04beaf9fa8df02ee2ea513663345cbe189f3b75e2cb",
+      "diff": ["- reverse_proxy mm-staging-web:3100", "+ reverse_proxy mm-production-web:3100"],
+      "sharedConfigurationUnchanged": true,
+      "preexistingContainersPreserved": true,
+      "activationStillRequired": true,
+      "completedAt": "2026-11-05T09:05:46.355571+00:00"
+    }
+  },
+  "checkedAt": "2026-11-05T12:05:58.497181+00:00",
+  "url": "https://manzanas.ganamosclub.net",
+  "loginUrl": "https://manzanas.ganamosclub.net/login",
+  "demoPublicStatus": 404,
+  "activation": {
+    "passed": true,
+    "approvalVerified": true,
+    "backupVerified": true,
+    "authenticationVerified": true,
+    "candidateVerified": true,
+    "previousRoutesPreserved": true,
+    "sharedPeersPreserved": true,
+    "proxyNotRestarted": true,
+    "publicClosedVerified": true,
+    "activationInstalled": true,
+    "publicReadyVerified": true,
+    "rollbackAttempted": false,
+    "manualReviewRequired": false,
+    "checkedAt": "2026-11-05T12:04:09.980676+00:00"
+  },
+  "publicAuthentication": {
+    "passed": true,
+    "exactRelease": true,
+    "strictHttpsOrigin": true,
+    "healthyActive": true,
+    "loginOptionPresent": true,
+    "privateInvitationValidated": true,
+    "loginAccepted": true,
+    "persistentSecureCookie": true,
+    "authenticatedActiveSession": true,
+    "logoutAccepted": true,
+    "oldCookieRejected": true,
+    "checkedAt": "2026-11-05T12:04:59.976130+00:00"
+  },
+  "maintenance": {
+    "checkedAt": "2026-11-05T12:05:58.497181+00:00",
+    "identityVerified": true,
+    "sourceVerified": true,
+    "readyVerified": true,
+    "cronServiceActive": true,
+    "cronAlreadyIdentical": false,
+    "backupAndRestoreVerified": true,
+    "monitorVerified": true,
+    "cronInstalled": true,
+    "otherCronChanged": false,
+    "servicesRestarted": false,
+    "activationCreated": false,
+    "scheduledMonitorObserved": true,
+    "lastScheduledMonitorAt": "2026-11-05T12:10:01Z"
+  },
+  "operationScope": {
+    "currency": "USD",
+    "commercialNonFiscalDocuments": true,
+    "vesEnabled": false,
+    "realCommercialTransactionsCreatedForSmoke": false
+  },
+  "maintenanceScope": {
+    "ownCronOnly": true,
+    "monitorEveryMinutes": 5,
+    "dailyBackupRestoreAttemptWindow": "01:00–01:59 America/Caracas",
+    "offsiteAutomated": false,
+    "externalAlerts": false,
+    "automaticRetention": false
+  },
+  "staging": {
+    "preservedInternally": true,
+    "loopbackPort": 33100,
+    "publicDemoOnProductionDomain": false
+  },
+  "initialActivationAttempt": {
+    "historical": true,
+    "abortedBeforeConfigAndGate": true,
+    "ownEdgeUndone": true,
+    "reason": "BusyBox route-output measurement required normalization; previous routes and gateway were unchanged."
+  }
+}

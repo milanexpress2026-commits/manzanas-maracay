@@ -71,6 +71,33 @@
   min-height: 46px;
   font-size: 16px;
 }
+.remember label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+.remember input {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  margin: 0;
+  accent-color: var(--green);
+}
+.remember input:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 4px;
+}
+.remember p {
+  margin: 4px 0 0 34px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.6;
+}
 .submit {
   min-height: 46px;
   width: 100%;

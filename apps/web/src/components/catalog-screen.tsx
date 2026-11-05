@@ -163,25 +163,29 @@ export function CatalogScreen({ session }: { session: AppSession }) {
           </div>
           <Button
             className="primary-action"
-            onClick={() => openForm(tab)}
+            onClick={() => openForm(!catalog.fruits.length ? 'fruits' : tab)}
             disabled={loading || !!error || offline}
           >
             <Plus data-icon="inline-start" />{' '}
-            {tab === 'calibers' ? 'Nuevo calibre' : `Nueva ${singular[tab]}`}
+            {!catalog.fruits.length
+              ? 'Nueva fruta'
+              : tab === 'calibers'
+                ? 'Nuevo calibre'
+                : `Nueva ${singular[tab]}`}
           </Button>
         </div>
         <div className="catalog-summary" aria-label="Resumen del catálogo">
           <span>
             <Apple aria-hidden="true" />
-            <strong>{catalog.fruits.length}</strong> frutas
+            <strong>{loading || error ? '—' : catalog.fruits.length}</strong> frutas
           </span>
           <span>
             <Leaf aria-hidden="true" />
-            <strong>{catalog.varieties.length}</strong> variedades
+            <strong>{loading || error ? '—' : catalog.varieties.length}</strong> variedades
           </span>
           <span>
             <Ruler aria-hidden="true" />
-            <strong>{catalog.calibers.length}</strong> calibres
+            <strong>{loading || error ? '—' : catalog.calibers.length}</strong> calibres
           </span>
           <span className="summary-description">Todo empieza con un buen catálogo.</span>
         </div>
@@ -219,7 +223,9 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                 {Object.entries(tabLabels).map(([value, label]) => (
                   <TabsTrigger key={value} value={value}>
                     {label}
-                    <span className="tab-count">{catalog[value as Tab].length}</span>
+                    <span className="tab-count">
+                      {loading || error ? '—' : catalog[value as Tab].length}
+                    </span>
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -269,6 +275,10 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                       <Skeleton key={i} className="loading-row" />
                     ))}
                   </div>
+                ) : error ? (
+                  <p className="commercial-help">
+                    Vuelve a consultar el catálogo para ver los registros disponibles.
+                  </p>
                 ) : count === 0 ? (
                   <div className="empty-state">
                     <Package aria-hidden="true" />
@@ -280,9 +290,11 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                     <p>
                       {search || fruitFilter !== 'all'
                         ? 'Prueba otro nombre o quita el filtro.'
-                        : tab === 'configurations'
-                          ? 'Crea una configuración con las presentaciones permitidas para el producto.'
-                          : `Agrega tu primer registro para organizar el catálogo.`}
+                        : !catalog.fruits.length
+                          ? 'Agrega la fruta que vas a recibir. Después podrás definir su empaque y las presentaciones que vendes.'
+                          : tab === 'configurations'
+                            ? 'Crea una configuración con las presentaciones permitidas para el producto.'
+                            : `Agrega tu primer registro para organizar el catálogo.`}
                     </p>
                     {search || fruitFilter !== 'all' ? (
                       <Button
@@ -297,11 +309,11 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                     ) : (
                       <Button
                         variant="outline"
-                        onClick={() => openForm(tab)}
+                        onClick={() => openForm(!catalog.fruits.length ? 'fruits' : tab)}
                         disabled={!!error || offline}
                       >
                         <Plus />
-                        Agregar {singular[tab]}
+                        Agregar {!catalog.fruits.length ? 'fruta' : singular[tab]}
                       </Button>
                     )}
                   </div>
@@ -564,7 +576,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
         </section>
         <footer className="page-footer">
           <span>Manzanas Maracay · Frutas importadas</span>
-          <span>Fase 3 · Catálogo</span>
+          <span>Gestión del catálogo</span>
         </footer>
       </main>
       <Dialog

@@ -1,0 +1,32 @@
+{
+  "runId": "8c9581be4d65f4dcef8d73bf",
+  "phase2Commit": "f9b532b75c1ffce668571dc7db0ed20b5a52c36f",
+  "startedAt": "2026-11-05T02:44:56.852Z",
+  "fresh": {
+    "migrationCount": 11,
+    "noSyntheticOperationalData": true,
+    "constraintsValidated": true
+  },
+  "upgrade": {
+    "preservedTables": 16,
+    "preservedOldMigrationHashes": 6,
+    "closedBoxes": 2,
+    "intactBlisters": 4,
+    "equivalentBlisters": 14,
+    "remainingCostUsd": "84.0000",
+    "originalCostUsd": "90.0000",
+    "unknownPiecesPreserved": true,
+    "costOpeningRows": 8
+  },
+  "cleanup": [
+    {
+      "database": "manzanas_maracay_migration_test_f76d04e65b5c",
+      "removed": true
+    },
+    {
+      "database": "manzanas_maracay_migration_test_1697f0243447",
+      "removed": true
+    }
+  ],
+  "finishedAt": "2026-11-05T02:45:08.937Z"
+}

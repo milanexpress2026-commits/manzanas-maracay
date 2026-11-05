@@ -7,6 +7,7 @@ import {
   type SessionUser,
 } from '../../../../packages/domain/src/auth';
 import { authConfig } from './config';
+import { operationsReady } from '../production-state';
 import { DUMMY_PASSWORD_HASH, verifyPassword } from './password';
 
 const tokenHash = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -98,8 +99,8 @@ export class AuthService implements OnModuleDestroy {
       );
       if (!current.rowCount) throw new UnauthorizedException('Usuario o contraseña incorrectos.');
       await client.query(
-        "INSERT INTO auth_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '8 hours')",
-        [tokenHash(token), user.id],
+        "INSERT INTO auth_sessions(token_hash,user_id,expires_at,remember_session) VALUES($1,$2,now()+CASE WHEN $3::boolean THEN interval '30 days' ELSE interval '8 hours' END,$3)",
+        [tokenHash(token), user.id, input.rememberSession],
       );
       if (previousToken)
         await client.query(
@@ -120,6 +121,7 @@ export class AuthService implements OnModuleDestroy {
     }
     return {
       token,
+      rememberSession: input.rememberSession,
       info: this.info({ id: user.id, username: user.username, displayName: user.display_name }),
     };
   }
@@ -130,7 +132,8 @@ export class AuthService implements OnModuleDestroy {
       `UPDATE auth_sessions AS s SET last_seen_at=now()
       FROM app_users AS u WHERE s.token_hash=$1 AND s.user_id=u.id AND u.active
       AND s.revoked_at IS NULL AND s.expires_at>now()
-      AND s.last_seen_at>now()-interval '30 minutes' AND s.created_at>=u.password_changed_at
+      AND (s.remember_session OR s.last_seen_at>now()-interval '30 minutes')
+      AND s.created_at>=u.password_changed_at
       RETURNING u.id,u.username,u.display_name`,
       [tokenHash(token)],
     );
@@ -138,7 +141,7 @@ export class AuthService implements OnModuleDestroy {
     return { id: rows[0].id, username: rows[0].username, displayName: rows[0].display_name };
   }
   info(user: SessionUser): SessionInfo {
-    return { user, environment: authConfig().environment };
+    return { user, environment: authConfig().environment, operationsReady: operationsReady() };
   }
   async logout(token: string | undefined) {
     if (token)

@@ -42,6 +42,8 @@ import {
 import { InventoryService } from './inventory.service';
 import { BcvService } from './bcv.service';
 import { applyPresentationPrices } from './commerce-prices';
+import { commandIsDemo } from './production-state';
+import { authConfig } from './auth/config';
 
 const clientSelect = `select c.id,c.name,c.phone,c.tax_id as "taxId",c.address,c.notes,c.active,c.version,c.is_demo as "isDemo",
   coalesce((select sum(balance_usd) from receivables r where r.client_id=c.id),0)::numeric(18,2)::text as "balanceUsd" from clients c`;
@@ -60,7 +62,6 @@ const saleSelect = `select s.id,s.number,s.client_id as "clientId",s.client_snap
 const paymentSelect = `select p.id,p.number,p.client_id as "clientId",p.client_snapshot->>'name' as "clientName",p.currency,
   p.amount::numeric(18,2)::text as amount,p.amount_usd::numeric(18,2)::text as "amountUsd",p.method,p.received_at as "receivedAt",p.actor,p.is_demo as "isDemo",
   exists(select 1 from payment_reversals r where r.payment_id=p.id) as reversed from payments p`;
-const forcedDemo = () => ['staging', 'preview', 'test'].includes(process.env.MM_APP_ENV ?? 'local');
 const snapshot = (client: ClientSummary): ClientSnapshot => ({
   name: client.name,
   phone: client.phone,
@@ -175,7 +176,7 @@ export class CommerceService implements OnModuleDestroy {
             data.taxId || null,
             data.address || null,
             data.notes,
-            forcedDemo() || ('isDemo' in data && data.isDemo),
+            commandIsDemo('isDemo' in data && data.isDemo),
           ],
         );
       const after = await this.client(client, clientId);
@@ -416,7 +417,7 @@ export class CommerceService implements OnModuleDestroy {
       const customer = await this.client(client, data.clientId, true);
       if (!customer.active)
         throw new ConflictException('Este cliente está inactivo. Actívalo antes de vender.');
-      const isDemo = forcedDemo() || customer.isDemo;
+      const isDemo = commandIsDemo(customer.isDemo);
       if (customer.isDemo !== isDemo)
         throw new ConflictException(
           'Este entorno no puede mezclar clientes reales con operaciones DEMO.',
@@ -436,13 +437,17 @@ export class CommerceService implements OnModuleDestroy {
       for (const input of data.lines) {
         const rule = (
           await client.query(
-            `select r.id,r.variant_id,r.allowed_presentations,f.name as fruit,v.name as variety,c.label as caliber,p.commercial_line
+            `select r.id,r.variant_id,r.allowed_presentations,r.confirmation_status,f.name as fruit,v.name as variety,c.label as caliber,p.commercial_line
           from packing_rules r join product_variants p on p.id=r.variant_id join fruits f on f.id=p.fruit_id
           left join varieties v on v.id=p.variety_id left join calibers c on c.id=p.caliber_id where r.id=$1 for update of r`,
             [input.configurationId],
           )
         ).rows[0];
         if (!rule) throw new NotFoundException('El producto no existe. Actualiza el catálogo.');
+        if (authConfig().environment === 'production' && rule.confirmation_status !== 'confirmed')
+          throw new ConflictException(
+            'Confirma la configuración comercial antes de vender mercancía real.',
+          );
         if (!(rule.allowed_presentations as string[]).includes(input.presentation))
           throw new BadRequestException('Esa presentación no está habilitada para el producto.');
         const price = (
@@ -698,7 +703,7 @@ export class CommerceService implements OnModuleDestroy {
     return this.inventory.runCommand('payment', data, key, actor, async (client) => {
       const conversion = await this.conversion(data);
       const customer = await this.client(client, data.clientId, true);
-      if (forcedDemo() && !customer.isDemo)
+      if (commandIsDemo(customer.isDemo) !== customer.isDemo)
         throw new ConflictException('Este entorno acepta únicamente cobros DEMO.');
       const id = await this.insertPayment(client, data, conversion, actor, key!, customer);
       return this.paymentDetail(client, id);

@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import styles from './login.module.css';
+import type { AppEnvironment } from '@mm/domain';
 
-export function LoginForm({ staging }: { staging: boolean }) {
+export function LoginForm({ environment }: { environment: AppEnvironment }) {
+  const production = environment === 'production';
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -21,11 +23,15 @@ export function LoginForm({ staging }: { staging: boolean }) {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: form.get('username'), password: form.get('password') }),
+        body: JSON.stringify({
+          username: form.get('username'),
+          password: form.get('password'),
+          rememberSession: form.get('rememberSession') === 'on',
+        }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message ?? 'No se pudo iniciar sesión.');
-      window.location.assign('/catalogo');
+      window.location.assign(production ? '/inicio' : '/catalogo');
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : 'No se pudo conectar. Vuelve a intentar.',
@@ -48,14 +54,20 @@ export function LoginForm({ staging }: { staging: boolean }) {
           <p>
             Tu mercancía, en orden.
             <br />
-            Desde la recepción hasta cada empaque.
+            Desde la recepción hasta el último abono.
           </p>
         </section>
         <section className={styles.formSection} aria-labelledby="login-title">
-          {staging && <p className={styles.notice}>ENTORNO DE PRUEBAS</p>}
+          {['staging', 'test'].includes(environment) && (
+            <p className={styles.notice}>ENTORNO DE PRUEBAS</p>
+          )}
           <LockKeyhole className={styles.lock} aria-hidden="true" />
           <h1 id="login-title">Bienvenido a Manzanas Maracay</h1>
-          <p className={styles.intro}>Entra con el usuario que te compartió el propietario.</p>
+          <p className={styles.intro}>
+            {production
+              ? 'Acceso privado de los propietarios. Usa el mismo acceso en tu teléfono, tablet o computadora.'
+              : 'Entra con el usuario que te compartió el propietario.'}
+          </p>
           <form onSubmit={submit} className={styles.form}>
             <div>
               <Label htmlFor="username">Usuario</Label>
@@ -82,6 +94,22 @@ export function LoginForm({ staging }: { staging: boolean }) {
                 disabled={busy}
               />
             </div>
+            <div className={styles.remember}>
+              <label htmlFor="rememberSession">
+                <input
+                  id="rememberSession"
+                  name="rememberSession"
+                  type="checkbox"
+                  aria-describedby="rememberSession-help"
+                  disabled={busy}
+                />
+                <span>Mantener sesión activa</span>
+              </label>
+              <p id="rememberSession-help">
+                Conserva el acceso durante 30 días en este dispositivo. Puedes cerrar sesión cuando
+                quieras.
+              </p>
+            </div>
             {error && (
               <p role="alert" className={styles.error}>
                 {error}
@@ -99,7 +127,7 @@ export function LoginForm({ staging }: { staging: boolean }) {
           <p className={styles.help}>
             Si necesitas acceso o recuperar tu contraseña, comunícate con el propietario.
           </p>
-          <Link href="/demo">Explorar demostración sin contraseña</Link>
+          {!production ? <Link href="/demo">Explorar demostración sin contraseña</Link> : null}
         </section>
       </div>
     </main>

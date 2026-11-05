@@ -1,11 +1,12 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import type { SessionInfo } from '../../../../packages/domain/src/auth';
+import type { AppEnvironment, SessionInfo } from '../../../../packages/domain/src/auth';
 
 export function webAuthConfig() {
   const environment = process.env.MM_APP_ENV ?? 'local';
   const origin = process.env.MM_APP_ORIGIN ?? `http://127.0.0.1:${process.env.MM_WEB_PORT ?? 3100}`;
-  if (!['local', 'test', 'staging'].includes(environment)) throw new Error('Entorno inválido.');
+  if (!['local', 'test', 'staging', 'production'].includes(environment))
+    throw new Error('Entorno inválido.');
   const parsed = new URL(origin);
   if (
     !['http:', 'https:'].includes(parsed.protocol) ||
@@ -19,7 +20,12 @@ export function webAuthConfig() {
     (parsed.protocol !== 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname))
   )
     throw new Error('Staging requiere HTTPS.');
-  if (environment !== 'staging' && !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname))
+  if (environment === 'production' && parsed.protocol !== 'https:')
+    throw new Error('Producción requiere un origen HTTPS exacto.');
+  if (
+    ['local', 'test'].includes(environment) &&
+    !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
+  )
     throw new Error('El entorno local requiere origen loopback.');
   const apiBase =
     process.env.MM_API_BASE_URL ?? `http://127.0.0.1:${process.env.MM_API_PORT ?? 3101}`;
@@ -34,10 +40,12 @@ export function webAuthConfig() {
   )
     throw new Error('La dirección interna de API no es válida.');
   return {
-    environment,
+    environment: environment as AppEnvironment,
     origin,
     apiBase: api.origin,
-    cookieName: environment === 'staging' ? '__Host-mm_session' : 'mm_session',
+    cookieName: ['staging', 'production'].includes(environment)
+      ? '__Host-mm_session'
+      : 'mm_session',
   };
 }
 
@@ -55,7 +63,12 @@ export async function getSession(): Promise<SessionInfo | null> {
   });
   if (response.status === 401) return null;
   if (!response.ok) throw new Error('No se pudo verificar la sesión. Vuelve a intentar.');
-  return response.json() as Promise<SessionInfo>;
+  const session = (await response.json()) as SessionInfo;
+  if (session.environment !== config.environment)
+    throw new Error('El entorno de la sesión no corresponde a esta aplicación.');
+  if (config.environment === 'production' && typeof session.operationsReady !== 'boolean')
+    throw new Error('No se pudo verificar el estado de la operación.');
+  return session;
 }
 
 export async function requireSession(): Promise<SessionInfo> {

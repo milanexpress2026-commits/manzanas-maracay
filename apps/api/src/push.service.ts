@@ -17,6 +17,7 @@ import {
 } from '../../../packages/domain/src/push';
 import { readVapidConfig, validBrowserPushKey } from './push-config';
 import { dispatchCollectionPush, type PushBatch, type PushOutcome } from './push-dispatch';
+import { assertBusinessWritesReady, operationsReady } from './production-state';
 
 type DeviceRow = {
   id: string;
@@ -122,6 +123,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
   }
 
   async subscribe(body: unknown, key: string | undefined, actor: string) {
+    assertBusinessWritesReady();
     if (!this.vapid)
       throw new ServiceUnavailableException(
         'Los avisos push aún no están configurados. El centro de cobranza sigue disponible.',
@@ -275,6 +277,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async revalidate(batch: PushBatch, at: Date) {
+    if (!operationsReady()) return false;
     const client = await this.pool.connect();
     try {
       await client.query('begin');
@@ -335,7 +338,7 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
   }
 
   async dispatch() {
-    if (!this.vapid || this.busy) return 'idle';
+    if (!this.vapid || this.busy || !operationsReady()) return 'idle';
     this.busy = true;
     try {
       const config = this.vapid;
@@ -345,14 +348,16 @@ export class PushService implements OnModuleInit, OnModuleDestroy {
           revalidate: (batch, at) => this.revalidate(batch, at),
           finish: (batch, outcome, code) => this.finish(batch, outcome, code),
         },
-        (subscription, payload) =>
-          webPush.sendNotification(subscription, payload, {
+        (subscription, payload) => {
+          assertBusinessWritesReady();
+          return webPush.sendNotification(subscription, payload, {
             vapidDetails: config,
             TTL: 300,
             urgency: 'normal',
             topic: 'mm-cobranza',
             timeout: 8000,
-          }),
+          });
+        },
       );
     } finally {
       this.busy = false;

@@ -59,3 +59,15 @@ Revisión de código siguiendo la skill local `review-animations` (Emil Kowalski
 Las capturas de fase 2 conservan la referencia anterior. La suite UI de fase 3 genera capturas reales en `docs/capturas/fase3`; los resultados y el vídeo se documentan una vez ejecutados y revisados. Esta especificación describe decisiones y no sustituye esa verificación visual.
 
 La ejecución final de la fase 3 produjo 30 capturas sin hallazgos axe ni desbordamiento y un vídeo de 17,56 s inspeccionado. La comparación con fase 2, las correcciones móviles y los límites verificados están en [revisión visual de fase 3](docs/visual-review-fase-3.md). Veredicto de movimiento: aprobado para el recorrido Chromium evaluado, con navegación por teclado y movimiento reducido comprobados.
+
+## Fase 4: operación privada y primer uso
+
+Producción conserva la marca, la tipografía y los controles existentes. La raíz verifica el entorno y la sesión en el servidor: dirige a acceso privado o a `/inicio`. La demostración queda fuera del recorrido de producción y sus rutas responden 404; QA conserva su demostración y sus etiquetas. El acceso es compartido por los propietarios desde sus dispositivos, sin introducir cuentas individuales ni acceso anónimo a la operación.
+
+El inicio consulta un resumen privado del servidor. Muestra cajas cerradas, saldo por cobrar y ventas vigentes como una franja de datos, seguida de una guía opcional hacia los formularios reales. Proveedor, fruta, empaque confirmado, recepción, precios, cliente y venta se marcan únicamente según registros persistidos. No se precargan nombres, cantidades, clientes ni tasas. Durante carga se muestra un esqueleto; un error ofrece reintento y nunca se representa como saldo o inventario cero.
+
+La apertura aún no habilitada muestra «Operación en preparación» y mantiene los formularios deshabilitados. El backend revalida esa condición en cada mutación; el bloqueo visual no es una autorización. Los empaques pendientes se pueden revisar y confirmar en el catálogo, pero no se ofrecen para recepción o venta en producción. El catálogo vacío lleva primero a registrar la fruta, antes de pedir una configuración sin producto.
+
+La guía permanece visible cuando faltan registros y se puede plegar sin bloquear navegación. Al completar el recorrido, da prioridad a venta y recepción. Los enlaces de consulta permanecen separados de las acciones de registro. En teléfono los datos y paneles se apilan con etiquetas completas; no se añade movimiento a esta pantalla de uso frecuente. Los diálogos conservan la animación breve, foco y movimiento reducido verificados en fase 3. Una suscripción push con claves de un entorno anterior requiere una nueva confirmación explícita antes de retirarla y activar la configuración actual.
+
+Estas decisiones describen la implementación de fase 4. Sus pruebas, capturas y verificaciones nuevas se documentarán por separado; la evidencia de fase 3 no acredita por sí sola esta versión.

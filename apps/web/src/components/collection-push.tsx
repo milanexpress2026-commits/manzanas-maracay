@@ -45,6 +45,7 @@ export function CollectionPush() {
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(''),
     [error, setError] = useState('');
+  const [renewConsent, setRenewConsent] = useState(false);
   const [pending, setPending] = useState<{
     body: SubscribeBody;
     subscription: PushSubscription;
@@ -65,7 +66,7 @@ export function CollectionPush() {
         .catch(() => {});
   }, [status.data?.endpointHash]);
   const own = !!localHash && localHash === status.data?.endpointHash;
-  async function subscribe() {
+  async function subscribe(allowRenewal = false) {
     if (!status.data?.configured || !status.data.publicKey || !supported) return;
     setBusy(true);
     setError('');
@@ -79,11 +80,29 @@ export function CollectionPush() {
       const registration = await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
       let sub = await registration.pushManager.getSubscription();
+      const applicationServerKey = publicKeyBytes(status.data.publicKey);
+      const previousKey = sub?.options.applicationServerKey;
+      const previousBytes = previousKey ? new Uint8Array(previousKey) : null;
+      const differentKey =
+        sub &&
+        (!previousBytes ||
+          previousBytes.length !== applicationServerKey.length ||
+          previousBytes.some((value, index) => value !== applicationServerKey[index]));
+      if (differentKey) {
+        if (!allowRenewal) {
+          setRenewConsent(true);
+          return;
+        }
+        if (!(await sub!.unsubscribe()))
+          throw new Error('No se pudo retirar la configuración anterior. Vuelve a intentarlo.');
+        sub = null;
+        setLocalHash(null);
+      }
       const created = !sub;
       if (!sub)
         sub = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: publicKeyBytes(status.data.publicKey),
+          applicationServerKey,
         });
       const json = sub.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth)
@@ -101,12 +120,14 @@ export function CollectionPush() {
         await command.run('/api/push/subscribe', body);
         setLocalHash(await digest(sub.endpoint));
         await status.reload();
+        setRenewConsent(false);
         setMessage(
           'Esta tablet quedó suscrita. La entrega real debe comprobarse en el dispositivo.',
         );
       } catch (e) {
         if (e instanceof ApiError && e.status === 409) {
           command.setError('');
+          setRenewConsent(false);
           setPending({ body, subscription: sub, created });
         } else {
           if (created) await sub.unsubscribe();
@@ -228,7 +249,33 @@ export function CollectionPush() {
         </p>
       ) : null}
       {message ? <p role="status">{message}</p> : null}
-      <FormError message={!pending ? error : ''} />
+      <FormError message={!pending && !renewConsent ? error : ''} />
+      <Dialog
+        open={renewConsent}
+        onOpenChange={(open) => {
+          if (!busy) setRenewConsent(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Actualizar avisos en esta tablet</DialogTitle>
+            <DialogDescription>
+              Este navegador conserva una configuración anterior. Para activar los avisos de esta
+              aplicación se retirará la suscripción anterior y se creará una nueva, solo con tu
+              confirmación.
+            </DialogDescription>
+          </DialogHeader>
+          <FormError message={error} />
+          <div className="form-actions">
+            <Button variant="outline" disabled={busy} onClick={() => setRenewConsent(false)}>
+              Cancelar
+            </Button>
+            <Button disabled={busy} onClick={() => void subscribe(true)}>
+              Actualizar y activar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={!!pending}
         onOpenChange={(open) => {

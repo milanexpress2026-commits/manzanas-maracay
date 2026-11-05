@@ -3,6 +3,9 @@ import Decimal from 'decimal.js';
 import { presentationSchema, type Presentation } from './commerce';
 export * from './inventory';
 export * from './commerce';
+export * from './auth';
+export * from './operations';
+export * from './production';
 
 export const nameSchema = z
   .string()

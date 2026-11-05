@@ -1,12 +1,14 @@
 # Manzanas Maracay
 
-Aplicación para una distribuidora venezolana de frutas importadas. La fase 3 incorpora empaques configurables, recepción con precios, ventas FIFO, clientes, crédito, abonos y comprobantes comerciales PDF. La demo pública usa ejemplos sintéticos; la operación interna conserva autenticación.
+Aplicación para una distribuidora venezolana de frutas importadas: empaques configurables, recepciones, inventario, ventas FIFO, clientes, crédito, abonos y comprobantes comerciales PDF. La fase 4 añade producción independiente, datos comerciales inicialmente vacíos, acceso privado de dueños y la opción «Mantener sesión activa» durante 30 días.
 
-Repositorio público autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama `phase-3/comercial-demo`, basada en `phase-2/inventario-staging` (`f9b532b`). El [PR #2 de fase 3](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/2) permanece en borrador contra la rama de fase 2; el [PR #1](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1) se conserva, sin merge. URL de pruebas: [manzanas.ganamosclub.net](https://manzanas.ganamosclub.net). Release y verificación exactas en [staging](docs/staging.md).
+Repositorio público autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama actual `phase-4/produccion-separada`, basada en la fase 3 verificada (`f6cff80ddaea19fa9c2ac1954cf0b4f6c6de4e94`). Código actual 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0, publicado en el [PR #3](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/3). El [PR #2](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/2) y el [PR #1](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1) se conservan sin merge. Estado de código, pruebas, recursos remotos y publicación en la [entrega de fase 4](docs/entrega-fase-4-produccion.md).
 
-**Fase 3 desplegada y verificada en staging:** `phase3-ef3d64616313`, construida desde `ef3d64616313b3a5f2184f37365dc751da07af29`, saludable el 5 de noviembre de 2026 a las 00:39:12 UTC. [Demo pública](https://manzanas.ganamosclub.net/demo) y [acceso interno](https://manzanas.ganamosclub.net/login). La web, API y esquema comerciales están activos; la publicación temporal solo web quedó sustituida. Los commits posteriores de documentación no cambian ese commit desplegado.
+**Producción publicada y activa para operación interna en USD:** [entrar a Manzanas Maracay](https://manzanas.ganamosclub.net/login). Release phase4-2a81817fe2c1, habilitada con autorización específica del propietario el 5 de noviembre de 2026 a las 12:04:09 UTC. La raíz dirige al acceso o al inicio privado según sesión; /demo responde HTTP 404. Staging permanece interno en loopback 33100.
 
-La verificación aprobó typecheck/build, **90 unitarias y 53 E2E**, once migraciones desde base limpia y desde fase 2, smoke comercial HTTPS con PDF y logo, y respaldo/restauración aislada posterior. La auditoría conservó los recursos ajenos y PostgreSQL propio; detalles y límites en el [informe de staging de fase 3](docs/verificacion-staging-fase3.json).
+Verificación del código actual: tipos/build y **137 unitarias**, además de **12/12 escenarios HTTPS de producción aislada** repetidos después de unificar la validación de contraseña de alta y renovación (8–256 caracteres). Ejecución 15e7b61dec37a0978b7f3451, 5 de noviembre de 2026, 07:54:15–07:56:43 UTC, con base temporal retirada. Las trece migraciones fresh/upgrade y los **53/53 E2E de regresión** corresponden a la implementación previa 49044263d6f74940e388817179ba6df3eff1f8ba; no se presentan como una repetición posterior. La revisión de seis capturas corresponde al ensayo 67a94e711faec9abdb1bff9a; la interfaz no cambió con la corrección. [Evidencia local](docs/verificacion-fase4-local.json).
+
+**Verificación remota completada:** HTTPS estricto, opción «Mantener sesión activa», cookie de 30 días, sesión activa y logout con rechazo de la cookie anterior. La base comenzó con 19 tablas comerciales vacías y una cuenta legítima. Copia externa cifrada y restauración verificadas; cron propio instalado a las 12:05:58 UTC tras comprobar respaldo, restauración y monitor. Rutas anteriores y aplicaciones compartidas preservadas, sin reiniciar el proxy. No se crearon ventas o cobros reales para el smoke. VES sigue bloqueado y los PDF son comerciales, no fiscales. [Evidencia remota](docs/verificacion-produccion-fase4.json).
 
 ## Abrir localmente
 
@@ -23,7 +25,7 @@ También existe `INICIAR.ps1`; si está bloqueado usa `npm run dev`, sin cambiar
 
 ## Flujos disponibles
 
-- **Demo (`/demo`)**: catálogo, inventario, recepción, ventas y cobranza ficticias; sin consultar la base privada ni guardar operaciones.
+- **Demo local o de QA (/demo, deshabilitada en producción)**: catálogo, inventario, recepción, ventas y cobranza ficticias; sin consultar la base privada ni guardar operaciones.
 - **Catálogo (`/catalogo`)**: frutas, variedad/calibre opcionales, línea comercial, modelo de empaque, presentaciones y precios promo/normal independientes. Datos desconocidos pendientes.
 - **Recepciones (`/recepciones`)**: varias frutas, costo histórico por lote y cambio explícito de precios, confirmados atómicamente.
 - **Inventario (`/inventario`)**: cajas selladas, fracciones y movimientos auditados; mitades comerciales sin inventar piezas; conteo cuando corresponde; ajustes y reversas admisibles.
@@ -37,7 +39,7 @@ Los PDF **no son facturas fiscales SENIAT**. La fuente oficial BCV no pudo verif
 
 ## Acceso y datos
 
-Páginas y datos privados exigen sesión: scrypt, sesiones revocables de 8 horas con 30 minutos de inactividad, cookie `HttpOnly`, `SameSite=Strict` y `Secure` en staging. No hay registro público ni roles diferenciados. El proxy limita rutas y valida origen en mutaciones.
+Páginas y datos privados exigen sesión: scrypt, sesiones revocables de 8 horas con 30 minutos de inactividad, o 30 días al marcar «Mantener sesión activa». Cookie `HttpOnly`, `SameSite=Strict` y `Secure` en staging/producción. Cerrar sesión y restablecer la contraseña revocan el acceso. No hay registro público; el propietario eligió una cuenta privada compartida. El proxy limita rutas y valida origen en mutaciones.
 
 El operador invita mediante `npx tsx scripts/create-user.ts --file <archivo-privado>` siguiendo [autenticación](docs/authentication.md). El archivo contiene `username`, `displayName`, `password`; nunca pasar contraseñas por argumentos. `--reset` invalida sesiones anteriores. Staging no crea usuarios automáticamente.
 
@@ -54,7 +56,7 @@ npm run test:e2e
 
 `check` ejecuta tipos, unitarios y build. Cierra el iniciador local antes de E2E: la suite administra sus servicios y escribe solo en `manzanas_maracay_test`, nunca en el VPS. `npm run db:stop` detiene únicamente la base identificada del proyecto.
 
-Once migraciones, `0000`–`0010`; no reescribir aplicadas ni usar `db push`. Instalación limpia y actualización desde el commit exacto de fase 2: [reporte](docs/verificacion-migraciones-fase3.json). El script `scripts/verify-phase3-migrations.ts` solo admite bases temporales propias locales con `MM_APP_ENV=test`. Resultados nuevos y límites en [entrega de fase 3](docs/entrega-fase-3.md), separados de evidencia histórica.
+Trece migraciones, `0000`–`0012`; no reescribir aplicadas ni usar `db push`. Instalación limpia y actualización desde el commit exacto de fase 3: [reporte](docs/verificacion-migraciones-fase4.json). `scripts/verify-phase4-migrations.ts` usa bases temporales propias locales. `node scripts/test-production.mjs` ensaya producción con HTTPS local, gate sintético y otra base temporal; jamás se dirige al VPS. El ensayo elimina su base marcada y detiene sus procesos al terminar.
 
 ## Organización
 
@@ -71,11 +73,12 @@ scripts/           Arranque, pruebas, migraciones, usuarios y staging
 
 ## Documentación
 
-- [Plan](docs/plan-fase-3.md) y [entrega de fase 3](docs/entrega-fase-3.md)
+- [Plan](docs/plan-fase-4.md) y [entrega de fase 4](docs/entrega-fase-4-produccion.md)
+- [Operación real](docs/operacion-real.md), [producción](docs/despliegue-produccion.md), [backup](docs/backup-produccion.md) y [pendientes](docs/pendientes-comerciales.md)
 - [Reglas](docs/domain-rules.md), [inventario](docs/inventory-model.md) y [arquitectura](docs/architecture.md)
 - [Staging y respaldo](docs/staging.md), [infraestructura](docs/infrastructure.md) y [sesiones](docs/authentication.md)
 - [Diseño](DESIGN.md), [marca](docs/brand-assets.md), [skills](docs/skills.md) y [seguridad](docs/revision-seguridad-fase-3.md)
 - [Continuar en otro chat](docs/continuar-en-chatgpt.md)
-- Historial: [fase 1](docs/entrega-fase-1.md), [fase 2](docs/entrega-fase-2.md)
+- Historial: [fase 1](docs/entrega-fase-1.md), [fase 2](docs/entrega-fase-2.md), [fase 3](docs/entrega-fase-3.md)
 
-No se declara producción lista: faltan respaldo externo seguro, revisión fiscal y validación en tablet real. Se conserva la incidencia histórica del alias `web`; el servicio actual usa exclusivamente `mm-staging-web`.
+La operación interna en USD está habilitada; VES, procedimiento fiscal y tablet real conservan sus pendientes externos. El cron no automatiza la copia externa, alertas a terceros ni eliminación de respaldos. Se conserva la incidencia histórica del alias `web`; los servicios exclusivos son `mm-staging-web` y `mm-production-web`.

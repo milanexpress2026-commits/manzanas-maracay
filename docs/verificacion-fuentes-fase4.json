@@ -1,0 +1,26 @@
+[
+  {
+    "url": "https://www.bcv.org.ve/",
+    "checkedAt": "2026-11-05T02:57:01.299Z",
+    "strictTls": true,
+    "error": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+  },
+  {
+    "url": "https://www.bcv.org.ve/estadisticas/tipo-cambio-de-referencia-smc",
+    "checkedAt": "2026-11-05T02:57:01.450Z",
+    "strictTls": true,
+    "error": "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+  },
+  {
+    "url": "https://www.seniat.gob.ve/",
+    "checkedAt": "2026-11-05T02:57:01.453Z",
+    "strictTls": true,
+    "error": "TypeError"
+  },
+  {
+    "url": "https://www.imprentanacional.gob.ve/",
+    "checkedAt": "2026-11-05T02:57:01.455Z",
+    "strictTls": true,
+    "error": "ECONNRESET"
+  }
+]

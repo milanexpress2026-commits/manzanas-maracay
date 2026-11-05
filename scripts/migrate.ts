@@ -4,31 +4,24 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import path from 'node:path';
 import { establishCostBaseline } from './inventory-cost-baseline';
+import { appEnvironmentSchema } from '../packages/domain/src/auth';
+import { databaseTarget } from '../packages/database/src/environment';
 export function assertDatabase(value: string | undefined) {
-  if (!value) throw new Error('Falta MIGRATION_DATABASE_URL.');
-  const url = new URL(value);
-  const localName =
-    ['/manzanas_maracay_dev', '/manzanas_maracay_test'].includes(url.pathname) ||
-    (process.env.MM_APP_ENV === 'test' &&
-      /^\/manzanas_maracay_migration_test_[a-f0-9]{12}$/.test(url.pathname));
-  const local =
-    ['127.0.0.1', 'localhost'].includes(url.hostname) && url.port === '55432' && localName;
-  const staging =
-    process.env.MM_APP_ENV === 'staging' &&
-    url.hostname === 'postgres' &&
-    url.port === '5432' &&
-    url.pathname === '/manzanas_maracay_staging';
-  if (
-    !['postgres:', 'postgresql:'].includes(url.protocol) ||
-    url.username !== 'mm_owner' ||
-    (!local && !staging)
-  )
-    throw new Error(
-      'Solo se permiten las bases exclusivas de Manzanas Maracay: local o staging aislado.',
-    );
-  return value;
+  databaseTarget(value, {
+    environment: appEnvironmentSchema.parse(process.env.MM_APP_ENV ?? 'local'),
+    role: 'owner',
+    nodeEnvironment: process.env.NODE_ENV,
+    productionTestDatabase: process.env.MM_PRODUCTION_TEST_DATABASE,
+  });
+  return value!;
 }
 export async function migrateDatabase(url: string) {
+  const target = databaseTarget(url, {
+    environment: appEnvironmentSchema.parse(process.env.MM_APP_ENV ?? 'local'),
+    role: 'owner',
+    nodeEnvironment: process.env.NODE_ENV,
+    productionTestDatabase: process.env.MM_PRODUCTION_TEST_DATABASE,
+  });
   const pool = new Pool({ connectionString: assertDatabase(url), max: 1 });
   try {
     const client = await pool.connect();
@@ -41,7 +34,8 @@ export async function migrateDatabase(url: string) {
       await client.query('select pg_advisory_unlock(68493001)');
       client.release();
     }
-    await pool.query(`revoke all on schema public from public; grant usage on schema public to mm_app;
+    const role = target.applicationRole;
+    const grants = `revoke all on schema public from public; grant usage on schema public to mm_app;
       grant select,insert on fruits,calibers,product_variants,command_receipts to mm_app;
       grant select,insert,update on varieties to mm_app;
       grant select,insert,update on packing_rules to mm_app;
@@ -60,7 +54,24 @@ export async function migrateDatabase(url: string) {
       grant usage,select on sequence inventory_entries_entry_order_seq to mm_app;
       revoke all on app_users,auth_sessions,auth_login_buckets from public;
       grant select on app_users to mm_app;
-      grant select,insert,update,delete on auth_sessions,auth_login_buckets to mm_app;`);
+      grant select,insert,update,delete on auth_sessions,auth_login_buckets to mm_app;
+      revoke all on runtime_environment from public;
+      grant select on runtime_environment to mm_app;`;
+    // Both names come from the fixed target allowlist; no environment/request identifier is interpolated.
+    await pool.query(grants.replaceAll('mm_app', role));
+    const { rows } = await pool.query('select * from runtime_environment where singleton');
+    const binding = rows[0];
+    if (
+      rows.length !== 1 ||
+      binding.database_name !== target.database ||
+      binding.environment !== target.environment ||
+      binding.owner_role !== target.ownerRole ||
+      binding.application_role !== role ||
+      binding.purpose !== target.purpose
+    )
+      throw new Error(
+        'El vínculo inmutable de base y entorno no coincide. No se habilitó la aplicación.',
+      );
     console.log('Migraciones aplicadas y permisos mínimos configurados.');
     await establishCostBaseline(pool);
   } finally {

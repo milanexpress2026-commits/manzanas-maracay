@@ -1,0 +1,9 @@
+# Review before installing as /etc/cron.d/manzanas-maracay-production.
+# No application/proxy restart and no mail recipient. Private logs only.
+# The script uses America/Caracas internally: one attempt per day during 01:00-01:59.
+# This is independent of the host cron timezone. It does not encrypt/export offsite.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+*/5 * * * * root /bin/bash /opt/manzanas-maracay/production/current/scripts/production-maintenance.sh monitor >> /opt/manzanas-maracay/production/shared/monitor.log 2>&1
+*/5 * * * * root /bin/bash /opt/manzanas-maracay/production/current/scripts/production-maintenance.sh scheduled-backup >> /opt/manzanas-maracay/production/shared/backup-maintenance.log 2>&1

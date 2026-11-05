@@ -1,4 +1,5 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { passwordCreationSchema, PASSWORD_MAX_LENGTH } from '../../../../packages/domain/src/auth';
 
 // OWASP scrypt profile: N=2^17, r=8, p=1 (128 MiB); one active derivation per API process.
 const N = 131072,
@@ -24,14 +25,13 @@ async function derive(password: string, salt: string): Promise<Buffer> {
   });
 }
 export async function hashPassword(password: string): Promise<string> {
-  if (password.length < 14 || password.length > 256)
-    throw new Error('La contraseña debe tener entre 14 y 256 caracteres.');
+  passwordCreationSchema.parse(password);
   const salt = randomBytes(16).toString('hex');
   const key = await derive(password, salt);
   return `scrypt$${N}$${R}$${P}$${salt}$${key.toString('hex')}`;
 }
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  if (password.length > 256) return false;
+  if (password.length > PASSWORD_MAX_LENGTH) return false;
   const parsed = FORMAT.exec(stored);
   // Do not accept attacker-controlled work factors from a malformed hash.
   const salt = parsed?.[1] ?? '0'.repeat(32);
