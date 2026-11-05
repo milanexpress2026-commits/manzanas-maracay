@@ -1,6 +1,6 @@
 # Guía de operación real
 
-Esta guía describe el recorrido preparado para producción. **No acredita que la apertura al público del negocio esté habilitada.** El estado de publicación y los controles pendientes se registran en [entrega de fase 4](entrega-fase-4-produccion.md). Si aparece «Operación en preparación», puedes consultar los módulos, pero todavía no registrar mercancía, ventas ni cobros.
+La operación interna en USD está habilitada en [Manzanas Maracay](https://manzanas.ganamosclub.net/login) desde el 5 de noviembre de 2026, con acceso privado de los propietarios. Los PDF son comerciales no fiscales; VES sigue bloqueado. La [entrega](entrega-fase-4-produccion.md) contiene evidencia y límites. Si en una futura revisión aparece «Operación en preparación», se permitirá consultar, pero quedarán bloqueadas las nuevas operaciones hasta su habilitación.
 
 ## Entrar desde los dispositivos del negocio
 

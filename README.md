@@ -4,11 +4,11 @@ Aplicación para una distribuidora venezolana de frutas importadas: empaques con
 
 Repositorio público autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama actual `phase-4/produccion-separada`, basada en la fase 3 verificada (`f6cff80ddaea19fa9c2ac1954cf0b4f6c6de4e94`). Código actual 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0, publicado en el [PR #3](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/3). El [PR #2](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/2) y el [PR #1](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1) se conservan sin merge. Estado de código, pruebas, recursos remotos y publicación en la [entrega de fase 4](docs/entrega-fase-4-produccion.md).
 
-**La URL aún conserva staging mientras se prepara el cambio:** `phase3-ef3d64616313`, construida desde `ef3d64616313b3a5f2184f37365dc751da07af29`. [Demo de pruebas](https://manzanas.ganamosclub.net/demo) y [acceso interno](https://manzanas.ganamosclub.net/login). La producción nueva bloquea `/demo`; su publicación necesita el cambio concreto de proxy autorizado después de verificar la preparación.
+**Producción publicada y activa para operación interna en USD:** [entrar a Manzanas Maracay](https://manzanas.ganamosclub.net/login). Release phase4-2a81817fe2c1, habilitada con autorización específica del propietario el 5 de noviembre de 2026 a las 12:04:09 UTC. La raíz dirige al acceso o al inicio privado según sesión; /demo responde HTTP 404. Staging permanece interno en loopback 33100.
 
 Verificación del código actual: tipos/build y **137 unitarias**, además de **12/12 escenarios HTTPS de producción aislada** repetidos después de unificar la validación de contraseña de alta y renovación (8–256 caracteres). Ejecución 15e7b61dec37a0978b7f3451, 5 de noviembre de 2026, 07:54:15–07:56:43 UTC, con base temporal retirada. Las trece migraciones fresh/upgrade y los **53/53 E2E de regresión** corresponden a la implementación previa 49044263d6f74940e388817179ba6df3eff1f8ba; no se presentan como una repetición posterior. La revisión de seis capturas corresponde al ensayo 67a94e711faec9abdb1bff9a; la interfaz no cambió con la corrección. [Evidencia local](docs/verificacion-fase4-local.json).
 
-**Producción preparada y cerrada:** phase4-2a81817fe2c1 está saludable, con 13 migraciones, 19 tablas comerciales vacías y una cuenta legítima. Login, cookie persistente de 30 días y logout están verificados; push está configurado sin dispositivo suscrito. La copia cifrada AES-256-GCM/DPAPI fuera del VPS se descifró y restauró en aislamiento, con limpieza confirmada. **Todavía no hay activación, cambio de URL ni cron instalado.** El candidato de Caddy pasó la validación aislada a las 09:05:46 UTC, con recursos temporales retirados y proxy intacto. La aprobación concreta ya se solicitó y sigue sin respuesta. [Evidencia remota pública](docs/verificacion-produccion-fase4.json).
+**Verificación remota completada:** HTTPS estricto, opción «Mantener sesión activa», cookie de 30 días, sesión activa y logout con rechazo de la cookie anterior. La base comenzó con 19 tablas comerciales vacías y una cuenta legítima. Copia externa cifrada y restauración verificadas; cron propio instalado a las 12:05:58 UTC tras comprobar respaldo, restauración y monitor. Rutas anteriores y aplicaciones compartidas preservadas, sin reiniciar el proxy. No se crearon ventas o cobros reales para el smoke. VES sigue bloqueado y los PDF son comerciales, no fiscales. [Evidencia remota](docs/verificacion-produccion-fase4.json).
 
 ## Abrir localmente
 
@@ -25,7 +25,7 @@ También existe `INICIAR.ps1`; si está bloqueado usa `npm run dev`, sin cambiar
 
 ## Flujos disponibles
 
-- **Demo (`/demo`)**: catálogo, inventario, recepción, ventas y cobranza ficticias; sin consultar la base privada ni guardar operaciones.
+- **Demo local o de QA (/demo, deshabilitada en producción)**: catálogo, inventario, recepción, ventas y cobranza ficticias; sin consultar la base privada ni guardar operaciones.
 - **Catálogo (`/catalogo`)**: frutas, variedad/calibre opcionales, línea comercial, modelo de empaque, presentaciones y precios promo/normal independientes. Datos desconocidos pendientes.
 - **Recepciones (`/recepciones`)**: varias frutas, costo histórico por lote y cambio explícito de precios, confirmados atómicamente.
 - **Inventario (`/inventario`)**: cajas selladas, fracciones y movimientos auditados; mitades comerciales sin inventar piezas; conteo cuando corresponde; ajustes y reversas admisibles.
@@ -81,4 +81,4 @@ scripts/           Arranque, pruebas, migraciones, usuarios y staging
 - [Continuar en otro chat](docs/continuar-en-chatgpt.md)
 - Historial: [fase 1](docs/entrega-fase-1.md), [fase 2](docs/entrega-fase-2.md), [fase 3](docs/entrega-fase-3.md)
 
-No se declara producción completa: el estado ejecutado del respaldo y la publicación está en la entrega actual; VES, procedimiento fiscal y tablet real requieren validación externa. Se conserva la incidencia histórica del alias `web`; los servicios exclusivos son `mm-staging-web` y `mm-production-web`.
+La operación interna en USD está habilitada; VES, procedimiento fiscal y tablet real conservan sus pendientes externos. El cron no automatiza la copia externa, alertas a terceros ni eliminación de respaldos. Se conserva la incidencia histórica del alias `web`; los servicios exclusivos son `mm-staging-web` y `mm-production-web`.

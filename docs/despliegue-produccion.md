@@ -2,7 +2,7 @@
 
 ## Estado y alcance
 
-**Producción desplegada y cerrada:** phase4-2a81817fe2c1, commit 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0, está saludable con 13 migraciones, 19 tablas comerciales vacías y una cuenta legítima. El acceso privado, sesión persistente/logout y copia externa cifrada con restauración aislada están verificados. **Todavía no hay activación, autorización del cambio concreto del proxy, cambio de URL ni cron instalado.** El candidato Caddy pasó la validación aislada el 5 de noviembre a las 09:05:46.355571 UTC, con limpieza confirmada, proxy sin cambios y contenedores previos conservados. Solo cambia mm-staging-web:3100 por mm-production-web:3100 en el host Manzanas, usando el contexto público verificado PORTAL_DOMAIN=socios.ganamosclub.net. La aprobación concreta ya se solicitó y sigue sin respuesta. La URL objetivo https://manzanas.ganamosclub.net conserva staging. [Evidencia remota](verificacion-produccion-fase4.json) y [entrega](entrega-fase-4-produccion.md).
+**Producción publicada y activa para operación interna en USD:** phase4-2a81817fe2c1, código 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0. Activación autorizada a las 12:04:09.980676 UTC del 5 de noviembre de 2026, autenticación pública HTTPS a las 12:04:59 UTC y mantenimiento instalado a las 12:05:58 UTC. [Acceso privado](https://manzanas.ganamosclub.net/login); /demo devuelve HTTP 404 y staging permanece interno en loopback 33100. VES sigue bloqueado y los PDF son comerciales no fiscales. Los commits documentales posteriores no cambian el código desplegado. [Evidencia](verificacion-produccion-fase4.json).
 
 Staging conserva su base e historia sintética. No se copian productos, clientes, cajas, ventas, pagos ni deudas de ejemplo a producción; tampoco se cambian sus indicadores DEMO a reales. Las pruebas de operaciones se realizan en una base aislada expresamente identificada para QA. Una base con datos sintéticos no se promueve después a la del negocio.
 
@@ -27,7 +27,7 @@ Staging conserva su base e historia sintética. No se copian productos, clientes
 
 Las imágenes de Node y PostgreSQL se fijan por digest. El build recibe solo origen, release y commit públicos. API y web usan usuario sin privilegios, sistema de archivos de solo lectura, límites de recursos y logs acotados. Los servicios persistentes reinician con `unless-stopped`; las herramientas de migración e invitación no se reinician automáticamente. Un reinicio no salta la activación ni convierte una base QA en producción.
 
-## Preparación antes de exponer tráfico
+## Procedimiento de preparación aplicado antes de exponer tráfico
 
 1. Verificar rama y SHA exactos, typecheck, pruebas, build y migraciones nuevas/upgrade. Conservar las evidencias de esta fase; los resultados históricos de fase 3 no la validan. La inicialización confirmó contenedores preexistentes conservados y proxy público intacto. Repetir la comparación de staging y terceros antes/después del futuro cambio de tráfico.
 2. Tomar inventario de los contenedores, redes, puertos, proxy y rutas HTTP reales de las demás aplicaciones. Preparar un cambio mínimo y reversión concreta. No detener ni reiniciar otros proyectos, ejecutar limpieza global de Docker o reutilizar nombres ambiguos.
@@ -42,6 +42,8 @@ El ensayo HTTPS local usa una base QA exclusiva y el origen `https://localhost:3
 
 ## Activación y cambio de URL
 
+El cambio concreto ya fue autorizado y ejecutado: solo el upstream de Manzanas pasó a mm-production-web:3100. Se verificaron rutas previas y aplicaciones compartidas; el proxy no se reinició. El primer intento abortó antes de configuración/gate por la medición de rutas de BusyBox, deshizo la conexión propia y se repitió con la lectura corregida. Los controles siguientes siguen siendo aplicables a futuros cambios; no representan una aprobación pendiente del cambio completado.
+
 La API vuelve a comprobar el archivo privado `activation.json` antes de mutar. Debe coincidir con commit, release, base, UUID y origen; incluye referencia de aprobación, fechas y evidencia verdadera de respaldo externo, restauración, autenticación, cuenta, separación de datos, infraestructura y alcance comercial no fiscal. **No completar esas evidencias con `true` para sortear controles pendientes.** Una activación válida no caduca a mitad de la operación diaria, pero una nueva release necesita su identidad y evidencia correspondientes.
 
 La autorización general de desarrollo no sustituye la autorización concreta para DNS, Caddy o redes compartidas. Antes de pedir ese cambio, dejar preparados el host exacto, destino `mm-production-web:3100`, red exclusiva, respaldo del proxy, validación de su configuración y reversión. El proxy no está conectado automáticamente por Compose. Verificar la estrategia para conservar QA accesible de forma interna sin dejar la demo como entrada principal del negocio; no inventar un subdominio ni cambiar DNS para ello sin acuerdo.
@@ -52,7 +54,7 @@ La apertura comercial no acredita funcionalidades externas todavía pendientes: 
 
 ## Verificación y mantenimiento
 
-[production-health.mjs](../scripts/production-health.mjs) comprueba liveness, entorno y release; `--require-ready` exige además activación. Un contenedor saludable no es prueba suficiente de apertura comercial. Instalar y comprobar el mantenimiento propio solo después de revisar [production-maintenance.cron.example](../infra/production-maintenance.cron.example): monitor y respaldo/restauración tienen logs privados y no envían mensajes externos ni realizan la copia cifrada fuera del VPS.
+[production-health.mjs](../scripts/production-health.mjs) comprueba liveness, entorno y release; `--require-ready` exige además activación. Un contenedor saludable no es prueba suficiente de apertura comercial. El mantenimiento propio ya está instalado y verificado. Para una futura reinstalación, revisar [production-maintenance.cron.example](../infra/production-maintenance.cron.example): monitor y respaldo/restauración tienen logs privados y no envían mensajes externos ni realizan la copia cifrada fuera del VPS.
 
 Registrar por separado: implementado en código, probado localmente, comprobado en staging, desplegado en producción, accesible por propietarios y pendiente externo. No usar capturas o pruebas de otra fase para completar una categoría faltante. Conservar la comparación de imágenes, configuración y salud de staging y demás aplicaciones antes/después del despliegue.
 

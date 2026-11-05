@@ -49,7 +49,9 @@ El tamaño máximo del dump sin cifrar es **128 MiB** y el script trabaja en mem
 
 [production-maintenance.sh](../scripts/production-maintenance.sh) permite `monitor`, `backup` y `scheduled-backup`. Comprueba la release activa, la identidad de la API y su activación. `backup` ejecuta respaldo y restauración aislada; `scheduled-backup` hace un intento diario durante las 01:00–01:59 de `America/Caracas`, independientemente de la zona horaria del host. No reintenta indefinidamente ese mismo día: revisar el estado y ejecutar el respaldo manual tras resolver un fallo.
 
-[production-maintenance.cron.example](../infra/production-maintenance.cron.example) es una plantilla pendiente de instalación y verificación. El monitor considera vencida la última restauración comprobada después de 36 horas. Escribe estados y logs privados; no envía alertas externas, no comprueba que una persona los haya revisado y no acredita la copia cifrada externa. No hay eliminación automática de copias: revisar espacio y acordar retención antes de retirar archivos.
+El cron propio /etc/cron.d/manzanas-maracay-production fue instalado y verificado el 5 de noviembre de 2026 a las 12:05:58.497181 UTC, con los bytes exactos de [production-maintenance.cron.example](../infra/production-maintenance.cron.example). Antes de instalar se comprobaron identidad, fuente, activación, respaldo/restauración y monitor. No cambió otros cron ni reinició servicios. Monitor cada cinco minutos y un intento diario de respaldo con restauración entre 01:00 y 01:59 de America/Caracas. La ejecución manual inicial pasó; no se atribuye ese resultado a una futura ejecución diaria.
+
+El monitor considera vencida la última restauración verificada después de 36 horas. Escribe estados y logs privados; no envía alertas externas ni automatiza la copia cifrada fuera del VPS. Tampoco elimina copias automáticamente: revisar espacio y acordar retención antes de retirar archivos.
 
 ## Recuperación de una incidencia
 

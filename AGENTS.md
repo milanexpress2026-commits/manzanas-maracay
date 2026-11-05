@@ -2,6 +2,7 @@
 
 - Trabajar únicamente dentro de este repositorio. No tocar proyectos, servicios, bases de datos ni puertos ajenos.
 - Fase 4 autorizada el 4 de noviembre de 2026: ejecutar docs/referencias/brief-fase-4.txt y preparar producción separada. La fase 3 es el baseline histórico. No emitir factura fiscal ni enviar WhatsApp automáticamente. Preparar y verificar todos los cambios propios antes de solicitar autorización concreta de DNS/proxy/red compartida; no dirigir tráfico real ni activar operaciones sin las condiciones de publicación comprobadas.
+- Autorización específica recibida el 5 de noviembre de 2026: publicar la release phase4-2a81817fe2c1, código 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0, en https://manzanas.ganamosclub.net y habilitar la operación interna en USD mediante el cambio concreto ya revisado. Esa aprobación ya fue concedida; este registro no afirma que el cambio se haya ejecutado. La ejecución y sus verificaciones se documentan en docs/entrega-fase-4-produccion.md y docs/verificacion-produccion-fase4.json. No amplía el alcance a otros proyectos, datos públicos, tasa VES ni facturación fiscal.
 - Leer docs/domain-rules.md antes de modificar negocio o datos; preservar sus invariantes.
 - TypeScript estricto; Next.js para interfaz, NestJS para API central, Drizzle/PostgreSQL para persistencia. Las reglas puras viven en packages/domain.
 - Todo cambio de esquema lleva migración versionada y pruebas significativas. No usar db push ni borrar datos para resolver errores.

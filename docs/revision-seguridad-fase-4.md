@@ -2,7 +2,7 @@
 
 Revisión de implementación, pruebas dirigidas y procedimientos propios. No sustituye una auditoría exhaustiva ni acredita por sí sola el despliegue remoto. El estado ejecutado se registra en [entrega](entrega-fase-4-produccion.md).
 
-Código revisado: `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0`, rama `phase-4/produccion-separada`, [PR #3](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/3). La release phase4-2a81817fe2c1 está desplegada y saludable con operación cerrada, sin gate de activación ni cambio de URL pública. Acceso y copia externa restaurable ya están verificados.
+Código revisado: `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0`, rama `phase-4/produccion-separada`, [PR #3](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/3). La release phase4-2a81817fe2c1 está publicada y activa en USD con aprobación específica. Autenticación pública, copia externa restaurable y mantenimiento propio están verificados.
 
 ## Controles revisados
 
@@ -31,11 +31,17 @@ El contenido confirmado en `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0` pasó type
 
 La regresión de 53 E2E corresponde al commit anterior `49044263d6f74940e388817179ba6df3eff1f8ba`, con la misma interfaz. No se presenta como una ejecución nueva sobre `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0`; la corrección posterior de contraseña se verificó mediante las pruebas unitarias y los 12 escenarios de producción indicados arriba.
 
-## Evidencia remota de preparación cerrada
+## Evidencia histórica de preparación cerrada
 
 La inicialización confirmó 13 migraciones, 19 tablas comerciales vacías, una cuenta legítima, cero filas DEMO, integridad de costos/comercio, denegación anónima y ausencia de rutas demo. Contenedores preexistentes conservados y proxy sin cambios. Auth smoke del 5 de noviembre a las 08:31:41 UTC verificó login, cookie persistente segura, sesión con operación cerrada, resumen vacío y logout con rechazo de la cookie anterior. Push está configurado sin dispositivo suscrito y no se enviaron avisos.
 
-La copia externa real quedó verificada a las 08:32:19 UTC: AES-256-GCM/DPAPI CurrentUser, descifrado y restauración aislada desde la copia, con limpieza. No se creó un dump local sin cifrar ni se hicieron escrituras comerciales en producción. La [proyección pública](verificacion-produccion-fase4.json) omite credenciales y UUID de instancia. El candidato Caddy pasó la validación aislada a las 09:05:46.355571 UTC, con contexto público PORTAL_DOMAIN=socios.ganamosclub.net comprobado, recursos temporales retirados, configuración compartida intacta y contenedores preexistentes conservados. El diff solo cambia el upstream de Manzanas de mm-staging-web:3100 a mm-production-web:3100. Estos resultados no activan operaciones: la aprobación concreta está solicitada y sin respuesta; red, tráfico, activación y cron siguen sin cambios.
+La copia externa real quedó verificada a las 08:32:19 UTC: AES-256-GCM/DPAPI CurrentUser, descifrado y restauración aislada desde la copia, con limpieza. No se creó un dump local sin cifrar ni se hicieron escrituras comerciales en producción. La [proyección pública](verificacion-produccion-fase4.json) omite credenciales y UUID de instancia. El candidato Caddy pasó la validación aislada a las 09:05:46.355571 UTC, con contexto público PORTAL_DOMAIN=socios.ganamosclub.net comprobado, recursos temporales retirados, configuración compartida intacta y contenedores preexistentes conservados. El diff solo cambia el upstream de Manzanas de mm-staging-web:3100 a mm-production-web:3100. Esas comprobaciones son anteriores al cambio autorizado; el proxy intacto y la operación cerrada describen únicamente esa etapa histórica.
+
+## Publicación y mantenimiento verificados
+
+La activación autorizada pasó a las 12:04:09.980676 UTC, con respaldo, autenticación y candidato comprobados; rutas anteriores y aplicaciones compartidas preservadas, proxy sin reiniciar y ready=true público. El primer intento había abortado antes de configuración/gate por la medición de rutas de BusyBox y deshizo la conexión propia; se corrigió la lectura del operador, sin cambiar el código de aplicación.
+
+La autenticación pública de las 12:04:59.976130 UTC verificó HTTPS estricto, release exacta, opción de sesión persistente, cookie de 30 días, sesión activa y logout con cookie anterior rechazada. No se crearon operaciones comerciales reales para el smoke. El mantenimiento pasó a las 12:05:58.497181 UTC: cron propio instalado después de verificar fuente, identidad, activación, respaldo/restauración y monitor, sin otros cron cambiados ni servicios reiniciados. La [evidencia pública](verificacion-produccion-fase4.json) separa estos resultados actuales de los históricos.
 
 ## Límites explícitos
 
