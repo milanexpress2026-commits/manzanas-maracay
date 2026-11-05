@@ -177,7 +177,7 @@ test('navegación móvil, recuperación de carga y accesibilidad de los nuevos m
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/catalogo');
   for (const [label, path, heading] of [
     ['Inventario', '/inventario', 'Inventario'],
     ['Recepciones', '/recepciones', 'Recepción de mercancía'],

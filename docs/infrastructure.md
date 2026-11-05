@@ -1,6 +1,6 @@
 # Entorno e infraestructura
 
-Registro del 4 de noviembre de 2026. La inspección inicial de fase 1 y el despliegue aislado de fase 2 se distinguen a continuación. No se copiaron credenciales al repositorio. El acceso SSH utiliza la llave autorizada y comprobación del servidor conocido.
+Registro de los días 4 y 5 de noviembre de 2026, UTC. Se distinguen la inspección inicial, el despliegue histórico de fase 2, la demo temporal y la release completa actual de fase 3. No se copiaron credenciales al repositorio. El acceso SSH utiliza la llave autorizada y comprobación del servidor conocido.
 
 ## Computadora local
 
@@ -42,7 +42,7 @@ Durante QA se resolvió un problema de Windows: el cierre del grupo de procesos 
 
 ## Staging aislado (fase 2)
 
-Release final desplegada: `phase2-7ae1d75`, commit `7ae1d7504d31623e771fba5015361ae04ca9a4ef`, construida desde el código del commit exacto. Sustituye la publicación inicial `518c5c9` con la corrección del nombre del servicio web. Directorio `/opt/manzanas-maracay/staging`, proyecto Compose `manzanas-maracay-staging`, base `manzanas_maracay_staging`, tres redes y un volumen exclusivos. PostgreSQL, API y `mm-staging-web` están saludables. PostgreSQL y API no publican puertos; la web conserva acceso en el loopback del VPS, puerto 33100, y Caddy la ofrece por HTTPS en [manzanas.ganamosclub.net](https://manzanas.ganamosclub.net).
+Release histórica de fase 2: `phase2-7ae1d75`, commit `7ae1d7504d31623e771fba5015361ae04ca9a4ef`, construida desde el código del commit exacto. Sustituye la publicación inicial `518c5c9` con la corrección del nombre del servicio web. Directorio `/opt/manzanas-maracay/staging`, proyecto Compose `manzanas-maracay-staging`, base `manzanas_maracay_staging`, tres redes y un volumen exclusivos. PostgreSQL, API y `mm-staging-web` están saludables. PostgreSQL y API no publican puertos; la web conserva acceso en el loopback del VPS, puerto 33100, y Caddy la ofrece por HTTPS en [manzanas.ganamosclub.net](https://manzanas.ganamosclub.net).
 
 Se verificó desde el servidor y después desde la URL externa: health 200, API privada anónima 401, pantalla privada con redirección 307, login y consulta autenticada 200, cookie `__Host-mm_session` con `Secure`, `HttpOnly` y `SameSite=Strict`, rechazo de origen ajeno 403 y revocación al cerrar sesión. HTTP redirige a HTTPS con 308; el certificado Let's Encrypt observado es válido hasta el 2 de febrero de 2027. El navegador confirmó acceso del propietario y el inventario DEMO: tres cajas recibidas y retiro de un blíster dejan dos cajas cerradas y cuatro blíster intactos, equivalencia catorce, con piezas desconocidas nulas. [Captura de la aplicación publicada](capturas/staging-escritorio.jpg).
 
@@ -64,8 +64,28 @@ El propietario confirmó `manzanas.ganamosclub.net` y aprobó específicamente l
 
 La [guía de staging](staging.md) documenta secretos, límites, actualización, backup y rollback. La [entrega de fase 2](entrega-fase-2.md) registra el estado final de publicación.
 
+## Antecedente: demo pública temporal de Fase 3
+
+El 4 de noviembre de 2026 a las 23:33:21 UTC quedó saludable la web `demo-db16c5745423`, commit `db16c574542347cc15c89498184873b9e5953d84`, rama `phase-3/demo-publica-temporal`. La actualización reemplazó solo la web propia y conservó API, PostgreSQL, esquema, proxy y rutas existentes. Cinco rondas GET conservaron Socios 302 y Pedal 200. No se aplicaron migraciones de Fase 3 ni se desplegó la API comercial completa.
+
+A las 23:42:14 UTC se verificó en navegador externo fresco la raíz y seis rutas demo: siete respuestas 200, sin llamadas a API privada ni cookie de sesión operativa. Cuatro GET/POST/PATCH privados devolvieron 401; login interno, cookie Secure y revocación de sesión al salir aprobaron. Evidencia sin secretos en [verificacion-demo-publica.json](verificacion-demo-publica.json).
+
+La verificación local completa de Fase 3 aprobó typecheck/build, 90 unitarias, 53 E2E y once migraciones fresh/upgrade. La [revisión visual](visual-review-fase-3.md) incluye 30 vistas/axe, vídeo real de 17,56 segundos y cuatro muestras de rendimiento emulado; no acredita un dispositivo físico. Se crearon y validaron tres archivos VAPID privados, sin arrancar servicios, suscribir tablet ni enviar avisos. Esa publicación temporal ya fue sustituida por la release completa documentada a continuación.
+
+## Staging comercial completo de Fase 3
+
+Release activa **`phase3-ef3d64616313`**, commit de código **`ef3d64616313b3a5f2184f37365dc751da07af29`**, saludable el `2026-11-05T00:39:12.487397+00:00`. El [informe final sin secretos](verificacion-staging-fase3.json) registra cada comprobación. Web y API se actualizaron sobre el esquema de once migraciones; PostgreSQL propio no fue recreado ni reiniciado. Los hashes previos, historia física y auditoría anterior se preservaron; se controlaron catorce tablas remotas preexistentes, con un único evento de catálogo esperado. El ensayo local separado controló dieciséis tablas.
+
+Antes de iniciar la nueva API, no se detectaron costos disponibles desconocidos, costos positivos en recipientes vacíos, errores de proyección ni constraints sin validar. El respaldo anterior se obtuvo sin escritores y se restauró en aislamiento. El smoke comercial HTTPS aprobó cuatro casos: autenticación/aislamiento, recepción DEMO, venta y abono idempotentes con PDF/logo desde Docker, y sus compensaciones auditadas. Conserva una caja DEMO de costo USD 25, venta USD 40 anulada, abono USD 10 reversado y deuda cero; sin teléfono, clientes reales ni mensajes.
+
+El [navegador externo](verificacion-fase3-browser.json) aprobó siete rutas públicas, cuatro denegaciones 401, login, cookie Secure y logout a las `2026-11-05T00:41:20.141Z`. El smoke comercial también verificó ocho denegaciones anónimas, BCV no disponible y cero dispositivos push. Cinco rondas GET anteriores a las `00:33:02 UTC` y posteriores a las `00:41:29 UTC` conservaron Manzanas 200, Socios 302 y Pedal 200.
+
+La auditoría final del `2026-11-05T00:55:37.473059+00:00` mantuvo identidades, imágenes, redes y puertos de diez contenedores ajenos; los estables conservaron inicio, ejecución y salud. El worker previamente reiniciándose siguió sin intervención; no se presenta como saludable. No se modificaron DNS, proxy ni firewall compartidos. Solo API recibió su red exclusiva de salida push; se crearon cero suscripciones y se enviaron cero avisos.
+
+El respaldo posterior al smoke aprobó restauración aislada y limpieza de sus recursos temporales a las `2026-11-05T00:50:48.056847+00:00`, SHA-256 `348febeaa23867d6b1a5b440fd19fc2aa872b61c57d224220a5341b93e25aecf`. La copia segura fuera del VPS, prueba Android real/WhatsApp corporativo, BCV oficial verificable y validaciones fiscales/comerciales permanecen como condiciones operativas pendientes. VES sigue bloqueado; USD está comprobado. No se declara producción lista.
+
 ## GitHub
 
-Repositorio público autorizado por el propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). La rama de trabajo es `phase-2/inventario-staging`, basada en `phase-1/foundations`. El cambio de visibilidad del código no da acceso a la aplicación ni modifica el VPS.
+Repositorio público autorizado por el propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). La rama de trabajo actual es `phase-3/comercial-demo`, basada en `phase-2/inventario-staging`. Código de la release activa publicado en `ef3d64616313b3a5f2184f37365dc751da07af29` y [PR #2 en borrador](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/2) dirigido a la rama de Fase 2; el PR #1 anterior se conserva. Los commits posteriores de documentación no alteran el commit de código desplegado. El cambio de visibilidad del código no da acceso a la aplicación ni modifica el VPS.
 
 El [PR #1 está en borrador](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1), dirigido a `phase-1/foundations`. No se realizó merge ni despliegue de producción. Las credenciales, llaves, bases locales, respaldos y dependencias quedan fuera del código versionado. El informe de entrega enlaza la revisión de fase 2 y sus commits. Las futuras invitaciones individuales de socios requieren sus nombres de usuario y entrega privada de credenciales; no falta ese dato para utilizar la cuenta invitada existente ni la URL activa.

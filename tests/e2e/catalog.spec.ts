@@ -13,7 +13,7 @@ test('escritorio y móvil: carga real, accesibilidad y capturas', async ({ page 
     { width: 390, height: 844 },
   ]) {
     await page.setViewportSize(viewport);
-    await page.goto('/');
+    await page.goto('/catalogo');
     await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { name: 'Catálogo de productos' })).toBeVisible();
     await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
@@ -44,7 +44,7 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
+  await page.goto('/catalogo');
   await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
   const suffix = Date.now().toString().slice(-7),
     fruit = `Mango ${suffix}`,
@@ -103,7 +103,7 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
   await expect(page.getByLabel('7 blíster en una caja')).toBeVisible();
 });
 test('búsqueda vacía, limpiar filtros y navegación por teclado', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/catalogo');
   await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
   await page.getByRole('textbox', { name: 'Buscar en el catálogo' }).fill('inexistente-xyz');
   await expect(page.getByText('No encontramos coincidencias')).toBeVisible();
@@ -121,7 +121,7 @@ test('búsqueda vacía, limpiar filtros y navegación por teclado', async ({ pag
   ).toBeFocused();
 });
 test('error del servidor conserva el formulario y permite reintentar', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/catalogo');
   await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
   await page.getByRole('tab', { name: /Frutas/ }).click();
   await page.getByRole('button', { name: 'Nueva fruta', exact: true }).click();
@@ -148,7 +148,7 @@ test('error de carga explícito y recuperación', async ({ page }) => {
       body: '{"message":"Servidor no disponible."}',
     }),
   );
-  await page.goto('/');
+  await page.goto('/catalogo');
   await expect(page.getByRole('alert').filter({ hasText: 'No se pudo actualizar' })).toContainText(
     'No se pudo actualizar',
   );
@@ -160,12 +160,12 @@ test('PWA: manifiesto, iconos y página sin conexión', async ({ page, context, 
   const manifest = await (await request.get('/manifest.webmanifest')).json();
   expect(manifest.display).toBe('standalone');
   expect((await request.get('/icons/icon-192.png')).status()).toBe(200);
-  await page.goto('/');
+  await page.goto('/catalogo');
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
   await page.waitForLoadState('networkidle');
   await context.setOffline(true);
-  await page.goto('/?offline-test=1');
+  await page.goto('/catalogo?offline-test=1');
   await expect(page.getByRole('heading', { name: 'Necesitas conexión' })).toBeVisible();
   const logo = page.getByRole('img', { name: 'Manzanas Maracay · Frutas importadas' });
   await expect(logo).toBeVisible();

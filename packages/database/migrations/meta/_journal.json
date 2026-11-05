@@ -43,6 +43,41 @@
       "when": 1793823531824,
       "tag": "0005_inventory_history_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793828788790,
+      "tag": "0006_packaging_phase3",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793829624486,
+      "tag": "0007_commerce",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793829680279,
+      "tag": "0008_push",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793830439169,
+      "tag": "0009_empty_stock_cost_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793832703076,
+      "tag": "0010_commercial_json_alias",
+      "breakpoints": true
     }
   ]
 }

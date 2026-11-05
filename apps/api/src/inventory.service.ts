@@ -9,6 +9,9 @@ import {
 import { Pool, PoolClient } from 'pg';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import Decimal from 'decimal.js';
+import { allocateCost, replayLegacyCosts } from '../../../packages/domain/src/costing';
+import { applyPresentationPrices } from './commerce-prices';
 import {
   supplierSchema,
   updateSupplierSchema,
@@ -30,25 +33,35 @@ import {
   type InventoryMovement,
   type ReceiptResult,
   type InventoryCommandResult,
+  type PackingModel,
+  type HalfPreparation,
+  type Presentation,
+  type SaleAllocation,
 } from '../../../packages/domain/src/index';
 
 type LotRow = {
   id: string;
   code: string;
-  blisters_per_box_snapshot: number;
+  blisters_per_box_snapshot: number | null;
+  packing_model_snapshot: PackingModel;
+  half_preparation_snapshot: HalfPreparation;
+  allowed_presentations_snapshot: Presentation[];
+  unit_cost_usd: string;
   inventory_version: number;
 };
 type StateMap = Map<string, ContainerStock>;
 const containerSelect = `select c.id,c.lot_id as "lotId",c.warehouse_id as "warehouseId",c.parent_id as "parentId",
-  c.kind,c.state,s.unit,s.quantity,s.counted_pieces as "countedPieces",s.version
+  c.kind,c.state,s.unit,s.quantity,s.counted_pieces as "countedPieces",s.version,s.cost_usd as "costUsd"
   from containers c join stock_balances s on s.container_id=c.id`;
 const supplierSelect = `select id,name,tax_id as "taxId",phone,notes,active,version from suppliers`;
 const lotSelect = `select l.id,l.code,l.packing_rule_id as "configurationId",v.fruit_id as "fruitId",
   v.variety_id as "varietyId",v.caliber_id as "caliberId",f.name as fruit,vr.name as variety,cl.label as caliber,
+  v.commercial_line as "commercialLine",l.packing_model_snapshot as "packingModel",l.half_preparation_snapshot as "halfPreparation",
+  l.allowed_presentations_snapshot as "allowedPresentations",l.box_weight_kg_snapshot as "boxWeightKgSnapshot",
   l.supplier_id as "supplierId",sp.name as supplier,l.received_at as "receivedAt",l.received_boxes as "receivedBoxes",
   l.blisters_per_box_snapshot as "blistersPerBox",l.unit_cost_usd as "unitCostUsd",l.notes,l.is_demo as "isDemo",
   l.inventory_version as version from lots l join product_variants v on v.id=l.variant_id
-  join fruits f on f.id=v.fruit_id join varieties vr on vr.id=v.variety_id join calibers cl on cl.id=v.caliber_id
+  join fruits f on f.id=v.fruit_id left join varieties vr on vr.id=v.variety_id left join calibers cl on cl.id=v.caliber_id
   join suppliers sp on sp.id=l.supplier_id`;
 
 @Injectable()
@@ -128,6 +141,7 @@ export class InventoryService implements OnModuleDestroy {
         ...summarizeContainers(
           containers.filter((c) => c.lotId === row.id),
           row.blistersPerBox,
+          row.packingModel,
         ),
       })) as LotSummary[];
       const totals = emptyStockSummary();
@@ -177,14 +191,14 @@ export class InventoryService implements OnModuleDestroy {
         lot: {
           ...row,
           receivedAt: row.receivedAt.toISOString(),
-          ...summarizeContainers(containers, row.blistersPerBox),
+          ...summarizeContainers(containers, row.blistersPerBox, row.packingModel),
         },
         containers,
         movements,
       };
     });
   }
-  private async command<T>(
+  async runCommand<T>(
     kind: string,
     data: unknown,
     key: string | undefined,
@@ -240,7 +254,7 @@ export class InventoryService implements OnModuleDestroy {
   ): Promise<Supplier> {
     if (id) z.uuid().parse(id);
     const data = id ? updateSupplierSchema.parse(body) : supplierSchema.parse(body);
-    return this.command(
+    return this.runCommand(
       `supplier:${id ?? 'new'}`,
       data,
       key,
@@ -300,7 +314,7 @@ export class InventoryService implements OnModuleDestroy {
   private async lockedLot(client: PoolClient, id: string): Promise<LotRow> {
     const lot = (
       await client.query(
-        'select id,code,blisters_per_box_snapshot,inventory_version from lots where id=$1 for update',
+        'select id,code,blisters_per_box_snapshot,inventory_version,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,unit_cost_usd from lots where id=$1 for update',
         [id],
       )
     ).rows[0];
@@ -342,9 +356,12 @@ export class InventoryService implements OnModuleDestroy {
       countedPieces,
       state: unit === 'loose_piece' ? 'open' : 'sealed',
       version: 1,
+      costUsd: null,
     };
   }
-  private openBox(map: StateMap, box: ContainerStock, blisters: number) {
+  private openBox(map: StateMap, box: ContainerStock, blisters: number | null) {
+    if (!blisters)
+      throw new BadRequestException('Confirma los blíster por caja de este lote antes de abrirlo.');
     if (
       box.kind !== 'box' ||
       box.state !== 'sealed' ||
@@ -352,7 +369,12 @@ export class InventoryService implements OnModuleDestroy {
       box.quantity !== 1
     )
       throw new ConflictException('Selecciona una caja cerrada disponible.');
+    const costs = allocateCost(
+      box.costUsd ?? null,
+      Array.from({ length: blisters }, () => 1),
+    );
     box.quantity = 0;
+    box.costUsd = '0.0000';
     box.state = 'open';
     box.countedPieces = null;
     for (let i = 0; i < blisters; i++) {
@@ -365,6 +387,7 @@ export class InventoryService implements OnModuleDestroy {
         null,
         box.id,
       );
+      blister.costUsd = costs[i];
       map.set(blister.id, blister);
     }
   }
@@ -434,8 +457,15 @@ export class InventoryService implements OnModuleDestroy {
           ],
         );
         await client.query(
-          'insert into stock_balances(container_id,unit,quantity,counted_pieces,version) values($1,$2,$3,$4,$5)',
-          [current.id, current.unit, current.quantity, current.countedPieces, current.version],
+          'insert into stock_balances(container_id,unit,quantity,counted_pieces,version,cost_usd) values($1,$2,$3,$4,$5,$6)',
+          [
+            current.id,
+            current.unit,
+            current.quantity,
+            current.countedPieces,
+            current.version,
+            current.costUsd ?? null,
+          ],
         );
       } else {
         await client.query('update containers set state=$2,parent_id=$3 where id=$1', [
@@ -444,8 +474,15 @@ export class InventoryService implements OnModuleDestroy {
           current.parentId,
         ]);
         await client.query(
-          'update stock_balances set unit=$2,quantity=$3,counted_pieces=$4,version=$5 where container_id=$1',
-          [current.id, current.unit, current.quantity, current.countedPieces, current.version],
+          'update stock_balances set unit=$2,quantity=$3,counted_pieces=$4,version=$5,cost_usd=$6 where container_id=$1',
+          [
+            current.id,
+            current.unit,
+            current.quantity,
+            current.countedPieces,
+            current.version,
+            current.costUsd ?? null,
+          ],
         );
       }
       const entries: { unit: string; quantity: number; pieces: number | null }[] = [];
@@ -484,6 +521,10 @@ export class InventoryService implements OnModuleDestroy {
             JSON.stringify(current),
           ],
         );
+      await client.query(
+        'insert into inventory_cost_entries(movement_id,container_id,before_usd,after_usd) values($1,$2,$3,$4)',
+        [movementId, current.id, old?.costUsd ?? null, current.costUsd ?? null],
+      );
     }
     await client.query('update lots set inventory_version=inventory_version+1 where id=$1', [
       lot.id,
@@ -502,7 +543,7 @@ export class InventoryService implements OnModuleDestroy {
   }
   async receive(body: unknown, key: string | undefined, actor: string): Promise<ReceiptResult> {
     const data = receiptSchema.parse(body);
-    return this.command('receipt', data, key, actor, async (client, hash) => {
+    return this.runCommand('receipt', data, key, actor, async (client, hash) => {
       const supplier = (
         await client.query('select active from suppliers where id=$1 for share', [data.supplierId])
       ).rows[0];
@@ -520,15 +561,39 @@ export class InventoryService implements OnModuleDestroy {
         )
       ).rows[0].id;
       const lots: ReceiptResult['lots'] = [];
+      const priceUpdates = new Map<string, Parameters<typeof applyPresentationPrices>[1][number]>();
       for (const line of data.lines) {
         const rule = (
-          await client.query(
-            'select id,variant_id,version,blisters_per_box from packing_rules where id=$1 for share',
-            [line.configurationId],
-          )
+          await client.query('select * from packing_rules where id=$1 for share', [
+            line.configurationId,
+          ])
         ).rows[0];
         if (!rule)
           throw new BadRequestException('Una configuración ya no existe. Actualiza el catálogo.');
+        if (rule.packing_model !== 'blister' && line.blistersPerBox !== undefined)
+          throw new BadRequestException('Este empaque no utiliza blíster.');
+        if (line.priceAction === 'update') {
+          if (!line.prices.length)
+            throw new BadRequestException('Indica los precios que quieres actualizar.');
+          if (
+            new Set(line.prices.map((p) => p.presentation)).size !== line.prices.length ||
+            line.prices.some((p) => !rule.allowed_presentations.includes(p.presentation))
+          )
+            throw new BadRequestException('Revisa las presentaciones y precios de la recepción.');
+          for (const price of line.prices) {
+            const priceKey = `${rule.variant_id}:${price.presentation}`;
+            const prior = priceUpdates.get(priceKey);
+            if (
+              prior &&
+              (prior.promoUsd !== price.promoUsd || prior.regularUsd !== price.regularUsd)
+            )
+              throw new BadRequestException(
+                'Dos líneas proponen precios distintos para la misma presentación. Unifica los precios antes de confirmar.',
+              );
+            priceUpdates.set(priceKey, { ...price, variantId: rule.variant_id });
+          }
+        } else if (line.prices.length)
+          throw new BadRequestException('Selecciona Actualizar precios para cambiar la lista.');
         const lineId = (
           await client.query(
             `insert into purchase_lines(purchase_id,variant_id,quantity,presentation,unit_cost_usd,notes) values($1,$2,$3,'box',$4,$5) returning id`,
@@ -539,8 +604,8 @@ export class InventoryService implements OnModuleDestroy {
           code = `MM-${data.receivedAt.slice(0, 10).replaceAll('-', '')}-${id.slice(0, 8).toUpperCase()}`;
         const blisterCount = line.blistersPerBox ?? rule.blisters_per_box;
         await client.query(
-          `insert into lots(id,code,variant_id,supplier_id,purchase_line_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd,received_boxes,notes,is_demo)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+          `insert into lots(id,code,variant_id,supplier_id,purchase_line_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd,received_boxes,notes,is_demo,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,box_weight_kg_snapshot)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
           [
             id,
             code,
@@ -555,16 +620,30 @@ export class InventoryService implements OnModuleDestroy {
             line.boxes,
             line.notes,
             demo,
+            rule.packing_model,
+            rule.half_preparation,
+            rule.allowed_presentations,
+            rule.box_weight_kg,
           ],
         );
         const state: StateMap = new Map();
         for (let i = 0; i < line.boxes; i++) {
           const box = this.newContainer(id, warehouse.id, 'box', 'sealed_box', 1, null);
+          box.costUsd = line.unitCostUsd;
           state.set(box.id, box);
         }
         const movementId = await this.persistMovement(
           client,
-          { id, code, blisters_per_box_snapshot: blisterCount, inventory_version: 0 },
+          {
+            id,
+            code,
+            blisters_per_box_snapshot: blisterCount,
+            inventory_version: 0,
+            packing_model_snapshot: rule.packing_model,
+            half_preparation_snapshot: rule.half_preparation,
+            allowed_presentations_snapshot: rule.allowed_presentations,
+            unit_cost_usd: line.unitCostUsd,
+          },
           [],
           state,
           'receipt',
@@ -575,6 +654,8 @@ export class InventoryService implements OnModuleDestroy {
         );
         lots.push({ id, code, movementId });
       }
+      if (priceUpdates.size)
+        await applyPresentationPrices(client, [...priceUpdates.values()], actor, key!);
       await this.audit(
         client,
         'purchase',
@@ -601,20 +682,56 @@ export class InventoryService implements OnModuleDestroy {
       'withdraw-blisters': withdrawBlistersSchema,
       'open-blister': openBlisterSchema,
       'prepare-half': prepareHalfSchema,
+      'split-halves': openBoxSchema,
       adjust: adjustmentSchema,
     };
     const validator = validators[operation as keyof typeof validators];
     if (!validator) throw new BadRequestException('Operación de inventario desconocida.');
     const data = validator.parse(body);
-    return this.command(`${operation}:${id}`, data, key, actor, async (client, hash) => {
+    return this.runCommand(`${operation}:${id}`, data, key, actor, async (client, hash) => {
       const lot = await this.lockedLot(client, id),
         before = await this.stock(client, id);
       const state: StateMap = new Map(before.map((item) => [item.id, { ...item }]));
+      if (
+        ['open-box', 'withdraw-blisters', 'open-blister'].includes(operation) &&
+        lot.packing_model_snapshot !== 'blister'
+      )
+        throw new BadRequestException('Este lote no utiliza blíster.');
+      if (operation === 'prepare-half' && lot.half_preparation_snapshot !== 'counted')
+        throw new BadRequestException('Este lote no usa media caja con conteo de piezas.');
       let kind: InventoryMovement['kind'],
         counts:
           { countedBefore: number; preparedPieces: number; remainingPieces: number } | undefined;
       let usedContainers: { id: string; quantity: number }[] | undefined;
-      if (operation === 'open-box') {
+      if (operation === 'split-halves') {
+        if (
+          lot.packing_model_snapshot !== 'halves' ||
+          lot.half_preparation_snapshot !== 'commercial'
+        )
+          throw new BadRequestException('Este lote no permite mitades comerciales sin conteo.');
+        const input = openBoxSchema.parse(data),
+          box = this.physical(state, input.containerId);
+        if (box.unit !== 'sealed_box' || box.state !== 'sealed')
+          throw new BadRequestException('Selecciona una caja cerrada.');
+        const costs = allocateCost(box.costUsd ?? null, [1, 1]);
+        box.quantity = 0;
+        box.costUsd = '0.0000';
+        box.state = 'open';
+        for (let i = 0; i < 2; i++) {
+          const half = this.newContainer(
+            id,
+            box.warehouseId,
+            'half_box',
+            'prepared_half_box',
+            1,
+            null,
+            box.id,
+          );
+          half.costUsd = costs[i];
+          state.set(half.id, half);
+        }
+        kind = 'commercial_split';
+      } else if (operation === 'open-box') {
         const input = openBoxSchema.parse(data);
         this.openBox(state, this.physical(state, input.containerId), lot.blisters_per_box_snapshot);
         kind = 'open_box';
@@ -643,6 +760,7 @@ export class InventoryService implements OnModuleDestroy {
             )!;
           }
           blister.quantity = 0;
+          blister.costUsd = '0.0000';
           blister.state = 'dispatched';
           blister.countedPieces = null;
           usedContainers.push({ id: blister.id, quantity: 1 });
@@ -668,6 +786,10 @@ export class InventoryService implements OnModuleDestroy {
       } else if (operation === 'prepare-half') {
         const input = prepareHalfSchema.parse(data),
           source = this.physical(state, input.containerId);
+        const [preparedCost, remainingCost] = allocateCost(source.costUsd ?? null, [
+          input.preparedPieces,
+          input.remainingPieces,
+        ]);
         const sealed =
           (source.unit === 'sealed_box' || source.unit === 'intact_blister') &&
           source.state === 'sealed';
@@ -681,6 +803,7 @@ export class InventoryService implements OnModuleDestroy {
           );
         if (source.unit === 'sealed_box') {
           source.quantity = 0;
+          source.costUsd = '0.0000';
           source.countedPieces = null;
           source.state = input.remainingPieces > 0 ? 'open' : 'empty';
           if (input.remainingPieces > 0) {
@@ -693,11 +816,13 @@ export class InventoryService implements OnModuleDestroy {
               input.remainingPieces,
               source.id,
             );
+            loose.costUsd = remainingCost;
             state.set(loose.id, loose);
           }
         } else {
           source.unit = 'loose_piece';
           source.quantity = input.remainingPieces;
+          source.costUsd = input.remainingPieces > 0 ? remainingCost : '0.0000';
           source.countedPieces = input.remainingPieces;
           source.state = input.remainingPieces > 0 ? 'open' : 'empty';
         }
@@ -709,6 +834,7 @@ export class InventoryService implements OnModuleDestroy {
           1,
           input.preparedPieces,
         );
+        half.costUsd = preparedCost;
         state.set(half.id, half);
         counts = input;
         kind = 'fraction';
@@ -726,13 +852,30 @@ export class InventoryService implements OnModuleDestroy {
             );
           source.countedPieces = next;
         } else if (source.unit === 'prepared_half_box') {
-          const pieces = (source.countedPieces ?? 0) + (input.piecesDelta ?? 0);
-          if (pieces < 0 || (next === 0 && pieces !== 0) || (next > 0 && pieces <= 0))
-            throw new BadRequestException('Indica el ajuste de piezas contado de la media caja.');
-          source.countedPieces = pieces;
+          if (lot.half_preparation_snapshot === 'commercial') {
+            if (input.piecesDelta != null)
+              throw new BadRequestException('La mitad comercial no requiere piezas.');
+            source.countedPieces = null;
+          } else {
+            const pieces = (source.countedPieces ?? 0) + (input.piecesDelta ?? 0);
+            if (pieces < 0 || (next === 0 && pieces !== 0) || (next > 0 && pieces <= 0))
+              throw new BadRequestException('Indica el ajuste de piezas contado de la media caja.');
+            source.countedPieces = pieces;
+          }
         } else if (input.piecesDelta != null)
           throw new BadRequestException(
             'Abre el empaque y cuenta las piezas antes de ajustar fruta.',
+          );
+        if (next === 0) source.costUsd = '0.0000';
+        else if (source.quantity > 0 && source.costUsd != null)
+          source.costUsd = new Decimal(source.costUsd)
+            .mul(next)
+            .div(source.quantity)
+            .toDecimalPlaces(4, Decimal.ROUND_DOWN)
+            .toFixed(4);
+        else if (source.quantity === 0)
+          throw new BadRequestException(
+            'Usa una reversa o recepción para restaurar existencia con su costo histórico.',
           );
         source.quantity = next;
         source.state = next === 0 ? 'empty' : source.unit === 'loose_piece' ? 'open' : 'sealed';
@@ -754,6 +897,260 @@ export class InventoryService implements OnModuleDestroy {
       return { movementId, lotId: id, ...(usedContainers ? { usedContainers } : {}) };
     });
   }
+  async consumeSale(
+    client: PoolClient,
+    lines: {
+      lineId: string;
+      configurationId: string;
+      presentation: Presentation;
+      quantity: number;
+    }[],
+    actor: string,
+    key: string,
+    hash: string,
+    isDemo: boolean,
+  ): Promise<SaleAllocation[]> {
+    await client.query('select pg_advisory_xact_lock(68493003)');
+    const loaded = new Map<string, { lot: LotRow; before: ContainerStock[]; state: StateMap }>();
+    const allocations: SaleAllocation[] = [];
+    for (const line of lines) {
+      const rule = (
+        await client.query(
+          'select variant_id,allowed_presentations from packing_rules where id=$1 for share',
+          [line.configurationId],
+        )
+      ).rows[0];
+      if (!rule || !rule.allowed_presentations.includes(line.presentation))
+        throw new BadRequestException('La presentación no está autorizada.');
+      const rows = (
+        await client.query(
+          `select id from lots where variant_id=$1 and is_demo=$2
+        and $3=any(allowed_presentations_snapshot) order by received_at,created_at,id for update`,
+          [rule.variant_id, isDemo, line.presentation],
+        )
+      ).rows;
+      let remaining = line.quantity;
+      for (const row of rows) {
+        if (!remaining) break;
+        let entry = loaded.get(row.id);
+        if (!entry) {
+          const lot = await this.lockedLot(client, row.id),
+            before = await this.stock(client, row.id);
+          entry = { lot, before, state: new Map(before.map((c) => [c.id, { ...c }])) };
+          loaded.set(row.id, entry);
+        }
+        const { lot, state } = entry;
+        if (line.presentation === 'blister' && lot.packing_model_snapshot !== 'blister') continue;
+        if (
+          line.presentation === 'half_box' &&
+          ['none', 'pending'].includes(lot.half_preparation_snapshot)
+        )
+          continue;
+        while (remaining > 0) {
+          const unit =
+            line.presentation === 'box'
+              ? 'sealed_box'
+              : line.presentation === 'blister'
+                ? 'intact_blister'
+                : 'prepared_half_box';
+          let selected = [...state.values()].find(
+            (c) => c.unit === unit && c.quantity === 1 && c.state === 'sealed',
+          );
+          if (!selected && line.presentation === 'blister' && lot.blisters_per_box_snapshot) {
+            const box = [...state.values()].find(
+              (c) => c.unit === 'sealed_box' && c.quantity === 1 && c.state === 'sealed',
+            );
+            if (box) {
+              this.openBox(state, box, lot.blisters_per_box_snapshot);
+              selected = [...state.values()].find(
+                (c) => c.unit === unit && c.quantity === 1 && c.state === 'sealed',
+              );
+            }
+          }
+          if (
+            !selected &&
+            line.presentation === 'half_box' &&
+            lot.packing_model_snapshot === 'halves' &&
+            lot.half_preparation_snapshot === 'commercial'
+          ) {
+            const box = [...state.values()].find(
+              (c) => c.unit === 'sealed_box' && c.quantity === 1 && c.state === 'sealed',
+            );
+            if (box) {
+              const costs = allocateCost(box.costUsd ?? null, [1, 1]);
+              box.quantity = 0;
+              box.costUsd = '0.0000';
+              box.state = 'open';
+              for (let n = 0; n < 2; n++) {
+                const half = this.newContainer(
+                  lot.id,
+                  box.warehouseId,
+                  'half_box',
+                  'prepared_half_box',
+                  1,
+                  null,
+                  box.id,
+                );
+                half.costUsd = costs[n];
+                state.set(half.id, half);
+                if (n === 0) selected = half;
+              }
+            }
+          }
+          if (!selected) break;
+          if (selected.costUsd == null)
+            throw new ConflictException(
+              'Este contenedor necesita revisión de costo histórico antes de venderse.',
+            );
+          allocations.push({
+            saleLineId: line.lineId,
+            lotId: lot.id,
+            containerId: selected.id,
+            movementId: '',
+            quantity: 1,
+            costUsd: selected.costUsd,
+          });
+          selected.quantity = 0;
+          selected.costUsd = '0.0000';
+          selected.state = 'dispatched';
+          if (selected.countedPieces !== null) selected.countedPieces = 0;
+          remaining--;
+        }
+      }
+      if (remaining)
+        throw new ConflictException(
+          line.presentation === 'half_box'
+            ? 'No hay suficientes medias cajas disponibles. En empaques con conteo, prepáralas primero en Inventario.'
+            : 'No hay suficiente existencia física disponible para esta venta.',
+        );
+    }
+    for (const [lotId, { lot, before, state }] of loaded) {
+      const affected = allocations.filter((a) => a.lotId === lotId);
+      if (!affected.length) continue;
+      this.retireEmptyBoxes(state);
+      const movementId = await this.persistMovement(
+        client,
+        lot,
+        before,
+        state,
+        'dispatch',
+        'Salida por comprobante de venta',
+        actor,
+        key,
+        hash,
+      );
+      affected.forEach((a) => (a.movementId = movementId));
+    }
+    return allocations;
+  }
+
+  private async reverseMovement(
+    client: PoolClient,
+    id: string,
+    reason: string,
+    actor: string,
+    key: string,
+    hash: string,
+    commercial = false,
+  ): Promise<InventoryCommandResult> {
+    const movement = (await client.query('select * from inventory_movements where id=$1', [id]))
+      .rows[0];
+    if (!movement?.lot_id) throw new NotFoundException('Este movimiento no admite reversa.');
+    if (
+      !commercial &&
+      (await client.query('select 1 from sale_allocations where movement_id=$1 limit 1', [id]))
+        .rowCount
+    )
+      throw new ConflictException(
+        'Anula el comprobante de venta para restituir el stock y su costo juntos.',
+      );
+    const lot = await this.lockedLot(client, movement.lot_id);
+    if (
+      movement.kind === 'reversal' ||
+      lot.inventory_version !== movement.lot_version_after ||
+      (await client.query('select 1 from inventory_movements where reversal_of=$1', [id])).rowCount
+    )
+      throw new ConflictException(
+        'Solo se puede revertir el último movimiento del lote, una vez y sin movimientos posteriores.',
+      );
+    const before = await this.stock(client, lot.id),
+      state: StateMap = new Map(before.map((c) => [c.id, { ...c }]));
+    const old = new Map<string, ContainerStock>(
+      (movement.before_state as ContainerStock[]).map((c) => [c.id, c]),
+    );
+    let historical: Map<string, string | null> | undefined;
+    if ([...old.values()].some((c) => c.costUsd === undefined)) {
+      const history = (
+        await client.query(
+          'select * from inventory_movements where lot_id=$1 order by lot_version_after',
+          [lot.id],
+        )
+      ).rows;
+      historical = replayLegacyCosts(history, lot.unit_cost_usd).beforeEvents.get(id);
+    }
+    for (const prior of movement.after_state as ContainerStock[]) {
+      const current = state.get(prior.id);
+      if (!current) throw new ConflictException('No se puede recuperar el estado físico.');
+      const restored = old.get(prior.id);
+      state.set(
+        prior.id,
+        restored
+          ? {
+              ...restored,
+              costUsd:
+                restored.costUsd === undefined
+                  ? (historical?.get(prior.id) ?? null)
+                  : restored.costUsd,
+              version: current.version,
+            }
+          : {
+              ...current,
+              quantity: 0,
+              costUsd: '0.0000',
+              countedPieces: current.countedPieces === null ? null : 0,
+              state: 'empty',
+            },
+      );
+    }
+    this.retireEmptyBoxes(state);
+    const movementId = await this.persistMovement(
+      client,
+      lot,
+      before,
+      state,
+      'reversal',
+      reason,
+      actor,
+      key,
+      hash,
+      undefined,
+      id,
+    );
+    return { movementId, lotId: lot.id };
+  }
+  async reverseSale(
+    client: PoolClient,
+    movementIds: string[],
+    actor: string,
+    key: string,
+    hash: string,
+  ) {
+    await client.query('select pg_advisory_xact_lock(68493003)');
+    const result: InventoryCommandResult[] = [];
+    for (const id of [...new Set(movementIds)].sort())
+      result.push(
+        await this.reverseMovement(
+          client,
+          id,
+          'Anulación de comprobante comercial',
+          actor,
+          key,
+          hash,
+          true,
+        ),
+      );
+    return result;
+  }
   async reverse(
     id: string,
     body: unknown,
@@ -762,54 +1159,8 @@ export class InventoryService implements OnModuleDestroy {
   ): Promise<InventoryCommandResult> {
     z.uuid().parse(id);
     const data = reversalSchema.parse(body);
-    return this.command(`reverse:${id}`, data, key, actor, async (client, hash) => {
-      const movement = (await client.query('select * from inventory_movements where id=$1', [id]))
-        .rows[0];
-      if (!movement?.lot_id) throw new NotFoundException('Este movimiento no admite reversa.');
-      const lot = await this.lockedLot(client, movement.lot_id);
-      if (
-        movement.kind === 'reversal' ||
-        lot.inventory_version !== movement.lot_version_after ||
-        (await client.query('select 1 from inventory_movements where reversal_of=$1', [id]))
-          .rowCount
-      )
-        throw new ConflictException(
-          'Solo se puede revertir el último movimiento del lote, una vez y sin movimientos posteriores.',
-        );
-      const before = await this.stock(client, lot.id),
-        state: StateMap = new Map(before.map((item) => [item.id, { ...item }]));
-      const old = new Map<string, ContainerStock>(
-        (movement.before_state as ContainerStock[]).map((item) => [item.id, item]),
-      );
-      for (const prior of movement.after_state as ContainerStock[]) {
-        const current = state.get(prior.id);
-        if (!current)
-          throw new ConflictException('No se puede recuperar el estado físico del movimiento.');
-        const restored = old.get(prior.id);
-        if (restored) state.set(prior.id, { ...restored, version: current.version });
-        else
-          state.set(prior.id, {
-            ...current,
-            quantity: 0,
-            countedPieces: current.countedPieces === null ? null : 0,
-            state: 'empty',
-          });
-      }
-      this.retireEmptyBoxes(state);
-      const movementId = await this.persistMovement(
-        client,
-        lot,
-        before,
-        state,
-        'reversal',
-        data.reason,
-        actor,
-        key!,
-        hash,
-        undefined,
-        id,
-      );
-      return { movementId, lotId: lot.id };
-    });
+    return this.runCommand(`reverse:${id}`, data, key, actor, (client, hash) =>
+      this.reverseMovement(client, id, data.reason, actor, key!, hash),
+    );
   }
 }

@@ -1,108 +1,81 @@
 # Manzanas Maracay
 
-Aplicación para una distribuidora venezolana de frutas importadas. La **fase 2** añade proveedores, recepción por lotes, inventario transaccional y acceso por sesión al catálogo existente. Usa PostgreSQL real; no incluye facturación, cobranza ni una tasa BCV en vivo.
+Aplicación para una distribuidora venezolana de frutas importadas. La fase 3 incorpora empaques configurables, recepción con precios, ventas FIFO, clientes, crédito, abonos y comprobantes comerciales PDF. La demo pública usa ejemplos sintéticos; la operación interna conserva autenticación.
 
-Repositorio público por autorización del propietario: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama de trabajo: `phase-2/inventario-staging`, basada en `phase-1/foundations`. [Contexto para continuar la revisión en otro chat](docs/continuar-en-chatgpt.md).
+Repositorio público autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama `phase-3/comercial-demo`, basada en `phase-2/inventario-staging` (`f9b532b`). El [PR #2 de fase 3](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/2) permanece en borrador contra la rama de fase 2; el [PR #1](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1) se conserva, sin merge. URL de pruebas: [manzanas.ganamosclub.net](https://manzanas.ganamosclub.net). Release y verificación exactas en [staging](docs/staging.md).
 
-La vista previa está activa en **[manzanas.ganamosclub.net](https://manzanas.ganamosclub.net)**, con HTTPS y acceso invitado, sobre la release `phase2-7ae1d75` (`7ae1d7504d31623e771fba5015361ae04ca9a4ef`). Las pruebas externas y el ensayo de restauración están aprobados. Durante la integración hubo un 502 temporal en Socios por una colisión de alias Docker; se corrigió y cinco rondas GET verificaron Manzanas, Socios y Pedal después de reconectar. La visibilidad pública del código no permite consultar datos sin sesión. Evidencia: [entrega de fase 2](docs/entrega-fase-2.md).
+**Fase 3 desplegada y verificada en staging:** `phase3-ef3d64616313`, construida desde `ef3d64616313b3a5f2184f37365dc751da07af29`, saludable el 5 de noviembre de 2026 a las 00:39:12 UTC. [Demo pública](https://manzanas.ganamosclub.net/demo) y [acceso interno](https://manzanas.ganamosclub.net/login). La web, API y esquema comerciales están activos; la publicación temporal solo web quedó sustituida. Los commits posteriores de documentación no cambian ese commit desplegado.
 
-Para revisar el código, está abierto el [PR #1 en borrador](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1). Para entrar desde teléfono o computadora, utiliza la cuenta entregada por un canal privado. Las cuentas individuales de los socios se preparan al recibir sus nombres de usuario; no se comparten contraseñas por chat.
+La verificación aprobó typecheck/build, **90 unitarias y 53 E2E**, once migraciones desde base limpia y desde fase 2, smoke comercial HTTPS con PDF y logo, y respaldo/restauración aislada posterior. La auditoría conservó los recursos ajenos y PostgreSQL propio; detalles y límites en el [informe de staging de fase 3](docs/verificacion-staging-fase3.json).
 
-## Abrir en esta computadora
+## Abrir localmente
 
-1. Abre una terminal en esta carpeta.
-2. Ejecuta `npm run dev`.
-3. Abre **http://127.0.0.1:3100** e inicia sesión con los datos privados de `.local/auth-local.json`.
-
-El iniciador crea la configuración local si falta, inicia PostgreSQL exclusivo del proyecto, aplica migraciones, prepara el catálogo inicial y un usuario local con contraseña aleatoria, y enciende API e interfaz. No instala servicios de Windows. `Ctrl+C` detiene los procesos; los datos permanecen en `.local/postgres`. El archivo de acceso no se imprime en consola y está excluido de Git.
-
-También puedes abrir `INICIAR.ps1` desde PowerShell. No cambies la política de ejecución global si Windows lo bloquea: utiliza `npm run dev` en la terminal.
-
-## Instalación en otra computadora
-
-Requiere Node.js 24.x, npm y aproximadamente 2 GB para dependencias, compilación y base local; las pruebas de navegador consumen espacio adicional.
+Requiere Node.js 24.x y npm. En una terminal dentro del repositorio:
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-Las contraseñas de base y la clave interna se generan aleatoriamente y se guardan en `.env`, excluido de Git. El acceso de la persona está separado en `.local/auth-local.json`. No son credenciales del VPS. No compartas `.env`, `.local`, archivos de invitación ni respaldos junto con el código.
+Abre **http://127.0.0.1:3100**. `/demo` no requiere cuenta; el acceso privado local está en `.local/auth-local.json`. No compartas ni versiones ese archivo. El iniciador genera secretos si faltan, inicia PostgreSQL exclusivo en `127.0.0.1:55432`, migra, prepara configuraciones y crea el usuario local. No instala servicios Windows. `Ctrl+C` detiene los procesos y conserva `.local/postgres`.
 
-## Qué puedes hacer
+También existe `INICIAR.ps1`; si está bloqueado usa `npm run dev`, sin cambiar políticas globales. Dependencias y base necesitan aproximadamente 2 GB; navegador y capturas consumen espacio adicional.
 
-- **Catálogo (`/`)**: crear frutas, variedades y calibres; crear y editar empaques de 1 a 100 blíster por caja.
-- **Proveedores (`/proveedores`)**: crear, editar y desactivar proveedores sin borrar su historia.
-- **Recepciones (`/recepciones`)**: registrar varias líneas de cajas cerradas con proveedor, referencia, fecha, costo USD y empaque propio por lote.
-- **Inventario (`/inventario`)**: filtrar y consultar lotes, cantidades y movimientos; abrir cajas y blíster, retirar blíster, preparar medias cajas con conteo, ajustar con motivo y revertir el último movimiento admisible.
-- Conservar los registros al reiniciar, registrar el usuario que opera y evitar duplicados cuando se reintenta la misma solicitud.
+## Flujos disponibles
 
-Los ejemplos iniciales son Manzana, Pera, Gala, Pink Lady y los calibres 80 y 180. Solo Gala tiene empaques iniciales: 5 y 4 blíster respectivamente. **No son existencias.** La migración crea `Almacén principal`, sin proveedores ni stock. Las recepciones en staging y pruebas se marcan DEMO desde el servidor y viven en bases separadas de los datos locales.
+- **Demo (`/demo`)**: catálogo, inventario, recepción, ventas y cobranza ficticias; sin consultar la base privada ni guardar operaciones.
+- **Catálogo (`/catalogo`)**: frutas, variedad/calibre opcionales, línea comercial, modelo de empaque, presentaciones y precios promo/normal independientes. Datos desconocidos pendientes.
+- **Recepciones (`/recepciones`)**: varias frutas, costo histórico por lote y cambio explícito de precios, confirmados atómicamente.
+- **Inventario (`/inventario`)**: cajas selladas, fracciones y movimientos auditados; mitades comerciales sin inventar piezas; conteo cuando corresponde; ajustes y reversas admisibles.
+- **Ventas (`/ventas`)**: cliente, varias líneas, precio negociado, contado/crédito, FIFO por recepción, costo y margen bruto, comprobante comercial PDF.
+- **Clientes y cobranza (`/clientes`, `/cobranza`)**: saldos por comprobante, fechas pactadas/recordatorios, abonos con reparto explícito, recibos y WhatsApp manual. Push requiere opt-in de la tablet corporativa.
+- **Proveedores (`/proveedores`)**: altas, cambios y desactivación conservando historia.
 
-El calibre nunca determina cuánta fruta hay. Una caja abierta y su contenido no se suman dos veces. Las piezas de un empaque intacto permanecen desconocidas hasta contarlas; preparar 18 de 37 deja 19. Un retiro de inventario no genera una venta ni una deuda. Consulta el [modelo de inventario](docs/inventory-model.md).
+El calibre no determina cantidad de fruta. Caja abierta y contenido no se suman dos veces. Kiwi y granel admiten mitades comerciales; uva solo cajas; no se vende por pieza. El catálogo inicial no crea stock, clientes, precios ni tasas. Preserva ejemplos históricos de fase 2 identificados como DEMO sin convertirlos en reglas reales.
 
-## Acceso y sesiones
+Los PDF **no son facturas fiscales SENIAT**. La fuente oficial BCV no pudo verificarse de forma confiable: se informa tasa no disponible y se bloquea VES; USD continúa. Sin tasa paralela ni envíos automáticos a clientes. Consultar [BCV](docs/bcv.md) y [push](docs/push-cobranza.md).
 
-El catálogo y los módulos operativos requieren sesión. Las contraseñas se almacenan con scrypt; las sesiones son revocables, caducan a las 8 horas y tras 30 minutos de inactividad. El navegador recibe una cookie `HttpOnly` y `SameSite=Strict`; staging exige HTTPS y cookie `Secure`. Cerrar sesión la revoca en el servidor.
+## Acceso y datos
 
-No hay registro público, recuperación por correo ni niveles de permisos en esta fase. El operador prepara usuarios invitados mediante `npx tsx scripts/create-user.ts --file <archivo-privado>` después de configurar la base y el directorio privado autorizado. El archivo contiene `username`, `displayName` y `password`; no se pasa la contraseña como argumento. `--reset` reemplaza un acceso existente e invalida sus sesiones. Staging no crea usuarios automáticamente.
+Páginas y datos privados exigen sesión: scrypt, sesiones revocables de 8 horas con 30 minutos de inactividad, cookie `HttpOnly`, `SameSite=Strict` y `Secure` en staging. No hay registro público ni roles diferenciados. El proxy limita rutas y valida origen en mutaciones.
 
-## Organización
+El operador invita mediante `npx tsx scripts/create-user.ts --file <archivo-privado>` siguiendo [autenticación](docs/authentication.md). El archivo contiene `username`, `displayName`, `password`; nunca pasar contraseñas por argumentos. `--reset` invalida sesiones anteriores. Staging no crea usuarios automáticamente.
 
-```text
-apps/web/                 Next.js, interfaz responsive y proxy del mismo origen
-apps/api/                 NestJS, autenticación, catálogo e inventario
-packages/domain/          Reglas puras, validaciones y tipos compartidos
-packages/database/        Esquema Drizzle y migraciones PostgreSQL
-scripts/                  Arranque, migración, usuarios, pruebas y operación de staging
-tests/unit/               Reglas de inventario, empaques, precios y BCV
-tests/e2e/                Navegador, API e integridad de PostgreSQL
-infra/                    Preparación de infraestructura aislada del proyecto
-.agents/skills/           Cuatro Skills revisadas e instaladas localmente
-docs/                     Arquitectura, reglas, revisión y capturas
-```
+`.env`, `.local`, invitaciones, respaldos y credenciales quedan fuera de Git. Staging tiene base exclusiva y operaciones DEMO marcadas por servidor. La PWA no guarda datos operativos ni confirma ventas sin conexión.
 
 ## Verificación
 
-`npm run typecheck` genera primero los tipos de rutas de Next.js. Puede ejecutarse después de `npm ci` en un clon nuevo, sin iniciar la aplicación ni compilarla antes. El archivo generado `apps/web/next-env.d.ts` y la carpeta `.next` no se versionan.
-
 ```powershell
-npm run typecheck
-npm test
-npm run build
+npm run check
 $env:PLAYWRIGHT_BROWSERS_PATH = "$PWD/.local/browsers"
 npx playwright install chromium
 npm run test:e2e
 ```
 
-Cierra `npm run dev` antes de las pruebas de extremo a extremo: ambas usan el puerto local 55432, pero las pruebas escriben únicamente en `manzanas_maracay_test`. `npm run test:e2e` inicia y cierra sus propios servicios. Nunca apunta al VPS. Si cerraste una terminal por fuerza, `npm run db:stop` detiene solo la base identificada por el directorio de este proyecto. No uses comandos globales para matar procesos.
+`check` ejecuta tipos, unitarios y build. Cierra el iniciador local antes de E2E: la suite administra sus servicios y escribe solo en `manzanas_maracay_test`, nunca en el VPS. `npm run db:stop` detiene únicamente la base identificada del proyecto.
 
-El esquema evoluciona con `npm run db:generate` y `npm run db:migrate`. No uses `drizzle-kit push` ni reescribas migraciones aplicadas. Hay seis migraciones, de `0000` a `0005`; las últimas añaden inventario operativo, sesiones y cierre de escritura del historial. El migrador admite únicamente las bases locales del proyecto o su base de staging aislada con configuración explícita. Las pruebas nunca usan staging.
+Once migraciones, `0000`–`0010`; no reescribir aplicadas ni usar `db push`. Instalación limpia y actualización desde el commit exacto de fase 2: [reporte](docs/verificacion-migraciones-fase3.json). El script `scripts/verify-phase3-migrations.ts` solo admite bases temporales propias locales con `MM_APP_ENV=test`. Resultados nuevos y límites en [entrega de fase 3](docs/entrega-fase-3.md), separados de evidencia histórica.
 
-Fase 2 verificada: tipos y compilación aprobados, 23/23 pruebas unitarias y 32/32 escenarios de navegador/API/PostgreSQL. Se aplicaron las seis migraciones desde una base de pruebas nueva. La [entrega de fase 2](docs/entrega-fase-2.md) contiene resultados, capturas y el estado externo del staging; la entrega de fase 1 conserva su evidencia histórica.
+## Organización
 
-## Docker como alternativa de desarrollo
+```text
+apps/web/          Next.js, demo, operación privada y proxy
+apps/api/          NestJS, sesiones, inventario, comercio, BCV y push
+packages/domain/   Reglas, precisión decimal y contratos
+packages/database/ Drizzle y migraciones PostgreSQL
+scripts/           Arranque, pruebas, migraciones, usuarios y staging
+.agents/skills/    Selección auditada y skill de integridad
+```
 
-Se incluye `compose.yaml`, con nombre de proyecto, volumen propio, límite de recursos y publicación exclusivamente en `127.0.0.1:55432`. **No se ejecutó Docker en esta computadora**, porque no está instalado. No lo arranques a la vez que PostgreSQL portable.
-
-Después de generar `.env` con el iniciador y detenerlo, una máquina con Docker puede usar `docker compose up -d postgres` y `node scripts/dev.mjs --external-db`. El rol de aplicación se crea al inicializar un volumen nuevo; las migraciones conceden sus permisos mínimos. La creación automática de la base de pruebas corresponde al iniciador portable; el flujo Docker se entrega para desarrollo y requiere validación antes de adoptarlo.
+`compose.yaml` ofrece desarrollo con volumen y puerto propios; no ejecutarlo junto a PostgreSQL portable. Docker no está instalado aquí; esa alternativa local requiere validación. Staging tiene verificación independiente documentada.
 
 ## Documentación
 
-- [Entrega de la fase 1](docs/entrega-fase-1.md)
-- [Entrega y staging verificados de fase 2](docs/entrega-fase-2.md)
-- [Plan autorizado de fase 2](docs/plan-fase-2.md)
-- [Revisión del punto de partida](docs/revision-fase-1.md)
-- [Inventario operativo y garantías](docs/inventory-model.md)
-- [Reglas permanentes del negocio](docs/domain-rules.md)
-- [Arquitectura y modelo de datos](docs/architecture.md)
-- [Inspección de infraestructura](docs/infrastructure.md)
-- [Operación, respaldo y reversión de staging](docs/staging.md)
-- [Acceso por invitación y sesiones](docs/authentication.md)
-- [Skills y revisión de procedencia](docs/skills.md)
-- [Revisión visual y accesibilidad](docs/visual-review.md)
-- [Descripción histórica de revisión de fase 1](docs/pull-request.md)
-- [Continuar la revisión en otro chat](docs/continuar-en-chatgpt.md)
-- [Logo oficial y activos de marca](docs/brand-assets.md)
+- [Plan](docs/plan-fase-3.md) y [entrega de fase 3](docs/entrega-fase-3.md)
+- [Reglas](docs/domain-rules.md), [inventario](docs/inventory-model.md) y [arquitectura](docs/architecture.md)
+- [Staging y respaldo](docs/staging.md), [infraestructura](docs/infrastructure.md) y [sesiones](docs/authentication.md)
+- [Diseño](DESIGN.md), [marca](docs/brand-assets.md), [skills](docs/skills.md) y [seguridad](docs/revision-seguridad-fase-3.md)
+- [Continuar en otro chat](docs/continuar-en-chatgpt.md)
+- Historial: [fase 1](docs/entrega-fase-1.md), [fase 2](docs/entrega-fase-2.md)
 
-El logo oficial del propietario se conserva en `apps/web/public/brand/logo-manzanas-maracay.png` y se usa como fuente de las versiones para interfaz e instalación. La PWA ofrece instalación y una página sin conexión; no guarda datos operativos en caché ni registra operaciones comerciales sin conexión. Las tablas comerciales futuras no habilitan ventas, cobranza, WhatsApp ni BCV. Antes de incorporar datos comerciales reales, corresponde revisar el flujo con el propietario y guardar una copia segura del respaldo fuera del VPS.
+No se declara producción lista: faltan respaldo externo seguro, revisión fiscal y validación en tablet real. Se conserva la incidencia histórica del alias `web`; el servicio actual usa exclusivamente `mm-staging-web`.

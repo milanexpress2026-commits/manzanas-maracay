@@ -9,14 +9,19 @@ import {
   updatePackingSchema,
   type Catalog,
   type Configuration,
+  type PackingModel,
+  type HalfPreparation,
+  type Presentation,
 } from '@mm/domain';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Field, FieldGroup, FieldLabel, FieldDescription } from '@/components/ui/field';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Field, FieldGroup, FieldLabel, FieldDescription } from './ui/field';
+import { Alert, AlertDescription } from './ui/alert';
+import { NativeSelect } from './ui/native-select';
 import { saveCatalog } from '@/lib/catalog-api';
+import { presentationNames } from '@/lib/commercial-ui';
+
 export type FormKind = 'fruits' | 'varieties' | 'calibers' | 'configurations';
 export function CatalogForm({
   kind,
@@ -32,22 +37,57 @@ export function CatalogForm({
   onSaved: () => Promise<void>;
 }) {
   const [name, setName] = useState(''),
-    [fruitId, setFruitId] = useState(editing?.fruitId ?? ''),
-    [varietyId, setVarietyId] = useState(editing?.varietyId ?? ''),
+    [fruitId, setFruitId] = useState(editing?.fruitId ?? '');
+  const [varietyId, setVarietyId] = useState(editing?.varietyId ?? ''),
     [caliberId, setCaliberId] = useState(editing?.caliberId ?? '');
-  const [blisters, setBlisters] = useState(editing ? String(editing.blistersPerBox) : ''),
-    [notes, setNotes] = useState(editing?.notes ?? ''),
+  const [line, setLine] = useState(editing?.commercialLine ?? 'Estándar');
+  const [model, setModel] = useState<PackingModel>(editing?.packingModel ?? 'blister');
+  const [half, setHalf] = useState<HalfPreparation>(editing?.halfPreparation ?? 'counted');
+  const [presentations, setPresentations] = useState<Presentation[]>(
+    editing?.allowedPresentations ?? ['box', 'half_box', 'blister'],
+  );
+  const [blisters, setBlisters] = useState(
+    editing?.blistersPerBox == null ? '' : String(editing.blistersPerBox),
+  );
+  const [weight, setWeight] = useState(editing?.boxWeightKg ?? '');
+  const [confirmed, setConfirmed] = useState(editing?.confirmationStatus === 'confirmed');
+  const [notes, setNotes] = useState(editing?.notes ?? ''),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
-  const pending = useRef<{ json: string; key: string } | null>(null);
-  const submitting = useRef(false);
-  const errorRef = useRef<HTMLDivElement>(null);
-  const availableVarieties = catalog.varieties.filter((v) => v.fruitId === fruitId),
-    availableCalibers = catalog.calibers.filter((c) => c.fruitId === fruitId);
+  const pending = useRef<{ json: string; key: string } | null>(null),
+    submitting = useRef(false),
+    errorRef = useRef<HTMLDivElement>(null);
+  const availableVarieties = catalog.varieties.filter((v) => v.fruitId === fruitId);
+  const availableCalibers = catalog.calibers.filter((c) => c.fruitId === fruitId);
+  function changeModel(value: PackingModel) {
+    setModel(value);
+    setConfirmed(false);
+    if (value === 'whole') {
+      setPresentations(['box']);
+      setHalf('none');
+      setBlisters('');
+    } else if (value === 'halves') {
+      setPresentations(['box', 'half_box']);
+      setHalf('commercial');
+      setBlisters('');
+    } else {
+      setPresentations(['box', 'half_box', 'blister']);
+      setHalf('pending');
+    }
+  }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (submitting.current) return;
     setError('');
+    const packing = {
+      packingModel: model,
+      halfPreparation: half,
+      allowedPresentations: presentations,
+      blistersPerBox: model === 'blister' && blisters !== '' ? Number(blisters) : null,
+      boxWeightKg: weight.trim() ? weight.trim().replace(',', '.') : null,
+      confirmationStatus: confirmed ? 'confirmed' : 'pending',
+      notes,
+    };
     const body =
       kind === 'fruits'
         ? { name }
@@ -56,8 +96,14 @@ export function CatalogForm({
           : kind === 'calibers'
             ? { label: name, fruitId }
             : editing
-              ? { blistersPerBox: Number(blisters), notes, version: editing.version }
-              : { fruitId, varietyId, caliberId, blistersPerBox: Number(blisters), notes };
+              ? { ...packing, version: editing.version }
+              : {
+                  fruitId,
+                  varietyId: varietyId || null,
+                  caliberId: caliberId || null,
+                  commercialLine: line,
+                  ...packing,
+                };
     const schema =
       kind === 'fruits'
         ? fruitSchema
@@ -68,33 +114,27 @@ export function CatalogForm({
             : editing
               ? updatePackingSchema
               : configurationSchema;
-    const validated = schema.safeParse(body);
-    if (!validated.success) {
-      setError(
-        kind === 'configurations'
-          ? 'Completa las selecciones e indica entre 1 y 100 blíster por caja.'
-          : 'Completa los campos con un nombre válido.',
-      );
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Revisa los campos del formulario.');
       requestAnimationFrame(() => errorRef.current?.focus());
       return;
     }
-    const json = JSON.stringify(validated.data);
+    const json = JSON.stringify(parsed.data);
     if (pending.current?.json !== json) pending.current = { json, key: crypto.randomUUID() };
     submitting.current = true;
     setBusy(true);
     try {
       await saveCatalog(
         editing ? `configurations/${editing.id}` : kind,
-        validated.data,
+        parsed.data,
         pending.current!.key,
         !!editing,
       );
       await onSaved();
     } catch (e) {
       setError(
-        e instanceof Error
-          ? e.message
-          : 'No se pudo guardar. Revisa la conexión e inténtalo de nuevo.',
+        e instanceof Error ? e.message : 'No se pudo guardar. Conserva los datos y reintenta.',
       );
       requestAnimationFrame(() => errorRef.current?.focus());
     } finally {
@@ -108,183 +148,232 @@ export function CatalogForm({
         <FieldGroup>
           {kind !== 'fruits' ? (
             <Field>
-              <FieldLabel htmlFor="fruit">
-                Fruta <span aria-hidden="true">*</span>
-              </FieldLabel>
+              <FieldLabel htmlFor="fruit">Fruta</FieldLabel>
               <NativeSelect
                 id="fruit"
                 required
                 value={fruitId}
                 disabled={!!editing}
-                onChange={(event) => {
-                  setFruitId(event.target.value);
+                onChange={(e) => {
+                  setFruitId(e.target.value);
                   setVarietyId('');
                   setCaliberId('');
                 }}
               >
-                <NativeSelectOption value="">Selecciona una fruta</NativeSelectOption>
+                <option value="">Selecciona una fruta</option>
                 {catalog.fruits.map((f) => (
-                  <NativeSelectOption key={f.id} value={f.id}>
+                  <option key={f.id} value={f.id}>
                     {f.name}
-                  </NativeSelectOption>
+                  </option>
                 ))}
               </NativeSelect>
               {!catalog.fruits.length ? (
-                <FieldDescription>
-                  Crea una fruta en la pestaña Frutas antes de continuar.
-                </FieldDescription>
+                <FieldDescription>Crea primero una fruta en el catálogo.</FieldDescription>
               ) : null}
             </Field>
           ) : null}
           {kind === 'configurations' ? (
             <>
-              <div className="form-pair">
+              <div className="commercial-form-grid">
                 <Field>
-                  <FieldLabel htmlFor="variety">
-                    Variedad <span aria-hidden="true">*</span>
-                  </FieldLabel>
+                  <FieldLabel htmlFor="variety">Variedad, si aplica</FieldLabel>
                   <NativeSelect
                     id="variety"
-                    required
-                    disabled={!fruitId || !!editing}
                     value={varietyId}
+                    disabled={!!editing || !fruitId}
                     onChange={(e) => setVarietyId(e.target.value)}
                   >
-                    <NativeSelectOption value="">Selecciona una variedad</NativeSelectOption>
+                    <option value="">Sin variedad</option>
                     {availableVarieties.map((v) => (
-                      <NativeSelectOption key={v.id} value={v.id}>
+                      <option key={v.id} value={v.id}>
                         {v.name}
-                      </NativeSelectOption>
+                      </option>
                     ))}
                   </NativeSelect>
                 </Field>
                 <Field>
-                  <FieldLabel htmlFor="caliber">
-                    Calibre <span aria-hidden="true">*</span>
-                  </FieldLabel>
+                  <FieldLabel htmlFor="caliber">Calibre, si aplica</FieldLabel>
                   <NativeSelect
                     id="caliber"
-                    required
-                    disabled={!fruitId || !!editing}
                     value={caliberId}
+                    disabled={!!editing || !fruitId}
                     onChange={(e) => setCaliberId(e.target.value)}
                   >
-                    <NativeSelectOption value="">Selecciona un calibre</NativeSelectOption>
+                    <option value="">Sin calibre</option>
                     {availableCalibers.map((c) => (
-                      <NativeSelectOption key={c.id} value={c.id}>
+                      <option key={c.id} value={c.id}>
                         {c.label}
-                      </NativeSelectOption>
+                      </option>
                     ))}
                   </NativeSelect>
                 </Field>
               </div>
-              {fruitId && (!availableVarieties.length || !availableCalibers.length) ? (
-                <Alert>
-                  <Info />
-                  <AlertDescription>
-                    Primero agrega las variedades y los calibres de esta fruta en sus respectivas
-                    pestañas.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
               <Field>
-                <FieldLabel htmlFor="blisters">
-                  Blíster por caja <span aria-hidden="true">*</span>
-                </FieldLabel>
+                <FieldLabel htmlFor="commercial-line">Línea comercial</FieldLabel>
                 <Input
-                  id="blisters"
-                  name="blisters"
-                  type="number"
-                  inputMode="numeric"
-                  min="1"
-                  max="100"
-                  step="1"
+                  id="commercial-line"
+                  value={line}
+                  maxLength={80}
                   required
-                  value={blisters}
-                  onChange={(e) => setBlisters(e.target.value)}
-                  placeholder="Ej. 5"
-                  aria-describedby="blisters-help"
+                  disabled={!!editing}
+                  onChange={(e) => setLine(e.target.value)}
+                  placeholder="Por ejemplo: con blíster o a granel…"
                 />
-                <FieldDescription id="blisters-help">
-                  Cantidad habitual de blíster intactos en una caja cerrada.
+                <FieldDescription>
+                  Es una presentación comercial del producto, no una variedad botánica.
                 </FieldDescription>
               </Field>
               <Field>
-                <FieldLabel htmlFor="notes">
-                  Notas <span className="optional-label">(opcional)</span>
-                </FieldLabel>
+                <FieldLabel htmlFor="packing-model">Cómo se maneja la caja</FieldLabel>
+                <NativeSelect
+                  id="packing-model"
+                  value={model}
+                  onChange={(e) => changeModel(e.target.value as PackingModel)}
+                >
+                  <option value="blister">Caja con blíster</option>
+                  <option value="halves">Caja divisible en dos mitades comerciales</option>
+                  <option value="whole">Solo caja completa</option>
+                </NativeSelect>
+              </Field>
+              {model === 'blister' ? (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="blisters">Blíster por caja</FieldLabel>
+                    <Input
+                      id="blisters"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={100}
+                      step={1}
+                      value={blisters}
+                      onChange={(e) => setBlisters(e.target.value)}
+                      placeholder="Pendiente de confirmar…"
+                    />
+                    <FieldDescription>
+                      Puede quedar pendiente. El calibre nunca se convierte en cantidad de fruta.
+                    </FieldDescription>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="half-preparation">Preparación de media caja</FieldLabel>
+                    <NativeSelect
+                      id="half-preparation"
+                      value={half}
+                      onChange={(e) => setHalf(e.target.value as HalfPreparation)}
+                    >
+                      <option value="pending">Pendiente de confirmar</option>
+                      <option value="counted">Conteo físico al fraccionar</option>
+                      <option value="none">No se preparan medias cajas</option>
+                    </NativeSelect>
+                  </Field>
+                </>
+              ) : null}
+              <Field>
+                <FieldLabel htmlFor="box-weight">Peso fijo de la caja en kg, si aplica</FieldLabel>
+                <Input
+                  id="box-weight"
+                  inputMode="decimal"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder="Sin peso fijo…"
+                />
+                <FieldDescription>
+                  Es parte de la presentación. No se pedirá pesar cada venta.
+                </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel>Presentaciones de venta permitidas</FieldLabel>
+                <div className="allowed-presentations">
+                  {(['box', 'half_box', 'blister'] as Presentation[])
+                    .filter(
+                      (p) =>
+                        p === 'box' ||
+                        (model !== 'whole' && (p !== 'blister' || model === 'blister')),
+                    )
+                    .map((p) => (
+                      <label key={p}>
+                        <input
+                          type="checkbox"
+                          checked={presentations.includes(p)}
+                          disabled={p === 'box'}
+                          onChange={(e) =>
+                            setPresentations((current) =>
+                              e.target.checked
+                                ? [...current, p]
+                                : current.filter((item) => item !== p),
+                            )
+                          }
+                        />
+                        {presentationNames[p]}
+                      </label>
+                    ))}
+                </div>
+                <FieldDescription>No hay venta de manzanas por pieza suelta.</FieldDescription>
+              </Field>
+              <label className="price-choice">
+                <input
+                  type="checkbox"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                />
+                <span>El propietario confirmó esta configuración comercial</span>
+              </label>
+              <Field>
+                <FieldLabel htmlFor="notes">Notas</FieldLabel>
                 <Textarea
                   id="notes"
-                  name="notes"
-                  maxLength={500}
                   value={notes}
+                  maxLength={500}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Indicaciones para reconocer este empaque…"
-                  rows={3}
                 />
               </Field>
               <Alert>
-                <Info />
+                <Info aria-hidden="true" />
                 <AlertDescription>
-                  El calibre no determina la cantidad de frutas. La configuración de cada lote puede
-                  ser diferente.
+                  Los lotes existentes conservarán el empaque y costo con los que fueron recibidos.
                 </AlertDescription>
               </Alert>
             </>
           ) : (
             <Field>
-              <FieldLabel htmlFor="record-name">
+              <FieldLabel htmlFor="name">
                 {kind === 'calibers'
                   ? 'Nombre del calibre'
-                  : kind === 'varieties'
-                    ? 'Nombre de la variedad'
-                    : 'Nombre de la fruta'}{' '}
-                <span aria-hidden="true">*</span>
+                  : kind === 'fruits'
+                    ? 'Nombre de la fruta'
+                    : 'Nombre de la variedad'}
               </FieldLabel>
               <Input
-                id="record-name"
+                id="name"
                 name="name"
-                autoComplete="off"
                 required
-                minLength={kind === 'calibers' ? 1 : 2}
-                maxLength={kind === 'calibers' ? 30 : 80}
                 value={name}
+                maxLength={kind === 'calibers' ? 30 : 80}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={
-                  kind === 'fruits'
-                    ? 'Ej. Pera'
-                    : kind === 'varieties'
-                      ? 'Ej. Gala'
-                      : 'Ej. 80 o 70/75'
-                }
+                autoComplete="off"
               />
-              {kind === 'calibers' ? (
-                <FieldDescription>
-                  Se admite texto para clasificaciones como 70/75. No es la cantidad de fruta.
-                </FieldDescription>
-              ) : null}
             </Field>
           )}
+          {error ? (
+            <Alert ref={errorRef} tabIndex={-1} variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="form-actions">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? (
+                <LoaderCircle className="spin" aria-hidden="true" />
+              ) : (
+                <Save aria-hidden="true" />
+              )}
+              {busy ? 'Guardando…' : 'Guardar cambios'}
+            </Button>
+          </div>
         </FieldGroup>
       </fieldset>
-      {error ? (
-        <div ref={errorRef} tabIndex={-1} className="form-error" role="alert">
-          {error}
-        </div>
-      ) : null}
-      <div className="form-actions">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={busy}>
-          {busy ? (
-            <LoaderCircle className="spin" data-icon="inline-start" />
-          ) : (
-            <Save data-icon="inline-start" />
-          )}
-          {busy ? 'Guardando…' : 'Guardar cambios'}
-        </Button>
-      </div>
     </form>
   );
 }

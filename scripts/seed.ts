@@ -12,6 +12,7 @@ import {
 } from '../packages/database/src/schema';
 import { assertDatabase } from './migrate';
 import { randomUUID } from 'node:crypto';
+import { addCommercialCatalog } from './commercial-catalog';
 async function seed() {
   const pool = new Pool({
     connectionString: assertDatabase(process.env.MIGRATION_DATABASE_URL),
@@ -52,22 +53,21 @@ async function seed() {
             variantId: variant.id,
             blistersPerBox,
             notes:
-              'Configuración inicial indicada por el propietario. Verificar el empaque de cada lote.',
+              'DEMO histórica: ejemplo de fase 1, pendiente de confirmar para la operación real.',
           })
           .returning();
-        await tx
-          .insert(auditEvents)
-          .values({
-            entityType: 'packing_rule',
-            entityId: rule.id,
-            action: 'seed',
-            actor: 'initial-catalog',
-            requestId,
-            after: rule,
-          });
+        await tx.insert(auditEvents).values({
+          entityType: 'packing_rule',
+          entityId: rule.id,
+          action: 'seed',
+          actor: 'initial-catalog',
+          requestId,
+          after: rule,
+        });
       }
       console.log('Ejemplos de catálogo cargados; no se crearon existencias, ventas ni tasas.');
     });
+    await addCommercialCatalog(pool);
   } finally {
     await pool.end();
   }

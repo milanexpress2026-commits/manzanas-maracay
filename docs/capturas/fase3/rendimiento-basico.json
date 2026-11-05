@@ -1,0 +1,50 @@
+{
+  "measuredAt": "2026-11-04T23:38:34.446Z",
+  "route": "/demo",
+  "environment": "Local Next production build, Chromium headless; fresh context and browser cache disabled per sample",
+  "emulation": {
+    "cpuSlowdown": 4,
+    "latencyMs": 100,
+    "downloadBytesPerSecond": 200000,
+    "downloadMegabitsPerSecond": 1.6,
+    "uploadBytesPerSecond": 75000
+  },
+  "samples": [
+    {
+      "width": 1440,
+      "sample": 1,
+      "headingVisibleMs": 1179,
+      "domContentLoadedMs": 1045,
+      "scriptRequests": 10,
+      "jsTransferBytes": 180124,
+      "jsEncodedBodyBytes": 177124
+    },
+    {
+      "width": 1440,
+      "sample": 2,
+      "headingVisibleMs": 1091,
+      "domContentLoadedMs": 1062,
+      "scriptRequests": 10,
+      "jsTransferBytes": 180124,
+      "jsEncodedBodyBytes": 177124
+    },
+    {
+      "width": 390,
+      "sample": 1,
+      "headingVisibleMs": 1021,
+      "domContentLoadedMs": 1008,
+      "scriptRequests": 10,
+      "jsTransferBytes": 180124,
+      "jsEncodedBodyBytes": 177124
+    },
+    {
+      "width": 390,
+      "sample": 2,
+      "headingVisibleMs": 380,
+      "domContentLoadedMs": 911,
+      "scriptRequests": 10,
+      "jsTransferBytes": 180124,
+      "jsEncodedBodyBytes": 177124
+    }
+  ]
+}

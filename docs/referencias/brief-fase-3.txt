@@ -1,0 +1,282 @@
+MANZANAS MARACAY — SÚPER PROMPT MAESTRO PARA CODEX
+FASE 3: ADECUACIÓN COMERCIAL, INVENTARIO REAL, VENTAS, COBRANZA, EXPERIENCIA VISUAL Y DEMO PÚBLICA
+Preparado el 04/11/2026 · Idioma de trabajo y reportes: español de Venezuela
+
+IMPORTANTE: Lee este documento completo, planifica por hitos y ejecuta de forma verificable. No supongas que las declaraciones de una entrega equivalen a pruebas actuales. Sé riguroso con dinero e inventario y simple con los formularios. No hagas merge a la rama base ni publiques PRODUCCIÓN sin autorización. La demostración pública SIN LOGIN solicitada es de SOLO LECTURA/SIMULACIÓN AISLADA; NO significa desactivar las defensas para operaciones reales.
+
+======================================================================
+0. SITUACIÓN, REPOSITORIO Y PRIMEROS PASOS OBLIGATORIOS
+======================================================================
+
+Proyecto: Manzanas Maracay, distribuidora venezolana de frutas importadas.
+Repositorio GitHub: https://github.com/milanexpress2026-commits/manzanas-maracay
+Rama de fase 2: phase-2/inventario-staging
+PR de fase 2: https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1
+Staging existente (NO PRODUCCIÓN): https://manzanas.ganamosclub.net
+Release documentada: phase2-7ae1d75 (verifica si sigue siendo la desplegada).
+
+Fase 2 tiene Next.js + React, NestJS, PostgreSQL + Drizzle, un motor transaccional de contenedores, recepción multilínea, proveedores, autenticación invitada y Docker Compose aislado. La entrega reportó 23/23 pruebas unitarias y 32/32 escenarios E2E, pero debes repetir los checks y distinguir resultados comprobados de resultados anteriores. Se reportó un 502 temporal del servicio ajeno Socios al conectar Caddy debido al alias genérico 'web'; se corrigió usando 'mm-staging-web'. NO repetir esa incidencia.
+
+ANTES DE ESCRIBIR CÓDIGO:
+A. Revisa HEAD actual, PR #1 y commit efectivamente desplegado; existe posibilidad de que HEAD sea posterior a la release. Conserva los cambios posteriores y evita sobrescribirlos.
+B. Lee AGENTS.md, apps/web/AGENTS.md, README.md, PRODUCT.md, DESIGN.md, docs/domain-rules.md, docs/inventory-model.md, docs/architecture.md, docs/entrega-fase-2.md, docs/staging.md, docs/authentication.md, docs/infrastructure.md, docs/skills.md, docs/verificacion-staging.json y migraciones reales. Revisa tests e interfaz actual.
+C. Compara los requisitos NUEVOS de este documento contra el esquema y flujos existentes. Entrega una MATRIZ de funcionalidades: implementado / requiere cambio / pendiente de aclaración / riesgo. No borres ni reescribas migraciones ya aplicadas; añade migraciones versionadas reversibles cuando sea posible.
+D. Verifica typecheck, test, build y test:e2e usando EXCLUSIVAMENTE base local de prueba aislada. Asegura que los scripts NO puedan borrar ni modificar staging ni otras bases.
+E. Crea rama propia de la fase 3 partiendo del último estado válido de fase 2, sin hacer merge no autorizado. Conserva el PR de fase 2; abre PR de fase 3 apropiado al flujo de ramas y documenta dependencias. No push forzado.
+F. Haz un plan de implementación secuencial, con hitos funcionales pequeños y demostraciones navegables. No prometas funcionalidades que no estén implementadas.
+
+ORDEN DE IMPORTANCIA: (1) seguridad e integridad del inventario y migraciones; (2) adaptar el catálogo a la operación REAL; (3) recepción simple con costos/precios; (4) ventas y FIFO transaccional; (5) créditos/abonos/recibos; (6) recordatorios y WhatsApp manual; (7) mejoras visuales/animación; (8) actualización segura del staging. No reemplaces la base existente ni dupliques sistemas de inventario.
+
+======================================================================
+1. OPERACIÓN REAL DE FRUTAS Y PRESENTACIONES
+======================================================================
+
+El dueño confirmó estas categorías y presentaciones. Incorpóralas como configuraciones editables, NO como valores rígidos codificados:
+
+A) MANZANAS CON BLÍSTER
+- Variedades comerciales referidas: manzana verde (clásica), Lady y Gala. El nombre 'Lady' no debe transformarse silenciosamente en 'Pink Lady' sin verificación. Mantén compatibilidad con nombres ya existentes y facilita editar variedad.
+- Calibres mencionados: 88, 100, 113, 125, 135, 150, 163, 175, 198. Permite configuraciones por variedad; NO presupongas que todas ofrecen cada calibre.
+- Solo se venden CAJA COMPLETA, MEDIA CAJA y BLÍSTER. NO venden manzanas sueltas por unidad.
+- Número de blíster por caja editable por variedad/calibre y sobrescribible por recepción/lote. Existen reglas comunicadas anteriormente por audio que NO siempre coinciden con ejemplos viejos ('Gala 80 = 5 blíster' frente a otras reglas); no transformes ejemplos en valores de producción. Identifica discrepancias y deja configuración PENDIENTE de confirmar en lugar de inventar.
+- Calibre NUNCA equivale a cantidad de manzanas. La preparación física de medias cajas en este grupo puede requerir conteo real cuando se fracciona fruta en unidades; conserva trazabilidad sin ofrecer 'venta por pieza'. No inventes media caja como '2,5 blíster' ni una cantidad fija de manzanas.
+
+B) MANZANAS A GRANEL, SIN BLÍSTER
+- Es una PRESENTACIÓN / línea comercial de manzana sin bandejas, NO una variedad botánica inventada.
+- Calibres: 150, 163, 175, 198, 216, 232.
+- Se reciben por CAJAS y se venden SOLO CAJA o MEDIA CAJA.
+- NO exigir conteo de manzanas, ni en recepción ni al vender media caja. Ustedes determinan físicamente la mitad comercial; el stock se lleva por equivalentes de caja con granularidad de media caja (y por estado físico cuando corresponda).
+- Ejemplo: recibir 10 cajas, vender 1 caja y 1 media => saldo comercial 8,5 cajas equivalentes; no quedan 8,5 cajas cerradas. Representar 8 cajas cerradas y una media caja restante/su contenedor correspondiente. No generar piezas ficticias.
+
+C) PERAS
+- Variedades: FORELLE y PACKCAM (preservar el nombre comercial facilitado; permitir correcciones posteriores).
+- Calibres: 90, 100, 110, 120, 135.
+- Venta: CAJA, MEDIA CAJA y BLÍSTER.
+- Blíster por caja y método concreto de preparación de medias cajas: PENDIENTE de confirmación con socios. Debe ser editable; NO inventar cantidades.
+
+D) KIWI
+- No se manejan variedades comerciales, por tanto el flujo de usuario NO debe exigir una variedad ficticia.
+- Se vende únicamente CAJA de 10 kg o MEDIA CAJA de 5 kg. No pedir peso en cada venta: las dos presentaciones ya tienen equivalencia fija por definición del producto.
+- Caja entera y media caja afectan el stock comercial respetando estado físico, sin blíster ni conteo por kiwi. Venta de 1 media caja de una caja entera deja una media caja utilizable, no una caja cerrada.
+
+E) UVA
+- Variedades: ROJA y MORADA.
+- Se vende EXCLUSIVAMENTE por CAJA; al seleccionarla, autoseleccionar Caja y pedir únicamente la cantidad de cajas, además del precio de venta.
+- No pedir kilos, peso de gajo, bandejas, número de racimos ni medias cajas. Su contenido no necesita conteo por racimos.
+
+F) FUTUROS PRODUCTOS
+- Deben poder añadirse nuevas frutas (por ejemplo mandarina) y definirse individualmente sus variedades opcionales, calibres opcionales, unidades de stock y presentaciones autorizadas. No inventar reglas de mandarina: todavía no están confirmadas.
+- Revisar esquema actual: hoy una configuración parece exigir variedad, calibre y blíster; modificar el modelo para representar correctamente productos sin blíster o sin variedad sin hacks visibles. Mantener integridad referencial, unicidad, compatibilidad y migración de datos previos.
+- Diseñar una abstracción de modelo de empaque/presentación y fraccionamiento por clase comercial; no llenar cada fruta de excepciones hardcodeadas ni usar columnas numéricas engañosas que conviertan calibre en unidades.
+
+CRITERIO DE ACEPTACIÓN:
+- La interfaz nunca mostrará 'abrir blíster' para uva, kiwi o granel. Nunca mostrará venta por manzana suelta. Kiwi tendrá exactamente dos presentaciones, uva una. Los formularios serán contextuales (sin campos no pertinentes).
+- Los modelos distinguirán inventario físico (caja sellada / caja abierta / resto media caja / blíster intacto, etc.) de equivalencias comerciales. Ni doble conteo ni stocks negativos.
+- Mantener coste, estado, recepción y trazabilidad en cada fracción aun si no se conoce número de piezas.
+
+======================================================================
+2. RECEPCIÓN DE CAMIÓN: SIMPLE, MULTIPRODUCTO, COSTO Y PRECIOS
+======================================================================
+
+El usuario quiere una pantalla 'Nueva recepción / Agregar mercancía' donde, al llegar un camión, se añadan tantas líneas como necesite en UNA MISMA recepción. Ejemplo: 20 cajas manzana, 10 pera, 2 uva, 1 kiwi; cada línea especifica fruta, variedad si aplica, calibre si aplica, presentación de recepción, cantidad y costo unitario en USD.
+
+NUEVO: En la MISMA línea mostrar y permitir definir o conservar los DOS precios comerciales POR PRESENTACIÓN:
+1. Precio PROMOCIONAL de referencia en USD en EFECTIVO.
+2. Precio NORMAL de referencia expresado en USD para cobrar su equivalente en VES a tasa oficial BCV.
+Estos son precios DE VENTA independientes del costo de COMPRA. Ejemplo 20 cajas Gala 100 a costo $25, promo $40, regular $50: cifras DEMO, jamás datos reales precargados.
+
+- Si el producto ya tiene precios, mostrar valores actuales como sugerencia, con opción explícita 'Conservar precios' o 'Actualizar precios'; nunca cambiarlos solo porque aumentó su costo.
+- El precio de una CAJA no obliga matemáticamente a que el BLÍSTER o la MEDIA CAJA se venda en un múltiplo proporcional. Permitir precios configurados por presentación.
+- Múltiples recepciones del mismo producto mantienen costos propios inmutables. Compra semana 1: 10 cajas a $25; semana 2: 10 cajas a $27. Ambos costos deben persistir sin reescribir el pasado. La venta puede seguir valiendo $40 en ambas.
+- TOTAL COSTO compra: suma cantidades × costo, con Decimal; margen mostrado como ESTIMACIÓN de ganancia bruta del producto, sin flete ni otros gastos.
+- No incluir transporte, descarga, flete, impuestos de transporte u otros gastos accesorios en formularios o cálculos: el dueño expresamente quiere SOLO COSTO DE MERCANCÍA Y PRECIO DE VENTA.
+- Recepción editable EN BORRADOR antes de confirmar. Confirmación única atómica e idempotente: o se guardan recepción, lotes, stock y actualizaciones de precios elegidas, o no se guarda ninguna de esas partes. Manejar fallos de red y reintentos sin duplicados.
+- No se necesitan códigos físicos, etiquetas por caja ni selección manual de lotes para los operarios cotidianos; internamente mantener el id y costo por recepción.
+- Poner en pantalla el total de cajas y costo total y permitir correcciones de líneas antes de Confirmar.
+
+======================================================================
+3. FIFO AUTOMÁTICO, COSTO DE VENTA Y CONSERVACIÓN DEL STOCK
+======================================================================
+
+El equipo ordena la cava para sacar primero la mercancía vieja, sin etiquetar físicamente cajas por lote. Implementar FIFO/PEPS CONTABLE AUTOMÁTICO por producto/variedad/calibre/presentación y antigüedad de recepción; el usuario NO escoge lotes en una venta ordinaria. Cuando una venta consume más que un lote, partir internamente la asignación respetando costos históricos.
+
+EJEMPLO OBLIGATORIO:
+- Recibir 10 cajas Gala 100 a costo unitario $25.
+- Recibir otras 10 cajas Gala 100 a costo unitario $27.
+- Vender 12 cajas a precio pactado $40: ingreso $480; costo 10×25 + 2×27 = $304; ganancia BRUTA = $176. Quedan 8 cajas de la segunda recepción.
+- Venta de 6 cajas previa al segundo lote: costo $150 y ganancia $90 si se venden a $40.
+
+- Costos de fracciones de caja/blíster: definir política determinista de costo y redondeo conservativo con Decimal que permita reconstruir el valor de inventario y no invente costo al abrir una caja. Dejar trazabilidad de asignaciones de costo a cada línea de venta; reversas deben restaurar la misma fuente/costo cuando sea posible.
+- No implementar 'costos promedio' como sustituto silencioso de FIFO.
+- No permitir que dos usuarios vendan la última caja simultáneamente, o que se confirmen dos ventas por reintentos/red intermitente. Transacciones PostgreSQL, restricciones y idempotencia coherentes con inventario actual.
+- Cuando exista una diferencia entre FIFO contable y caja tomada físicamente de la cava, documentar la naturaleza estimada y permitir una corrección auditada futura sin rehacer facturas históricas. No obligar a identificar cada caja.
+- No vender inventario de DEMO como real ni mezclar bases de staging/producción.
+- No crear un segundo 'stock virtual' ajeno al libro de movimientos actual. Factura confirmada y salida de inventario deben reconciliarse transaccionalmente; nunca una venta guardada sin su egreso o viceversa.
+- Distinguir 'caja completa disponible' de 'equivalentes a caja'; no mostrar 0,5 de caja cerrada. Para granel/kiwi, media caja remanente no se debe presentar como caja sellada.
+
+======================================================================
+4. VENTAS, PRECIOS NEGOCIADOS Y COMPROBANTES DIGITALES
+======================================================================
+
+Implementar registro ágil de venta desde teléfono/tablet/PC:
+- Cliente (crear/seleccionar; nombre, teléfono WhatsApp normalizado con prefijo internacional, notas/datos opcionales).
+- Múltiples productos distintos por venta, con variedad/calibre/presentación permitida y cantidad.
+- Fecha, condición 'Contado' o 'Crédito' con un control simple; SIN aprobaciones, jerarquías, límites de crédito, bloqueos o flujos administrativos.
+- Lista promocional USD efectivo y lista normal de referencia USD para cobro VES. No asumir que la tasa paralela existe ni usarla. Aplicar referencia comercial según selección explícita del operador/método y guardar la referencia histórica.
+- Precio UNITARIO NEGOCIADO editable por línea, también por volumen (5 cajas a $38 aunque lista $40), sin cambiar lista general. Mostrar descuento y ganancias brutas, conservar precio de lista, pactado, producto y costo de lote al confirmar.
+- Si se paga poco o nada, la venta puede ser crédito; inventario se descuenta al confirmar la venta/entrega de mercancía según flujo simple actual. No inventar reservas ni flujos logísticos todavía no pactados.
+- PDF con logo, número correlativo único, fecha en Venezuela, cliente, descripción, cantidades, precios pactados, total, abonos y saldo. Etiquetarlo 'COMPROBANTE DE VENTA' o documento comercial, NO afirmar validez de factura fiscal SENIAT sin evaluación y cumplimiento normativo. Nunca emitir documentación fiscal falsa ni automatizar numeración fiscal sin validación.
+- Descargar, imprimir y opcionalmente compartir PDF. No exigir integración WhatsApp API para compartir.
+- Rectificaciones, anulaciones y devoluciones deben conservar historial: event sourcing/compensaciones cuando aplique; no borrar ventas confirmadas ni modificar costos históricos retroactivamente.
+- No generar importes, tasas o clientes falsos en el modo real. Toda muestra claramente marcada DEMO.
+
+======================================================================
+5. CRÉDITOS, ABONOS POR FACTURA, RECIBOS Y RECORDATORIOS
+======================================================================
+
+Los clientes pueden retirar todo SIN PAGAR NADA y cancelar días o semanas después. También pueden abonar parcialmente. Su saldo se expresa en USD de referencia y deriva de las facturas confirmadas menos pagos correctamente aplicados.
+
+- Ventas a crédito: fecha acordada de pago o sin fecha pactada; atajos 7 días, 15 días y calendario personalizado. Distinguir FECHA PACTADA por el cliente de FECHA DE RECORDATORIO INTERNO si solo quieren que el negocio recuerde llamar; no inventar compromisos.
+- Ficha de cliente con comprobantes, saldo individual por factura y saldo total; indicadores Pendiente / Por vencer / Vencida / Pagada; historial de abonos y cambios de fecha.
+- Botón 'Registrar abono' desde ficha de cliente o factura. Primero ELEGIR FACTURA (si se inicia desde una factura, preseleccionarla). El operador decide expresamente a qué factura aplicar el dinero. Si un pago cubre varias facturas, permitir reparto explícito y mostrar suma antes de confirmar.
+- Monto recibido, moneda de pago (confirmados USD y VES), fecha y método; permitir pago cero solo como ausencia de abono, NO registrar asiento de pago por cero. No habilitar USDT ni otros medios sin confirmar su tratamiento comercial.
+- VES requiere BCV oficial positivo, verificado y vigente AL MOMENTO DEL COBRO, con registro histórico inmutable y redondeo decimal; nunca tasa paralela, nunca tasa futura/vencida, nunca tasa inventada. Si falla fuente oficial, informar claramente y BLOQUEAR solo conversiones que necesitan esa tasa, preservando operaciones no dependientes.
+- Separar precio de referencia de venta y equivalencia de cobro. No cambiar deuda histórica en USD cuando cambia la tasa BCV.
+- No permitir aplicar más dinero que el saldo de la factura o dos abonos concurrentes que excedan el saldo; transacciones/idempotencia y evidencia de una sola contabilización en reintentos. Si hay excedente, solicitar decisión explícita y NO perder monto ni asignarlo automáticamente a otra factura.
+- Cada abono confirmado produce un RECIBO DIGITAL PDF con logo, cliente, número de factura, importe y moneda original, tasa BCV histórica si fue VES, equivalente USD, fecha, operador y saldo restante. Se puede consultar/descargar/imprimir; NO enviarlo automáticamente al WhatsApp del cliente.
+- Pagada por completo => saldo cero y deja de aparecer pendiente. Reprogramar fecha con historial, sin editar el vencimiento original silenciosamente.
+- Reloj, fechas y horarios comerciales: zona America/Caracas en todo vencimiento y aviso del negocio, no usar la zona del navegador como fuente única.
+
+COBRANZA EN UNA SOLA TABLET:
+- La cobranza está centralizada en UNA tablet con WhatsApp CORPORATIVO; los socios pueden consultar datos, pero NO todos deben recibir notificaciones de cobranza.
+- Centro de cobranzas in-app: hoy, próximas, vencidas; alerta agrupada. La tablet principal puede suscribirse a notificaciones push PWA mediante opt-in y autorización. Evitar duplicados por factura/fecha y tener fallback en la app; probar entrega real en Android/tablet y restricciones iOS.
+- Botón visible 'Cobrar por WhatsApp' en cliente/factura: abrir DIRECTAMENTE chat del número guardado con mensaje preescrito, nombre, comprobante y saldo ACTUAL. Operador solo toca Enviar. NO pedir copiar texto ni buscar contacto. Validar formato internacional del número, informar si falta o es inválido. Abrir desde tablet con aplicación corporativa instalada/configurada; la URL prellenada no garantiza qué perfil WhatsApp seleccionará el sistema si hay múltiples apps: probar en dispositivo real.
+- Primer nivel SIN Meta Cloud API, sin envíos autónomos a clientes: usar funcionalidad de chat con texto prellenado; cualquier automatización posterior requiere opt-in, plantillas/políticas y aprobación separada.
+
+======================================================================
+6. TASA BCV: SOLO FUENTE OFICIAL Y TRAZABILIDAD
+======================================================================
+
+Mantener desacople OfficialRateProvider actual. Investigar SOLO fuentes oficiales del BCV, vigencia y verificación verificables; documentar URL exacta, estrategia de extracción segura, disponibilidad y límites. No inventar API oficial ni depender de 'dólar paralelo'. Si no existe forma confiable de automatizar la verificación, implementar estado 'tasa no disponible' y proponer procedimiento de verificación controlada para decisión del dueño, sin activar conversiones inseguras.
+
+- Cache histórica por validez, hash/origen, momento de consulta y fecha de verificación.
+- Verificaciones de tasa vigente aplican al servidor, NO confiar en números enviados por el navegador.
+- Pruebas sobre cambio de día, caída del sitio, tasa ausente, duplicada, futura o vencida, VES con decimales, factura antigua cobrada posteriormente y protección de deudas en USD.
+- No presentar una tasa de prueba como tasa real en staging.
+
+======================================================================
+7. DEMOSTRACIÓN PÚBLICA SIN USUARIO NI CONTRASEÑA — REQUISITO NUEVO DEL DUEÑO
+======================================================================
+
+El dueño autorizó explícitamente que SUS SOCIOS PUEDAN ENTRAR A VER LAS PRUEBAS SIN CLAVE NI CONTRASEÑA.
+
+Implementar en el staging existente una EXPERIENCIA DEMO PÚBLICA Y SIN LOGIN, pero sin abrir lectura de datos privados ni operaciones de escritura reales:
+
+- Al visitar https://manzanas.ganamosclub.net se verá un botón claro 'Explorar demostración' y/o entrada directa a /demo SIN formulario de acceso. Un socio podrá navegar por catálogo, inventario, recepciones, ventas y cobranzas ficticias y ver la interfaz desde móvil, tablet y PC.
+- Solo exponer DATOS SINTÉTICOS y claramente etiquetados DEMO; nunca datos reales de clientes, proveedores, teléfonos, precios internos, balances, facturas, documentos ni sesiones. No exponer los endpoints privados existentes.
+- Modo público estrictamente de SOLO LECTURA. Para demostrar formularios sin cuentas, opcionalmente usar simulación CLIENT-SIDE o sandbox EFÍMERO AISLADO POR VISITANTE con reinicio y límites, sin persistir operaciones reales ni tocar la base privada compartida. Debe quedar claro cuándo un botón simula y cuándo guarda datos; nunca falsos mensajes de 'guardado en PostgreSQL' en una simulación.
+- PARA REGISTRAR O EDITAR MERCANCÍA, VENTAS, PRECIOS, COBROS, PROVEEDORES O CLIENTES REALES, MANTENER AUTENTICACIÓN Y AUTORIZACIÓN de servidor. El acceso público NO obtiene sesión operativa, token interno ni privilegios administrativos.
+- Conservar apartado 'Acceso interno' con usuarios privados actuales. Nunca deshabilitar AuthGuard globalmente ni cambiar sesión a anónima en endpoints de escritura; proteger también endpoints GET privados con datos sensibles.
+- Una opción adicional es mantener un subdominio/demo separado, solo si puede habilitarse SIN tocar proxy compartido ni generar costos, y de forma segura. Preferir reutilizar el host y rutas actuales.
+- Pruebas adversariales: GET anónimo a datos privados 401/403; POST/PATCH/DELETE anónimo 401/403; CSRF; navegadores múltiples no comparten datos de demo editables; no hay enumeración ni fuga de saldos/nombres reales; tráfico público no consume recursos ilimitados. No indicar 'solo lectura' como único mecanismo de seguridad: el servidor debe imponerlo.
+- NO publicar producción, NO cargar datos comerciales reales para demostrar, NO exponer .env, hashes de contraseñas ni respaldos.
+- Migrar el staging actualmente protegido a demo sin contraseña de manera compatible, sin romper acceso interno. Registrar cambios y probar desde ventana incógnito real.
+
+======================================================================
+8. DISEÑO PREMIUM Y ANIMACIONES PROFESIONALES
+======================================================================
+
+El propietario siente la interfaz actual demasiado simple. Mejorarla sin reemplazar la marca oficial:
+- Logo original intacto, verde bosque / rojo manzana / crema, tipografía legible, estética comercial moderna, refinada y específica de una distribuidora de frutas.
+- Transiciones entre menús, pestañas e indicadores activos; apertura y cierre de formularios y paneles; microinteracciones de botones, mensajes de error/success, inserción de filas y estados vacíos. Duraciones generalmente discretas (punto de partida 120–250 ms, ajustar según contexto), sin retrasar operaciones.
+- Priorizar CSS para microinteracciones simples; considerar Motion for React (https://motion.dev/docs/react) para transiciones de layout, AnimatePresence y shared elements cuando añadan valor. Evaluar el tamaño de bundle y compatibilidad con Next.js 16 y Server/Client Components.
+- Respetar prefers-reduced-motion, navegación teclado, foco, alto contraste, Android/tablet, y perfilar en dispositivos modestos. Animar opacity/transform en lo posible, evitar transition:all generalizado, rebotes continuos, animaciones decorativas, loaders eternos.
+- Nunca animar un número como si una venta se hubiera confirmado antes de recibir éxito real del servidor. No desactivar botones ni perder entradas por una animación.
+- Actualizar DESIGN.md con tokens y reglas de movimiento. Entregar capturas y al menos grabación corta de interacciones y comparación antes/después. Playwright: abrir/cerrar menús, cambios rápidos, recarga, reintentos, errores, reducción de movimiento y tablet.
+
+======================================================================
+9. SKILLS: AUDITAR, INSTALAR SELECCIÓN ÚTIL Y USAR DE VERDAD
+======================================================================
+
+Ya existen cuatro skills proyecto-local: frontend-design (Anthropic), shadcn, vercel-react-best-practices (Vercel) y web-design-guidelines (Vercel). Reutilízalas y NO las dupliques.
+
+Investiga/valida específicamente estos RECURSOS ANTES de instalar; comprobar origen, commit, licencia, SKILL.md, scripts, permisos, compatibilidad y reputación actual. Algunas URLs/ubicaciones pueden haber cambiado:
+- PostgreSQL: https://github.com/supabase/agent-skills — skill 'supabase-postgres-best-practices' o equivalente actual. Usar para PostgreSQL propio, NO migrar a hosting Supabase.
+- Docker: https://github.com/docker/skills — skills selectivas de Compose, build y guardarraíles de operaciones destructivas. Proteger otros proyectos Contabo.
+- Seguridad: https://github.com/getsentry/skills — 'security-review' / 'security-model' o equivalentes; auditoría real de código, sesiones, roles, exposición demo y supply chain.
+- Pruebas navegador: https://github.com/microsoft/playwright-cli — usar si conviene y funciona con Codex, además de Playwright ya existente.
+- Disciplina de pruebas: https://github.com/obra/superpowers — seleccionar solo test-driven-development, systematic-debugging, verification-before-completion si no generan conflicto con el workflow.
+- Animaciones: https://motion.dev/docs/ai-kit y https://github.com/motiondivision/ai-kit ; https://github.com/emilkowalski/skills ('animate', 'review-animations', verificar existencia y procedencia actual). Usar las guías adecuadas y evitar instalar colecciones enteras.
+- Impeccable: https://github.com/pbakaus/impeccable, solo si aporta valor no duplicado; registrar limitaciones.
+- La documentación interna de Next.js 16 es prioritaria para APIs cambiantes; no instalar skills obsoletas.
+
+Instalar ÚNICAMENTE en .agents/skills/ dentro del proyecto, fijando commit. Registrar en docs/skills.md origen, licencia, versión/commit, seguridad auditada, cuándo se invoca, evidencia concreta de uso y pruebas resultantes. No permitir que una skill autorice leer secretos, modificar apps ajenas, usar npm scripts destructivos o desplegar por su cuenta. No hace falta instalar todas: justificar exclusiones.
+
+CREAR SKILL PROPIA 'manzanas-inventory-integrity':
+- Ruta proyecto-local: .agents/skills/manzanas-inventory-integrity/SKILL.md (más referencias/tests no ejecutables que sean necesarios).
+- Debe remitir a docs/domain-rules.md como fuente comercial primaria y NO duplicar verdades contradictorias.
+- Lista de invariantes y procedimiento para: cajas/blíster con doble conteo prohibido; granel y kiwi por mitad sin conteo de piezas; uva solo cajas; peras configurables; no ventas por manzana suelta; FIFO por costos históricos; atomicidad venta+stock; ids idempotentes y concurrencia; compensaciones; recibos/abonos por factura; cero importes inventados; precisión decimal; BCV verificado.
+- Casos obligatorios ejecutables en tests, no solo texto. Documentar cómo invocarla y exigir evidencia de aplicación a cada cambio del dominio.
+- Se puede complementar con 'manzanas-financial-integrity' solo si tiene utilidad real demostrable; evitar proliferación de skills.
+
+======================================================================
+10. STAGING CONTABO, DESPLIEGUE SEGURO, BACKUPS Y QA
+======================================================================
+
+- Mantener VPS Contabo, Docker Compose propio del proyecto, base PostgreSQL exclusiva, Caddy/HTTPS existente y dominio manzanas.ganamosclub.net. No contratar otro hosting, no migrar la base a SaaS.
+- Extremar precauciones por la incidencia previa del alias web. Inspeccionar redes/aliases Caddy y documentar unicidad del nombre mm-staging-web. Nunca conectar un segundo nombre genérico que colisione con otros servicios. Verificar Socios/Pedal y demás sitios preexistentes antes/después; rollback inmediato si hay afectación.
+- Reutilizar SOLO recursos del proyecto para build, migraciones y backup. No usar 'docker system prune', 'docker compose down -v' ni borrar volúmenes ajenos. No reiniciar contenedores ajenos.
+- Mantener controles de recursos, health checks, secretos fuera de Git, sin publicar puertos de DB/API, y seguridad de cookies/HTTP. Cualquier cambio en DNS/proxy/firewall/red compartida requiere evaluación y autorización específica del propietario; no inferir permiso del hecho de que la versión demo sea pública.
+- Implementar/validar backup seguro y RESTAURACIÓN en aislamiento antes de incorporar datos comerciales reales. La entrega fase 2 reporta un respaldo probado pero SIN copia externa segura: dejar explícitamente pendiente esa copia fuera de VPS y no considerar 'listo para producción' hasta que exista.
+- Crear release trazable a commit de GitHub y staging migrado sin pérdida de datos. Comprobar HEAD vs release y mostrar versión visible en pantalla. Mantener mecanismo de rollback de código y migración sin destrucción.
+- Diferenciar DEMO pública de acceso interno protegido y de producción futura. Datos sintéticos sólo en demo.
+- Aceptación automatizada: typecheck, unit, build, e2e, migraciones desde base limpia Y migraciones de actualización de fase 2 sin pérdida de datos, pruebas de concurrencia, accesibilidad, performance básica y revisiones de 390px, tablet 800/1024px, escritorio 1440px.
+- Ensayar acceso sin login desde incógnito y pruebas negativas de API. Si el deployment no resulta seguro, NO publicar la nueva release: reportar bloqueo y conservar versión anterior funcionando.
+
+======================================================================
+11. PRUEBAS DE ACEPTACIÓN MÍNIMAS (OBLIGATORIAS)
+======================================================================
+
+01. 10 cajas de manzana granel calibre 175, vender 1,5 → 8,5 equivalentes, no inventar conteo ni blíster, distinguir selladas/resto abierto.
+02. Kiwi 10 kg/caja, vender media → queda media caja de 5 kg; sin variar peso cada vez, sin unidades por fruta.
+03. Uva roja: solo caja, bloquear media caja, kilos, gajos y blíster; permitir cantidad de cajas.
+04. Manzana Gala en blíster: vender 1 de 3 cajas de 5 → quedan 2 cerradas + 4 blíster; prohibir venta por pieza suelta.
+05. Pera Forelle/Packcam: solo presentaciones aprobadas, blíster/caja editable y desconocido no inventado.
+06. Compra 10 cajas a $25, compra 10 a $27, venta 12 a $40 → costo $304, ingreso $480, bruto $176; saldos y lotes trazables.
+07. Cambiar costo de compra NO modifica precios de venta del catálogo ni el costo histórico de lotes previos.
+08. Registrar 4 clases de fruta en misma recepción: confirmar todas o ninguna; reintentos no duplican lotes, precios ni movimientos.
+09. Descuento negociado por línea sin modificar referencia general; 5 cajas $38 = $190.
+10. Venta crédito $200, pago inicial $0, saldo $200, stock descontado una sola vez.
+11. Cliente con facturas de $200 + $150 + $100; abono $80 aplicado por operador a factura de $200 → saldos 120/150/100, total $370; emitir recibo del abono descargable sin autoenvío.
+12. Aplicación del mismo pago dos veces o dos abonos simultáneos al último saldo → NO duplicado ni saldo negativo.
+13. USD/VES: historial de tasa BCV verificada, pago al tipo vigente de fecha real, deuda en USD no varía con tasa posterior; sin BCV válida bloquear conversión insegura.
+14. Calendario 7/15 días y fecha arbitraria; notificación solo a la tablet suscrita y centro interno; no avisos para pagadas.
+15. Botón Cobrar desde factura: WhatsApp del teléfono guardado con mensaje preescrito y SALDO ACTUAL, listo para enviar, sin enviar automáticamente.
+16. Invitado anónimo abre /demo y recorre páginas sin login; NO lee clientes reales ni modifica operaciones. En incógnito POST/PATCH privados 401/403.
+17. Venta, abono y recepción con conexión cortada: reintentar no duplica registros, y errores son claros.
+18. Reversa/ajuste conservar auditoría, no alterar documentos históricos, respetar saldo físico/costo.
+19. Menús, modal y tablas animados con prefers-reduced-motion, interacción inmediata, sin cambio de valores por UI.
+20. Smoke de staging tras despliegue: Manzanas, Socios, Pedal y demás servicios; conservar identidades y salud; backup + restauración probada.
+
+Las pruebas anteriores no eximen de análisis de amenazas, pruebas manuales en tablet, ni revisión de los escenarios que todavía requieren aclaración comercial. No falsear la evidencia.
+
+======================================================================
+12. ENTREGABLES Y CRITERIO PARA DECLARAR TERMINADA LA FASE
+======================================================================
+
+Entregar TODO en GitHub, siempre con cambios trazables:
+1. Código y migraciones versionadas; PR claro, sin merge ni push forzado.
+2. docs/plan-fase-3.md con hitos, decisiones, riesgos y estado de cada requisito (hecho/parcial/pendiente).
+3. docs/domain-rules.md actualizado SIN contradicciones, con preguntas todavía pendientes marcadas como tales.
+4. docs/inventory-model.md actualizado con modalidades granel/kiwi/uva y costos FIFO.
+5. docs/skills.md actualizado y skill personalizada creada/usada, con evidencia real.
+6. docs/entrega-fase-3.md con matrices de pruebas, capturas de pantalla y una grabación breve de animaciones; documentación de BCV y factura fiscal claramente delimitada.
+7. docs/staging.md con demo pública, acceso interno, URL, versión desplegada, política de backup, rollback y cómo añadir usuarios sin compartir contraseñas.
+8. Reportar fecha/hora, commit de código, release de staging, resultados nuevos de tests, limitaciones e incidentes encontrados y su corrección. No afirmar que el entorno está sano solo por un HTTP 200.
+9. No declarar 'producción lista' hasta tener backup externo, validación de fiscalidad y pruebas en dispositivos reales.
+10. Resumen final en ESPAÑOL CLARO para el dueño y sus socios: qué pueden probar hoy, qué está protegido, cómo entrar sin contraseña a la demo, qué sigue pendiente.
+
+PUNTOS POR CONFIRMAR (NO INVENTAR): número exacto de blíster por caja de algunos calibres/variedades, media caja de pera en detalle, variedad comercial Lady/Pink Lady, calibres aplicables a cada variedad, peso/presentación de mandarina, operaciones fiscales SENIAT, otros medios de pago no confirmados y condiciones particulares de devoluciones. Puedes construir estructuras configurables para esos datos, pero no los fijes como reglas reales hasta que el dueño confirme.
+
+RESTRICCIÓN FINAL DE SEGURIDAD: Código público en GitHub está expresamente autorizado por el propietario; eso NO significa publicar datos privados, secretos, clientes, cobros, hashes, API internas ni permitir mutaciones anónimas. Un enlace de DEMO público y sin contraseña es compatible con una aplicación comercial privada y segura. Asegúrate de mantener esa separación de principio a fin.
+
+FIN DEL PROMPT.

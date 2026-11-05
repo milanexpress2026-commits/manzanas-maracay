@@ -1,0 +1,30 @@
+# Opt-in overlay. Configure external files before selecting this file.
+# This creates only an application-owned egress network; it does not attach Caddy.
+services:
+  api:
+    environment:
+      MM_VAPID_PUBLIC_KEY_FILE: /run/secrets/vapid_public_key
+      MM_VAPID_PRIVATE_KEY_FILE: /run/secrets/vapid_private_key
+      MM_VAPID_SUBJECT_FILE: /run/secrets/vapid_subject
+    secrets:
+      - vapid_public_key
+      - vapid_private_key
+      - vapid_subject
+    networks:
+      database: {}
+      application: {}
+      push_egress:
+        gw_priority: 1
+networks:
+  push_egress:
+    driver: bridge
+    internal: false
+    labels:
+      org.manzanas-maracay.scope: staging-push-egress
+secrets:
+  vapid_public_key:
+    file: '${MM_SECRETS_DIR:?Directorio privado externo}/vapid_public_key'
+  vapid_private_key:
+    file: '${MM_SECRETS_DIR:?Directorio privado externo}/vapid_private_key'
+  vapid_subject:
+    file: '${MM_SECRETS_DIR:?Directorio privado externo}/vapid_subject'

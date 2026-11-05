@@ -8,22 +8,26 @@ web
 
 ## Stack
 
-Solicitado: TypeScript, Next.js, React, NestJS, PostgreSQL, Drizzle, Tailwind, shadcn/ui, Docker Compose, Vitest y Playwright.
+TypeScript, Next.js, React, NestJS, PostgreSQL, Drizzle, Docker Compose, Vitest y Playwright.
 
 ## Usuarios y propósito
 
-Propietarios y usuarios invitados de una distribuidora venezolana de frutas importadas. Gestionan catálogo, proveedores, recepciones e inventario desde teléfono y computadora. Las ventas y la cobranza pertenecen a fases posteriores.
+Distribuidora venezolana de frutas importadas. Los operadores registran mercancía, consultan existencias, venden y cobran desde teléfono, tablet o computadora. La cobranza se centraliza en una tablet Android con WhatsApp corporativo. Los socios pueden explorar la demo sintética sin cuenta o entrar con acceso privado.
 
-## Alcance y evidencia
+## Alcance de fase 3
 
-Fase 2 autorizada el 4 de noviembre de 2026: proveedores, recepción multilínea por cajas, lotes con empaque y costo históricos, apertura y retiro de blíster, conteo de fruta, preparación de medias cajas, ajustes y reversas auditadas. El catálogo de fase 1 se conserva. Todas las pantallas operativas requieren sesión; los saldos proceden de PostgreSQL y de movimientos reales dentro del entorno correspondiente.
+Catálogo con variedad/calibre opcionales; empaques con blíster, mitades comerciales o cajas completas. Recepción multilínea con costo histórico y precios promocional/normal independientes por presentación. Inventario físico único, costo conservativo y asignación FIFO transaccional al vender. Clientes, precios negociados, crédito sin pago inicial, reparto explícito de abonos, vencimientos y recordatorios diferenciados, historial y comprobantes comerciales PDF.
 
-Cuatro imágenes conceptuales fijan identidad verde, roja y crema. No representan funciones ya construidas ni datos del negocio. El logo oficial se conserva en `apps/web/public/brand/logo-manzanas-maracay.png`. Gala 80 con 5 blíster y Gala 180 con 4 son configuraciones editables, nunca cantidades de fruta. Las muestras se identifican como DEMO; no hay ventas ni tasa BCV verificada.
+Demo pública estática en `/demo`, sin datos ni sesiones privadas. Operaciones internas con sesión, validación de origen, idempotencia y controles PostgreSQL. WhatsApp abre un chat con mensaje y saldo actual para envío manual. Push requiere opt-in de una sola tablet y configuración VAPID; falta la prueba física del dispositivo.
 
-Staging activo y verificado en `https://manzanas.ganamosclub.net`, con HTTPS, sesión invitada y etiqueta de entorno de pruebas. Release: `phase2-7ae1d75`, commit `7ae1d7504d31623e771fba5015361ae04ca9a4ef`. Rama de trabajo: `phase-2/inventario-staging`, con [PR #1 en borrador](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1). La verificación aprobó 23 pruebas unitarias, 32 E2E/API/PostgreSQL, acceso externo y restauración aislada. Una colisión de alias del proxy causó un 502 temporal en Socios; se corrigió con un nombre exclusivo y cinco rondas GET confirmaron la recuperación. La incidencia y la evidencia se conservan en la entrega.
+## Marca y experiencia
 
-## Restricciones
+Logo original intacto, verde bosque, rojo manzana y crema. Formularios contextuales, cantidades desconocidas explícitas, teclado y foco visibles, animaciones breves con reducción de movimiento. Una animación nunca confirma una operación antes de la respuesta del servidor.
 
-Sin despliegue de producción, sin modificar aplicaciones ajenas del VPS, sin facturación, cobranza, WhatsApp ni BCV en vivo. Staging usa base y recursos propios, HTTPS y acceso por invitación. No hay registro público, roles diferenciados ni operaciones sin conexión. La incorporación de su registro DNS y host al proxy compartido recibió aprobación específica y está completada; cualquier cambio futuro en infraestructura compartida requiere su propia revisión de alcance.
+## Límites
 
-Formularios accesibles con teclado, errores accionables y reintentos sin duplicados. Las cantidades desconocidas se muestran como desconocidas; las cajas abiertas y su contenido no se suman dos veces. Una corrección conserva el historial mediante un nuevo movimiento.
+Los PDF son comprobantes comerciales, no facturas fiscales SENIAT. BCV permanece no disponible mientras no exista verificación oficial vigente; se bloquea VES sin impedir USD. Sin tasa paralela, pago por cero, venta por pieza, mensajes autónomos ni operaciones comerciales sin conexión.
+
+Pendientes: blíster por variedad/calibre, Lady/Pink Lady, media caja de pera, mandarina y condiciones particulares de devoluciones. No se inventan esos datos.
+
+Autorizados implementación y staging, sin merge ni producción. Evidencia y release: [staging](docs/staging.md) y [entrega](docs/entrega-fase-3.md). Antes de producción faltan respaldo fuera del VPS, evaluación fiscal y pruebas reales. Cualquier cambio de infraestructura compartida requiere autorización específica.

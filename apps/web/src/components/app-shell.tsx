@@ -14,6 +14,9 @@ import {
   BookOpen,
   ArrowUpRight,
   ShieldCheck,
+  ShoppingCart,
+  HandCoins,
+  ContactRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -23,10 +26,13 @@ export type AppSession = {
   environment: 'local' | 'test' | 'staging';
 };
 const navigation = [
-  { href: '/', label: 'Catálogo', icon: Package },
+  { href: '/catalogo', label: 'Catálogo', icon: Package },
   { href: '/inventario', label: 'Inventario', icon: Boxes },
   { href: '/recepciones', label: 'Recepciones', icon: Truck },
   { href: '/proveedores', label: 'Proveedores', icon: Users },
+  { href: '/ventas', label: 'Ventas', icon: ShoppingCart },
+  { href: '/clientes', label: 'Clientes', icon: ContactRound },
+  { href: '/cobranza', label: 'Cobranza', icon: HandCoins },
 ];
 function BrandLogo({ size }: { size: number }) {
   return (
@@ -97,8 +103,6 @@ export function AppShell({
             {current === item.href ? <ChevronRight aria-hidden="true" /> : null}
           </Link>
         ))}
-        <p className="upcoming-label">Próximas fases</p>
-        <div className="nav-upcoming">Ventas y cobranza</div>
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-note">
@@ -123,7 +127,7 @@ export function AppShell({
         ) : null}
         <div className="sidebar-version">
           <span className="status-dot" />
-          Fase 2 · Inventario
+          Fase 3 · Gestión comercial
         </div>
       </div>
     </>
@@ -175,7 +179,7 @@ export function AppShell({
         {preview ? (
           <div className="preview-banner" role="status">
             <strong>ENTORNO DE PRUEBAS</strong>
-            <span>Vista previa para socios · Sin facturación ni cobros reales</span>
+            <span>Acceso interno · Datos DEMO · Sin cobros externos</span>
           </div>
         ) : null}
         {error ? (

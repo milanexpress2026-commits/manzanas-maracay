@@ -94,6 +94,7 @@ describe('contratos de inventario físico', () => {
       preparedPieces: 18,
       loosePieces: 19,
       equivalentIntactBlisters: 14,
+      equivalentBoxes: 2.8,
     });
     expect(box.countedPieces).toBeNull();
   });

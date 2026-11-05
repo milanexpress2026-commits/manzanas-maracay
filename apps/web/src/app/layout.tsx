@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from 'next';
 import '@fontsource-variable/manrope';
 import './globals.css';
+import './phase3.css';
 export const metadata: Metadata = {
-  title: 'Catálogo | Manzanas Maracay',
-  description: 'Catálogo de frutas, variedades, calibres y empaques de Manzanas Maracay.',
+  title: 'Manzanas Maracay | Gestión comercial',
+  description:
+    'Catálogo, inventario, ventas y cobranza de Manzanas Maracay. Demostración pública con datos de ejemplo.',
   applicationName: 'Manzanas Maracay',
   manifest: '/manifest.webmanifest',
   icons: {
@@ -16,7 +18,12 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1, them
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        {children}
+        <footer className="release-stamp">
+          Fase 3 · {process.env.MM_RELEASE ?? 'Desarrollo local'}
+        </footer>
+      </body>
     </html>
   );
 }

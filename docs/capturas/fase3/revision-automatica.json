@@ -1,0 +1,307 @@
+{
+  "screens": [
+    {
+      "name": "inicio",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-catalogo",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-inventario",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-recepciones",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-ventas",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-cobranza",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "inicio",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-catalogo",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-inventario",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-recepciones",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-ventas",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "demo-cobranza",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-catalogo",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-inventario",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-recepciones",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-proveedores",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-clientes",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-ventas",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-ventas-nueva",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-cobranza",
+      "width": 1440,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-catalogo",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-inventario",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-recepciones",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-proveedores",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-clientes",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-ventas",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-ventas-nueva",
+      "width": 390,
+      "horizontalOverflow": false
+    },
+    {
+      "name": "interno-cobranza",
+      "width": 390,
+      "horizontalOverflow": false
+    }
+  ],
+  "accessibility": [
+    {
+      "name": "inicio",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "demo",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "demo-catalogo",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "demo-inventario",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "demo-recepciones",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "demo-ventas",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "demo-cobranza",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "inicio",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "demo",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "demo-catalogo",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "demo-inventario",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "demo-recepciones",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "demo-ventas",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "demo-cobranza",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "interno-catalogo",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "interno-inventario",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "interno-recepciones",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "interno-proveedores",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "interno-clientes",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "interno-ventas",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "interno-ventas-nueva",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "interno-cobranza",
+      "width": 1440,
+      "issues": []
+    },
+    {
+      "name": "interno-catalogo",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "interno-inventario",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "interno-recepciones",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "interno-proveedores",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "interno-clientes",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "interno-ventas",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "interno-ventas-nueva",
+      "width": 390,
+      "issues": []
+    },
+    {
+      "name": "interno-cobranza",
+      "width": 390,
+      "issues": []
+    }
+  ],
+  "pageErrors": []
+}

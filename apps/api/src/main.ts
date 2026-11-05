@@ -24,6 +24,8 @@ import { AuthModule } from './auth/auth.module';
 import { PublicHealth, type AuthenticatedRequest } from './auth/auth.guard';
 import { authConfig } from './auth/config';
 import { InventoryModule } from './inventory.module';
+import { CommerceModule } from './commerce.module';
+import { PushModule } from './push.module';
 @Catch()
 class ApiErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
@@ -73,8 +75,7 @@ class HealthController {
   constructor(@Inject(CatalogService) private readonly catalog: CatalogService) {}
   @Get('health') @PublicHealth() async health() {
     try {
-      await this.catalog.health();
-      return { status: 'ok' };
+      return await this.catalog.health();
     } catch {
       throw new ServiceUnavailableException('Base de datos no disponible.');
     }
@@ -107,6 +108,14 @@ class CatalogController {
   ) {
     return this.catalog.mutate('calibers', body, key, undefined, request.user.id);
   }
+  @Patch('varieties/:id') renameVariety(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.catalog.mutate('update-variety', body, key, id, request.user.id);
+  }
   @Post('configurations') configuration(
     @Req() request: AuthenticatedRequest,
     @Body() body: unknown,
@@ -128,7 +137,7 @@ class CatalogController {
   providers: [CatalogService],
 })
 class CatalogModule {}
-@Module({ imports: [AuthModule, CatalogModule, InventoryModule] })
+@Module({ imports: [AuthModule, CatalogModule, InventoryModule, CommerceModule, PushModule] })
 class AppModule {}
 async function main() {
   if (!process.env.DATABASE_URL || !process.env.MM_INTERNAL_TOKEN)

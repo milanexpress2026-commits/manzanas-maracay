@@ -16,6 +16,7 @@ import {
   caliberSchema,
   configurationSchema,
   updatePackingSchema,
+  updateVarietySchema,
 } from '../../../packages/domain/src/index';
 import { z } from 'zod';
 
@@ -41,7 +42,12 @@ export class CatalogService implements OnModuleDestroy {
   }
   async health() {
     await this.pool.query('select 1');
-    return { status: 'ok', storage: 'postgresql', scope: 'local-phase-1' };
+    return {
+      status: 'ok',
+      storage: 'postgresql',
+      scope: 'phase-3',
+      release: process.env.MM_RELEASE ?? 'local',
+    };
   }
   async read() {
     return this.db.transaction(
@@ -78,16 +84,55 @@ export class CatalogService implements OnModuleDestroy {
             variety: schema.varieties.name,
             caliber: schema.calibers.label,
             blistersPerBox: schema.packingRules.blistersPerBox,
+            commercialLine: schema.variants.commercialLine,
+            packingModel: schema.packingRules.packingModel,
+            halfPreparation: schema.packingRules.halfPreparation,
+            allowedPresentations: schema.packingRules.allowedPresentations,
+            boxWeightKg: schema.packingRules.boxWeightKg,
+            confirmationStatus: schema.packingRules.confirmationStatus,
             notes: schema.packingRules.notes,
             version: schema.packingRules.version,
           })
           .from(schema.packingRules)
           .innerJoin(schema.variants, eq(schema.packingRules.variantId, schema.variants.id))
           .innerJoin(schema.fruits, eq(schema.variants.fruitId, schema.fruits.id))
-          .innerJoin(schema.varieties, eq(schema.variants.varietyId, schema.varieties.id))
-          .innerJoin(schema.calibers, eq(schema.variants.caliberId, schema.calibers.id))
+          .leftJoin(schema.varieties, eq(schema.variants.varietyId, schema.varieties.id))
+          .leftJoin(schema.calibers, eq(schema.variants.caliberId, schema.calibers.id))
           .orderBy(asc(schema.fruits.name), asc(schema.varieties.name), asc(schema.calibers.label));
-        return { fruits, varieties, calibers, configurations };
+        const prices = await tx
+          .select({
+            variantId: schema.priceItems.variantId,
+            presentation: schema.priceItems.presentation,
+            unitUsd: schema.priceItems.unitUsd,
+            basis: schema.priceLists.paymentBasis,
+          })
+          .from(schema.priceItems)
+          .innerJoin(schema.priceLists, eq(schema.priceItems.priceListId, schema.priceLists.id));
+        return {
+          fruits,
+          varieties,
+          calibers,
+          configurations: configurations.map((c) => ({
+            ...c,
+            prices: c.allowedPresentations.map((presentation) => ({
+              presentation,
+              promoUsd:
+                prices.find(
+                  (p) =>
+                    p.variantId === c.variantId &&
+                    p.presentation === presentation &&
+                    p.basis === 'usd_cash_promo',
+                )?.unitUsd ?? null,
+              regularUsd:
+                prices.find(
+                  (p) =>
+                    p.variantId === c.variantId &&
+                    p.presentation === presentation &&
+                    p.basis === 'ves_regular',
+                )?.unitUsd ?? null,
+            })),
+          })),
+        };
       },
       { isolationLevel: 'repeatable read', accessMode: 'read only' },
     );
@@ -98,15 +143,17 @@ export class CatalogService implements OnModuleDestroy {
     if (!key || !z.uuid().safeParse(key).success)
       throw new BadRequestException('Falta una clave válida para guardar sin duplicados.');
     const parsed =
-      kind === 'fruits'
-        ? fruitSchema.parse(body)
-        : kind === 'varieties'
-          ? varietySchema.parse(body)
-          : kind === 'calibers'
-            ? caliberSchema.parse(body)
-            : kind === 'configurations'
-              ? configurationSchema.parse(body)
-              : updatePackingSchema.parse(body);
+      kind === 'update-variety'
+        ? updateVarietySchema.parse(body)
+        : kind === 'fruits'
+          ? fruitSchema.parse(body)
+          : kind === 'varieties'
+            ? varietySchema.parse(body)
+            : kind === 'calibers'
+              ? caliberSchema.parse(body)
+              : kind === 'configurations'
+                ? configurationSchema.parse(body)
+                : updatePackingSchema.parse(body);
     if (id && !z.uuid().safeParse(id).success)
       throw new BadRequestException('Identificador inválido.');
     const hash = createHash('sha256')
@@ -125,7 +172,23 @@ export class CatalogService implements OnModuleDestroy {
       }
       let result: Record<string, unknown>,
         before: unknown = null;
-      if (kind === 'fruits') {
+      if (kind === 'update-variety') {
+        const data = updateVarietySchema.parse(parsed);
+        const [existing] = await tx
+          .select()
+          .from(schema.varieties)
+          .where(eq(schema.varieties.id, id!))
+          .for('update');
+        if (!existing) throw new NotFoundException('La variedad ya no existe.');
+        if (existing.name !== data.expectedName)
+          throw new ConflictException('Otra persona editó el nombre. Actualiza el catálogo.');
+        before = existing;
+        [result] = await tx
+          .update(schema.varieties)
+          .set({ name: data.name })
+          .where(eq(schema.varieties.id, id!))
+          .returning();
+      } else if (kind === 'fruits') {
         [result] = await tx.insert(schema.fruits).values(fruitSchema.parse(parsed)).returning();
       } else if (kind === 'varieties') {
         [result] = await tx
@@ -136,32 +199,53 @@ export class CatalogService implements OnModuleDestroy {
         [result] = await tx.insert(schema.calibers).values(caliberSchema.parse(parsed)).returning();
       } else if (kind === 'configurations') {
         const data = configurationSchema.parse(parsed);
-        const [validVariety] = await tx
-          .select({ id: schema.varieties.id })
-          .from(schema.varieties)
-          .where(
-            and(
-              eq(schema.varieties.id, data.varietyId),
-              eq(schema.varieties.fruitId, data.fruitId),
-            ),
-          );
-        const [validCaliber] = await tx
-          .select({ id: schema.calibers.id })
-          .from(schema.calibers)
-          .where(
-            and(eq(schema.calibers.id, data.caliberId), eq(schema.calibers.fruitId, data.fruitId)),
-          );
+        const [validVariety] = data.varietyId
+          ? await tx
+              .select({ id: schema.varieties.id })
+              .from(schema.varieties)
+              .where(
+                and(
+                  eq(schema.varieties.id, data.varietyId),
+                  eq(schema.varieties.fruitId, data.fruitId),
+                ),
+              )
+          : [true];
+        const [validCaliber] = data.caliberId
+          ? await tx
+              .select({ id: schema.calibers.id })
+              .from(schema.calibers)
+              .where(
+                and(
+                  eq(schema.calibers.id, data.caliberId),
+                  eq(schema.calibers.fruitId, data.fruitId),
+                ),
+              )
+          : [true];
         if (!validVariety || !validCaliber)
           throw new BadRequestException(
             'La variedad y el calibre deben pertenecer a la fruta seleccionada.',
           );
         const [variant] = await tx
           .insert(schema.variants)
-          .values({ fruitId: data.fruitId, varietyId: data.varietyId, caliberId: data.caliberId })
+          .values({
+            fruitId: data.fruitId,
+            varietyId: data.varietyId,
+            caliberId: data.caliberId,
+            commercialLine: data.commercialLine,
+          })
           .returning();
         [result] = await tx
           .insert(schema.packingRules)
-          .values({ variantId: variant.id, blistersPerBox: data.blistersPerBox, notes: data.notes })
+          .values({
+            variantId: variant.id,
+            blistersPerBox: data.blistersPerBox,
+            notes: data.notes,
+            packingModel: data.packingModel,
+            halfPreparation: data.halfPreparation,
+            allowedPresentations: data.allowedPresentations,
+            boxWeightKg: data.boxWeightKg,
+            confirmationStatus: data.confirmationStatus,
+          })
           .returning();
       } else {
         const data = updatePackingSchema.parse(parsed);
@@ -180,6 +264,11 @@ export class CatalogService implements OnModuleDestroy {
           .update(schema.packingRules)
           .set({
             blistersPerBox: data.blistersPerBox,
+            packingModel: data.packingModel,
+            halfPreparation: data.halfPreparation,
+            allowedPresentations: data.allowedPresentations,
+            boxWeightKg: data.boxWeightKg,
+            confirmationStatus: data.confirmationStatus,
             notes: data.notes,
             version: existing.version + 1,
             updatedAt: new Date(),

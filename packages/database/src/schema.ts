@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
 export * from './schema.auth';
+export * from './schema.commerce';
+export * from './schema.push';
 import {
   pgTable,
   uuid,
@@ -17,6 +19,7 @@ import {
   check,
   foreignKey,
   pgView,
+  pgSequence,
 } from 'drizzle-orm/pg-core';
 const id = () => uuid('id').primaryKey().defaultRandom();
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -70,12 +73,15 @@ export const variants = pgTable(
     fruitId: uuid('fruit_id')
       .notNull()
       .references(() => fruits.id),
-    varietyId: uuid('variety_id').notNull(),
-    caliberId: uuid('caliber_id').notNull(),
+    varietyId: uuid('variety_id'),
+    caliberId: uuid('caliber_id'),
+    commercialLine: text('commercial_line').notNull().default('Estándar'),
     createdAt: createdAt(),
   },
   (t) => [
-    unique('variant_combination_uq').on(t.varietyId, t.caliberId),
+    unique('variant_commercial_combination_uq')
+      .on(t.fruitId, t.varietyId, t.caliberId, t.commercialLine)
+      .nullsNotDistinct(),
     index('variants_fruit_idx').on(t.fruitId),
     index('variants_caliber_idx').on(t.caliberId),
     foreignKey({
@@ -95,7 +101,15 @@ export const packingRules = pgTable(
     variantId: uuid('variant_id')
       .notNull()
       .references(() => variants.id),
-    blistersPerBox: integer('blisters_per_box').notNull(),
+    blistersPerBox: integer('blisters_per_box'),
+    packingModel: text('packing_model').notNull().default('blister'),
+    halfPreparation: text('half_preparation').notNull().default('counted'),
+    allowedPresentations: text('allowed_presentations')
+      .array()
+      .notNull()
+      .default(sql`ARRAY['box','half_box','blister']::text[]`),
+    boxWeightKg: numeric('box_weight_kg', { precision: 8, scale: 3 }),
+    confirmationStatus: text('confirmation_status').notNull().default('pending'),
     notes: text('notes').notNull().default(''),
     version: integer('version').notNull().default(1),
     createdAt: createdAt(),
@@ -105,6 +119,14 @@ export const packingRules = pgTable(
     unique('packing_variant_uq').on(t.variantId),
     unique('packing_id_variant_uq').on(t.id, t.variantId),
     check('packing_positive', sql`${t.blistersPerBox} between 1 and 100`),
+    check(
+      'packing_mode_valid',
+      sql`${t.packingModel} in ('blister','halves','whole') and ${t.halfPreparation} in ('counted','commercial','pending','none') and ${t.confirmationStatus} in ('confirmed','pending') and (${t.boxWeightKg} is null or ${t.boxWeightKg}>0)`,
+    ),
+    check(
+      'packing_presentations_valid',
+      sql`${t.allowedPresentations} <@ ARRAY['box','half_box','blister']::text[] and 'box'=any(${t.allowedPresentations}) and cardinality(${t.allowedPresentations}) between 1 and 3 and (${t.packingModel}='blister' or ${t.blistersPerBox} is null) and (${t.packingModel}<>'whole' or (${t.allowedPresentations}=ARRAY['box']::text[] and ${t.halfPreparation}='none')) and (${t.packingModel}<>'halves' or (not ('blister'=any(${t.allowedPresentations})) and ${t.halfPreparation}='commercial'))`,
+    ),
     check('packing_version_positive', sql`${t.version}>0`),
     check('packing_notes_length', sql`length(${t.notes})<=500`),
   ],
@@ -193,7 +215,14 @@ export const lots = pgTable(
     purchaseLineId: uuid('purchase_line_id').references(() => purchaseLines.id),
     packingRuleId: uuid('packing_rule_id').notNull(),
     packingRuleVersion: integer('packing_rule_version').notNull(),
-    blistersPerBoxSnapshot: integer('blisters_per_box_snapshot').notNull(),
+    blistersPerBoxSnapshot: integer('blisters_per_box_snapshot'),
+    packingModelSnapshot: text('packing_model_snapshot').notNull().default('blister'),
+    halfPreparationSnapshot: text('half_preparation_snapshot').notNull().default('counted'),
+    allowedPresentationsSnapshot: text('allowed_presentations_snapshot')
+      .array()
+      .notNull()
+      .default(sql`ARRAY['box','half_box','blister']::text[]`),
+    boxWeightKgSnapshot: numeric('box_weight_kg_snapshot', { precision: 8, scale: 3 }),
     receivedAt: time('received_at').notNull(),
     unitCostUsd: money('unit_cost_usd').notNull(),
     receivedBoxes: integer('received_boxes').notNull().default(0),
@@ -214,7 +243,7 @@ export const lots = pgTable(
     }),
     check(
       'lots_values_valid',
-      sql`${t.blistersPerBoxSnapshot} between 1 and 100 and ${t.unitCostUsd}>=0 and ${t.packingRuleVersion}>0`,
+      sql`(${t.blistersPerBoxSnapshot} is null or ${t.blistersPerBoxSnapshot} between 1 and 100) and ${t.unitCostUsd}>=0 and ${t.packingRuleVersion}>0`,
     ),
     check('lots_receipt_valid', sql`${t.receivedBoxes}>=0 and ${t.inventoryVersion}>=0`),
   ],
@@ -259,6 +288,7 @@ export const stockBalances = pgTable(
     unit: text('unit').notNull(),
     quantity: integer('quantity').notNull(),
     countedPieces: integer('counted_pieces'),
+    costUsd: money('cost_usd'),
     version: integer('version').notNull().default(1),
   },
   (t) => [
@@ -275,9 +305,10 @@ export const stockBalances = pgTable(
       'loose_count_exact',
       sql`${t.unit}<>'loose_piece' or (${t.countedPieces} is not null and ${t.countedPieces}=${t.quantity})`,
     ),
+    check('stock_cost_nonnegative', sql`${t.costUsd} is null or ${t.costUsd}>=0`),
     check(
-      'half_box_count_required',
-      sql`${t.unit}<>'prepared_half_box' or ${t.countedPieces} is not null`,
+      'empty_stock_has_no_cost',
+      sql`${t.quantity}>0 or ${t.costUsd} is null or ${t.costUsd}=0`,
     ),
     check('physical_package_quantity', sql`${t.unit}='loose_piece' or ${t.quantity} in (0,1)`),
   ],
@@ -317,7 +348,7 @@ export const inventoryMovements = pgTable(
     foreignKey({ columns: [t.reversalOf], foreignColumns: [t.id] }),
     check(
       'movement_kind_valid',
-      sql`${t.kind} in ('receipt','dispatch','open_box','open_blister','fraction','adjustment','transfer','reversal')`,
+      sql`${t.kind} in ('receipt','dispatch','open_box','open_blister','fraction','commercial_split','adjustment','transfer','reversal')`,
     ),
     check('movement_reason_required', sql`length(btrim(${t.reason}))>0`),
     check(
@@ -359,14 +390,63 @@ export const inventoryEntries = pgTable(
     ),
   ],
 );
-export const clients = pgTable('clients', {
-  id: id(),
-  name: text('name').notNull(),
-  taxId: text('tax_id'),
-  phone: text('phone'),
-  address: text('address'),
-  createdAt: createdAt(),
-});
+export const inventoryCostOpenings = pgTable(
+  'inventory_cost_openings',
+  {
+    containerId: uuid('container_id')
+      .primaryKey()
+      .references(() => containers.id),
+    costUsd: money('cost_usd'),
+    method: text('method').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [check('opening_cost_nonnegative', sql`${t.costUsd} is null or ${t.costUsd}>=0`)],
+);
+export const inventoryCostEntries = pgTable(
+  'inventory_cost_entries',
+  {
+    id: id(),
+    movementId: uuid('movement_id')
+      .notNull()
+      .references(() => inventoryMovements.id),
+    containerId: uuid('container_id')
+      .notNull()
+      .references(() => containers.id),
+    beforeUsd: money('before_usd'),
+    afterUsd: money('after_usd'),
+    entryOrder: bigint('entry_order', { mode: 'number' }).generatedAlwaysAsIdentity().notNull(),
+  },
+  (t) => [
+    unique('cost_entry_movement_container_uq').on(t.movementId, t.containerId),
+    index('cost_entry_container_order_idx').on(t.containerId, t.entryOrder),
+    check(
+      'cost_entry_nonnegative',
+      sql`(${t.beforeUsd} is null or ${t.beforeUsd}>=0) and (${t.afterUsd} is null or ${t.afterUsd}>=0)`,
+    ),
+  ],
+);
+
+export const clients = pgTable(
+  'clients',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    taxId: text('tax_id'),
+    phone: text('phone'),
+    address: text('address'),
+    notes: text('notes').notNull().default(''),
+    active: boolean('active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    isDemo: boolean('is_demo').notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check(
+      'client_fields_valid',
+      sql`length(btrim(${t.name})) between 2 and 120 and ${t.version}>0 and (${t.phone} is null or ${t.phone} ~ '^[+][1-9][0-9]{7,14}$')`,
+    ),
+  ],
+);
 export const priceLists = pgTable(
   'price_lists',
   {
@@ -379,6 +459,7 @@ export const priceLists = pgTable(
   (t) => [
     check('price_basis_valid', sql`${t.paymentBasis} in ('usd_cash_promo','ves_regular')`),
     check('price_currency_usd', sql`${t.currency}='USD'`),
+    uniqueIndex('price_list_basis_uq').on(t.paymentBasis),
   ],
 );
 export const priceItems = pgTable(
@@ -398,10 +479,7 @@ export const priceItems = pgTable(
     unique('price_item_uq').on(t.priceListId, t.variantId, t.presentation),
     index('price_items_variant_idx').on(t.variantId),
     check('price_positive', sql`${t.unitUsd}>=0`),
-    check(
-      'price_presentation_valid',
-      sql`${t.presentation} in ('box','blister','half_box','piece')`,
-    ),
+    check('price_presentation_valid', sql`${t.presentation} in ('box','blister','half_box')`),
   ],
 );
 export const bcvRates = pgTable(
@@ -428,6 +506,8 @@ export const bcvRates = pgTable(
     ),
   ],
 );
+export const saleNumberSequence = pgSequence('mm_sale_number_seq');
+export const paymentNumberSequence = pgSequence('mm_payment_number_seq');
 export const sales = pgTable(
   'sales',
   {
@@ -441,6 +521,18 @@ export const sales = pgTable(
     currency: text('currency').notNull().default('USD'),
     soldAt: time('sold_at').notNull(),
     dueDate: date('due_date'),
+    reminderDate: date('reminder_date'),
+    clientSnapshot: jsonb('client_snapshot')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    notes: text('notes').notNull().default(''),
+    actor: text('actor').notNull().default('legacy'),
+    isDemo: boolean('is_demo').notNull().default(false),
+    totalUsd: numeric('total_usd', { precision: 18, scale: 2 }).notNull().default('0'),
+    costUsd: money('cost_usd').notNull().default('0'),
+    creationTransaction: bigint('creation_transaction', { mode: 'bigint' })
+      .notNull()
+      .default(sql`txid_current()`),
     createdAt: createdAt(),
   },
   (t) => [
@@ -451,7 +543,7 @@ export const sales = pgTable(
     check('sales_condition_valid', sql`${t.condition} in ('cash','credit')`),
     check('sales_status_valid', sql`${t.status} in ('draft','confirmed','cancelled')`),
     check('sales_currency_usd', sql`${t.currency}='USD'`),
-    check('credit_due_required', sql`${t.condition}<>'credit' or ${t.dueDate} is not null`),
+    check('sales_amounts_valid', sql`${t.totalUsd}>=0 and ${t.costUsd}>=0`),
   ],
 );
 export const saleLines = pgTable(
@@ -470,6 +562,8 @@ export const saleLines = pgTable(
     agreedUnitUsd: money('agreed_unit_usd').notNull(),
     priceBasis: text('price_basis').notNull(),
     descriptionSnapshot: text('description_snapshot').notNull(),
+    lineTotalUsd: numeric('line_total_usd', { precision: 18, scale: 2 }).notNull().default('0'),
+    costUsd: money('cost_usd').notNull().default('0'),
   },
   (t) => [
     index('sale_lines_sale_idx').on(t.saleId),
@@ -478,17 +572,30 @@ export const saleLines = pgTable(
       'sale_line_valid',
       sql`${t.quantity}>0 and ${t.referenceUnitUsd}>=0 and ${t.agreedUnitUsd}>=0`,
     ),
-    check(
-      'sale_presentation_valid',
-      sql`${t.presentation} in ('box','blister','half_box','piece')`,
-    ),
+    check('sale_presentation_valid', sql`${t.presentation} in ('box','blister','half_box')`),
     check('sale_basis_valid', sql`${t.priceBasis} in ('usd_cash_promo','ves_regular')`),
+    check(
+      'sale_line_totals_valid',
+      sql`${t.lineTotalUsd}=round(${t.quantity}*${t.agreedUnitUsd},2) and ${t.costUsd}>=0`,
+    ),
   ],
 );
 export const payments = pgTable(
   'payments',
   {
     id: id(),
+    number: text('number')
+      .notNull()
+      .default(sql`('AB-'||lpad(nextval('mm_payment_number_seq')::text,8,'0'))`),
+    method: text('method').notNull().default('legacy'),
+    actor: text('actor').notNull().default('legacy'),
+    clientSnapshot: jsonb('client_snapshot')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    isDemo: boolean('is_demo').notNull().default(false),
+    creationTransaction: bigint('creation_transaction', { mode: 'bigint' })
+      .notNull()
+      .default(sql`txid_current()`),
     clientId: uuid('client_id')
       .notNull()
       .references(() => clients.id),
@@ -502,6 +609,7 @@ export const payments = pgTable(
   },
   (t) => [
     unique('payments_idempotency_uq').on(t.idempotencyKey),
+    uniqueIndex('payments_number_uq').on(t.number),
     unique('payments_id_client_uq').on(t.id, t.clientId),
     index('payments_client_idx').on(t.clientId),
     index('payments_rate_idx').on(t.bcvRateId),
@@ -522,6 +630,9 @@ export const paymentApplications = pgTable(
       .notNull()
       .references(() => clients.id),
     amountUsd: money('amount_usd').notNull(),
+    balanceAfterUsd: numeric('balance_after_usd', { precision: 18, scale: 2 })
+      .notNull()
+      .default('0'),
     createdAt: createdAt(),
   },
   (t) => [
@@ -534,6 +645,10 @@ export const paymentApplications = pgTable(
     }),
     foreignKey({ columns: [t.saleId, t.clientId], foreignColumns: [sales.id, sales.clientId] }),
     check('application_positive', sql`${t.amountUsd}>0`),
+    check(
+      'application_balance_valid',
+      sql`${t.balanceAfterUsd}>=0 and ${t.amountUsd}=round(${t.amountUsd},2)`,
+    ),
   ],
 );
 export const auditEvents = pgTable(
@@ -571,5 +686,11 @@ export const receivables = pgView('receivables', {
   paidUsd: numeric('paid_usd', { precision: 18, scale: 2 }),
   balanceUsd: numeric('balance_usd', { precision: 18, scale: 2 }),
 }).as(
-  sql`select s.id as sale_id, s.client_id, s.number, s.due_date, 'USD'::text as currency, coalesce(l.total,0)::numeric(18,2) as total_usd, coalesce(p.paid,0)::numeric(18,2) as paid_usd, (coalesce(l.total,0)-coalesce(p.paid,0))::numeric(18,2) as balance_usd from sales s left join (select sale_id, round(sum(quantity*agreed_unit_usd),2) as total from sale_lines group by sale_id) l on l.sale_id=s.id left join (select sale_id,sum(amount_usd) as paid from payment_applications group by sale_id) p on p.sale_id=s.id where s.status='confirmed'`,
+  sql`SELECT s.id AS sale_id,s.client_id,s.number,CASE WHEN d.id IS NULL THEN s.due_date ELSE d.due_date END AS due_date,
+  'USD'::text AS currency,s.total_usd,coalesce(p.paid,0)::numeric(18,2) AS paid_usd,(s.total_usd-coalesce(p.paid,0))::numeric(18,2) AS balance_usd
+FROM sales s
+LEFT JOIN LATERAL(SELECT id,due_date FROM sale_date_events WHERE sale_id=s.id ORDER BY event_order DESC LIMIT 1)d ON true
+LEFT JOIN LATERAL(SELECT sum(a.amount_usd) AS paid FROM payment_applications a WHERE a.sale_id=s.id
+  AND NOT EXISTS(SELECT 1 FROM payment_reversals r WHERE r.payment_id=a.payment_id))p ON true
+WHERE s.status='confirmed' AND NOT EXISTS(SELECT 1 FROM sale_cancellations c WHERE c.sale_id=s.id)`,
 );
