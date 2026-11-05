@@ -1,8 +1,9 @@
-import type { AppEnvironment } from '../../../../packages/domain/src/auth';
+import { appEnvironmentSchema } from '../../../../packages/domain/src/auth';
 
 export function authConfig() {
-  const environment = process.env.MM_APP_ENV ?? 'local';
-  if (!['local', 'test', 'staging'].includes(environment)) throw new Error('MM_APP_ENV inválido.');
+  const parsedEnvironment = appEnvironmentSchema.safeParse(process.env.MM_APP_ENV ?? 'local');
+  if (!parsedEnvironment.success) throw new Error('MM_APP_ENV inválido.');
+  const environment = parsedEnvironment.data;
   const origin = process.env.MM_APP_ORIGIN ?? `http://127.0.0.1:${process.env.MM_WEB_PORT ?? 3100}`;
   const parsed = new URL(origin);
   if (
@@ -17,20 +18,27 @@ export function authConfig() {
     (parsed.protocol !== 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname))
   )
     throw new Error('Staging requiere MM_APP_ORIGIN HTTPS con dominio confirmado.');
-  if (environment !== 'staging' && !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname))
+  if (environment === 'production' && parsed.protocol !== 'https:')
+    throw new Error('Producción requiere MM_APP_ORIGIN HTTPS exacto.');
+  if (
+    ['local', 'test'].includes(environment) &&
+    !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
+  )
     throw new Error('El entorno local o test solo admite origen loopback.');
-  const secure = environment === 'staging';
+  const secure = environment === 'staging' || environment === 'production';
   return {
-    environment: environment as AppEnvironment,
+    environment,
     origin,
     secure,
     cookieName: secure ? '__Host-mm_session' : 'mm_session',
   };
 }
 
-export function sessionCookie(token: string, clear = false) {
+export const rememberedSessionSeconds = 30 * 24 * 3600;
+
+export function sessionCookie(token: string, clear = false, rememberSession = false) {
   const config = authConfig();
-  return `${config.cookieName}=${clear ? '' : token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${clear ? 0 : 8 * 3600}${config.secure ? '; Secure' : ''}`;
+  return `${config.cookieName}=${clear ? '' : token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${clear ? 0 : rememberSession ? rememberedSessionSeconds : 8 * 3600}${config.secure ? '; Secure' : ''}`;
 }
 export function sessionToken(cookie: string | undefined): string | undefined {
   const name = authConfig().cookieName;

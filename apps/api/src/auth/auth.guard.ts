@@ -48,7 +48,7 @@ export class AuthGuard implements CanActivate {
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
       const config = authConfig();
       const allowed = new Set([config.origin]);
-      if (config.environment !== 'staging') {
+      if (['local', 'test'].includes(config.environment)) {
         const port = new URL(config.origin).port;
         allowed.add(`http://127.0.0.1:${port}`);
         allowed.add(`http://localhost:${port}`);

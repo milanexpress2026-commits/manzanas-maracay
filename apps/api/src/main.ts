@@ -26,6 +26,8 @@ import { authConfig } from './auth/config';
 import { InventoryModule } from './inventory.module';
 import { CommerceModule } from './commerce.module';
 import { PushModule } from './push.module';
+import { initializeRuntimeEnvironment } from './production-state';
+import { OperationsModule } from './operations.module';
 @Catch()
 class ApiErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
@@ -137,12 +139,22 @@ class CatalogController {
   providers: [CatalogService],
 })
 class CatalogModule {}
-@Module({ imports: [AuthModule, CatalogModule, InventoryModule, CommerceModule, PushModule] })
+@Module({
+  imports: [
+    AuthModule,
+    CatalogModule,
+    InventoryModule,
+    CommerceModule,
+    PushModule,
+    OperationsModule,
+  ],
+})
 class AppModule {}
 async function main() {
   if (!process.env.DATABASE_URL || !process.env.MM_INTERNAL_TOKEN)
     throw new Error('Inicia con npm run dev para cargar la configuración local.');
   authConfig();
+  await initializeRuntimeEnvironment();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['warn', 'error'],
     bodyParser: false,

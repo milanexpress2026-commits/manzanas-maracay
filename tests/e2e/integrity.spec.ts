@@ -162,7 +162,7 @@ test('PostgreSQL: no permite doble conteo de caja y blíster', async () => {
     ).rows[0].id;
     const lot = (
       await c.query(
-        'insert into lots(code,variant_id,supplier_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd) values($1,$2,$3,$4,$5,$6,now(),0) returning id',
+        'insert into lots(code,variant_id,supplier_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd,is_demo) values($1,$2,$3,$4,$5,$6,now(),0,true) returning id',
         [randomUUID(), rule.variant_id, supplier, rule.id, rule.version, rule.blisters_per_box],
       )
     ).rows[0].id;

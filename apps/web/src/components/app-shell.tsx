@@ -17,15 +17,15 @@ import {
   ShoppingCart,
   HandCoins,
   ContactRound,
+  House,
 } from 'lucide-react';
+import type { SessionInfo } from '@mm/domain';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-export type AppSession = {
-  user: { id: string; username: string; displayName: string };
-  environment: 'local' | 'test' | 'staging';
-};
+export type AppSession = SessionInfo;
 const navigation = [
+  { href: '/inicio', label: 'Inicio', icon: House },
   { href: '/catalogo', label: 'Catálogo', icon: Package },
   { href: '/inventario', label: 'Inventario', icon: Boxes },
   { href: '/recepciones', label: 'Recepciones', icon: Truck },
@@ -62,7 +62,8 @@ export function AppShell({
   const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState('');
   const label = navigation.find((item) => item.href === current)?.label ?? 'Gestión';
-  const preview = session.environment !== 'local';
+  const preview = session.environment === 'staging' || session.environment === 'test';
+  const preparing = session.environment === 'production' && !session.operationsReady;
   useEffect(() => {
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   }, []);
@@ -127,7 +128,7 @@ export function AppShell({
         ) : null}
         <div className="sidebar-version">
           <span className="status-dot" />
-          Fase 3 · Gestión comercial
+          Gestión comercial
         </div>
       </div>
     </>
@@ -162,7 +163,11 @@ export function AppShell({
           <div className="topbar-right">
             <span className="local-label">
               <ShieldCheck aria-hidden="true" />
-              {preview ? 'Vista previa' : 'Entorno local'}
+              {preview
+                ? 'Vista previa'
+                : session.environment === 'production'
+                  ? 'Acceso privado'
+                  : 'Entorno local'}
             </span>
             <span className="owner-name">{session.user.displayName}</span>
             <Button
@@ -182,12 +187,34 @@ export function AppShell({
             <span>Acceso interno · Datos DEMO · Sin cobros externos</span>
           </div>
         ) : null}
+        {preparing ? (
+          <div className="operation-preparation" role="status">
+            <ShieldCheck aria-hidden="true" />
+            <div>
+              <strong>Operación en preparación</strong>
+              <p>
+                Puedes consultar la aplicación. El registro de mercancía, ventas y cobros se
+                habilitará al completar la revisión de apertura.
+              </p>
+            </div>
+          </div>
+        ) : null}
         {error ? (
           <Alert variant="destructive" className="session-error">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : null}
-        {children}
+        {preparing ? (
+          <fieldset
+            className="operation-lock"
+            disabled
+            aria-label="Operaciones pendientes de habilitación"
+          >
+            {children}
+          </fieldset>
+        ) : (
+          children
+        )}
       </div>
       <Dialog open={menu} onOpenChange={setMenu}>
         <DialogContent className="navigation-dialog">

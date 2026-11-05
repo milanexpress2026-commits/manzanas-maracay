@@ -1,0 +1,168 @@
+name: manzanas-maracay-production
+x-runtime: &runtime
+  # Production must recover after host/daemon restarts. Business access remains
+  # closed until the release/database-specific activation gate is valid.
+  restart: unless-stopped
+  init: true
+  user: '1000:1000'
+  read_only: true
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  pids_limit: 160
+  logging:
+    driver: json-file
+    options: { max-size: '5m', max-file: '3' }
+  tmpfs: ['/tmp:size=64m,mode=1777']
+x-build: &build
+  context: .
+  dockerfile: infra/Dockerfile.production
+  args:
+    NODE_IMAGE: ${MM_NODE_IMAGE:?Imagen oficial Node 24 fijada por digest}
+    MM_RELEASE: ${MM_RELEASE:?Release exacta de producción}
+    MM_COMMIT: ${MM_COMMIT:?Commit completo de producción}
+    MM_APP_ORIGIN: ${MM_APP_ORIGIN:?Origen HTTPS autorizado}
+services:
+  postgres:
+    image: ${MM_POSTGRES_IMAGE:?Imagen oficial PostgreSQL 18 fijada por digest}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mm_prod_bootstrap
+      POSTGRES_DB: manzanas_maracay_production
+      POSTGRES_PASSWORD_FILE: /run/secrets/bootstrap_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets: [bootstrap_password, owner_password_init, app_password_init]
+    volumes:
+      - mm_production_pg:/var/lib/postgresql
+      - ./infra/init-production-roles.sh:/docker-entrypoint-initdb.d/10-mm-production-roles.sh:ro
+    networks: [database]
+    command:
+      [
+        'postgres',
+        '-c',
+        'max_connections=40',
+        '-c',
+        'shared_buffers=128MB',
+        '-c',
+        'log_statement=none',
+        '-c',
+        'log_parameter_max_length_on_error=0',
+      ]
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'pg_isready',
+          '-h',
+          '127.0.0.1',
+          '-U',
+          'mm_prod_bootstrap',
+          '-d',
+          'manzanas_maracay_production',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 100
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: { max-size: '5m', max-file: '3' }
+  migrate:
+    <<: *runtime
+    restart: 'no'
+    profiles: [tools]
+    image: manzanas-maracay-production-tools:${MM_RELEASE:?Release exacta}
+    build: { <<: *build, target: tools }
+    environment:
+      MM_APP_ENV: production
+      MM_RELEASE: ${MM_RELEASE:?Release exacta}
+      MM_COMMIT: ${MM_COMMIT:?Commit completo}
+      MM_APP_ORIGIN: ${MM_APP_ORIGIN:?Origen HTTPS autorizado}
+      MM_PG_PASSWORD_FILE: /run/secrets/owner_password
+      MM_PRIVATE_DIR: /run/secrets
+    secrets: [owner_password, invitation]
+    networks: [database]
+    depends_on:
+      postgres: { condition: service_healthy }
+    mem_limit: 512m
+    cpus: 1.0
+  api:
+    <<: *runtime
+    image: manzanas-maracay-production-api:${MM_RELEASE:?Release exacta}
+    build: { <<: *build, target: api }
+    environment:
+      MM_APP_ENV: production
+      MM_RELEASE: ${MM_RELEASE:?Release exacta}
+      MM_COMMIT: ${MM_COMMIT:?Commit completo}
+      MM_APP_ORIGIN: ${MM_APP_ORIGIN:?Origen HTTPS autorizado}
+      MM_API_HOST: 0.0.0.0
+      MM_API_PORT: '3101'
+      MM_APP_PASSWORD_FILE: /run/secrets/app_password
+      MM_INTERNAL_TOKEN_FILE: /run/secrets/internal_token
+      MM_PRODUCTION_GATE_FILE: /run/mm-production-state/activation.json
+    secrets: [app_password, internal_token]
+    volumes:
+      - type: bind
+        source: ${MM_PRODUCTION_CONTROL_DIR:?Directorio de control externo exclusivo}
+        target: /run/mm-production-state
+        read_only: true
+        bind: { create_host_path: false }
+    networks: [database, application]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/production-health.mjs', 'api']
+      interval: 15s
+      timeout: 8s
+      retries: 6
+    mem_limit: 512m
+    cpus: 1.0
+  mm-production-web:
+    <<: *runtime
+    image: manzanas-maracay-production-web:${MM_RELEASE:?Release exacta}
+    build: { <<: *build, target: web }
+    environment:
+      MM_APP_ENV: production
+      MM_RELEASE: ${MM_RELEASE:?Release exacta}
+      MM_COMMIT: ${MM_COMMIT:?Commit completo}
+      MM_APP_ORIGIN: ${MM_APP_ORIGIN:?Origen HTTPS autorizado}
+      MM_API_BASE_URL: http://api:3101
+      MM_INTERNAL_TOKEN_FILE: /run/secrets/internal_token
+    secrets: [internal_token]
+    networks:
+      application: {}
+      edge:
+        aliases: [mm-production-web]
+    ports: ['127.0.0.1:33101:3100']
+    tmpfs:
+      ['/tmp:size=64m,mode=1777', '/app/apps/web/.next/cache:size=64m,uid=1000,gid=1000,mode=0750']
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'node', 'scripts/production-health.mjs', 'web']
+      interval: 15s
+      timeout: 8s
+      retries: 6
+    mem_limit: 384m
+    cpus: 1.0
+networks:
+  database: { internal: true }
+  application: { internal: true }
+  edge: {}
+volumes:
+  mm_production_pg: {}
+secrets:
+  bootstrap_password:
+    { file: '${MM_PRODUCTION_SECRETS_DIR:?Secretos nuevos de producción}/bootstrap_password' }
+  owner_password_init:
+    { file: '${MM_PRODUCTION_SECRETS_DIR:?Secretos nuevos de producción}/owner_password_init' }
+  app_password_init:
+    { file: '${MM_PRODUCTION_SECRETS_DIR:?Secretos nuevos de producción}/app_password_init' }
+  owner_password:
+    { file: '${MM_PRODUCTION_SECRETS_DIR:?Secretos nuevos de producción}/owner_password' }
+  app_password: { file: '${MM_PRODUCTION_SECRETS_DIR:?Secretos nuevos de producción}/app_password' }
+  internal_token:
+    { file: '${MM_PRODUCTION_SECRETS_DIR:?Secretos nuevos de producción}/internal_token' }
+  invitation: { file: '${MM_PRODUCTION_SECRETS_DIR:?Secretos nuevos de producción}/invitation' }

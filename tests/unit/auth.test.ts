@@ -2,7 +2,7 @@ import { describe, expect, it, afterEach } from 'vitest';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, verifyPassword } from '../../apps/api/src/auth/password';
 import { authConfig, sessionCookie, sessionToken } from '../../apps/api/src/auth/config';
-import { invitationSchema } from '../../packages/domain/src/auth';
+import { invitationSchema, loginSchema } from '../../packages/domain/src/auth';
 
 const originalEnvironment = process.env.MM_APP_ENV;
 const originalOrigin = process.env.MM_APP_ORIGIN;
@@ -14,6 +14,33 @@ afterEach(() => {
 });
 
 describe('credenciales y cookies de la vista previa', () => {
+  it('la persistencia exige selección booleana explícita y la invitación acepta la longitud elegida', () => {
+    const input = { username: 'PruebaSesion', password: 'QA-demo-9' };
+    expect(loginSchema.parse(input)).toMatchObject({
+      username: 'pruebasesion',
+      rememberSession: false,
+    });
+    expect(loginSchema.parse({ ...input, rememberSession: true }).rememberSession).toBe(true);
+    expect(loginSchema.safeParse({ ...input, rememberSession: 'true' }).success).toBe(false);
+    expect(invitationSchema.safeParse({ ...input, displayName: 'Prueba' }).success).toBe(true);
+    expect(
+      invitationSchema.safeParse({ ...input, displayName: 'Prueba', password: '1234567' }).success,
+    ).toBe(false);
+  });
+  it('30 días solo para la cookie recordada y logout siempre la elimina', () => {
+    process.env.MM_APP_ENV = 'production';
+    process.env.MM_APP_ORIGIN = 'https://localhost:3143';
+    const token = randomBytes(32).toString('hex');
+    expect(sessionCookie(token)).toContain('Max-Age=28800');
+    const remembered = sessionCookie(token, false, true);
+    expect(remembered).toContain('Max-Age=2592000');
+    expect(remembered).toContain('; Secure');
+    expect(remembered).toContain('; HttpOnly');
+    expect(remembered).toContain('; SameSite=Strict');
+    expect(remembered).not.toContain('Domain=');
+    expect(sessionCookie(token, true, true)).toContain('__Host-mm_session=;');
+    expect(sessionCookie(token, true, true)).toContain('Max-Age=0');
+  });
   it('usa sal única y verifica la contraseña sin aceptar otra', async () => {
     const password = randomBytes(24).toString('base64url');
     const hash = await hashPassword(password);

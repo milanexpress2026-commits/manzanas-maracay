@@ -16,7 +16,7 @@ class AuthController {
     @Res({ passthrough: true }) response: CookieResponse,
   ) {
     const result = await this.auth.login(body, sessionToken(request.headers.cookie));
-    response.setHeader('Set-Cookie', sessionCookie(result.token));
+    response.setHeader('Set-Cookie', sessionCookie(result.token, false, result.rememberSession));
     response.setHeader('Cache-Control', 'no-store');
     return result.info;
   }

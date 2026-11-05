@@ -3,7 +3,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Manzanas Maracay',
     short_name: 'Maracay',
-    description: 'Catálogo de frutas importadas',
+    description: 'Gestión privada de mercancía, ventas y cobranza',
     lang: 'es',
     start_url: '/',
     scope: '/',

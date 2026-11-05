@@ -17,8 +17,11 @@ import {
   configurationSchema,
   updatePackingSchema,
   updateVarietySchema,
+  confirmedPresentationsReady,
 } from '../../../packages/domain/src/index';
 import { z } from 'zod';
+import { assertBusinessWritesReady, operationsReady } from './production-state';
+import { authConfig } from './auth/config';
 
 @Injectable()
 export class CatalogService implements OnModuleDestroy {
@@ -45,8 +48,10 @@ export class CatalogService implements OnModuleDestroy {
     return {
       status: 'ok',
       storage: 'postgresql',
-      scope: 'phase-3',
+      scope: 'phase-4',
       release: process.env.MM_RELEASE ?? 'local',
+      environment: authConfig().environment,
+      ready: operationsReady(),
     };
   }
   async read() {
@@ -138,6 +143,7 @@ export class CatalogService implements OnModuleDestroy {
     );
   }
   async mutate(kind: string, body: unknown, key: string | undefined, id?: string, actor?: string) {
+    assertBusinessWritesReady();
     if (!actor || !z.uuid().safeParse(actor).success)
       throw new BadRequestException('Falta el usuario autenticado.');
     if (!key || !z.uuid().safeParse(key).success)
@@ -156,6 +162,14 @@ export class CatalogService implements OnModuleDestroy {
                 : updatePackingSchema.parse(body);
     if (id && !z.uuid().safeParse(id).success)
       throw new BadRequestException('Identificador inválido.');
+    if (
+      authConfig().environment === 'production' &&
+      'confirmationStatus' in parsed &&
+      !confirmedPresentationsReady(parsed)
+    )
+      throw new BadRequestException(
+        'Confirma únicamente presentaciones con cantidad de blíster y preparación de media conocidas. Puedes dejar solo Caja habilitada.',
+      );
     const hash = createHash('sha256')
       .update(JSON.stringify({ kind, id, body: parsed, actor }))
       .digest('hex');

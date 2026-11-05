@@ -1,26 +1,26 @@
-# Autenticación de la fase 2
+# Autenticación y sesión de los dueños
 
-Todas las pantallas de negocio y sus API requieren una sesión de una persona invitada. Esto se aplica también a desarrollo y pruebas. El único endpoint público es `GET /api/health`: devuelve el estado del servicio sin catálogo, usuarios ni detalles de conexión.
+Todas las pantallas de negocio y sus API requieren una sesión invitada. El propietario eligió una cuenta privada compartida de dueños para sus celulares y la tablet, sin cuentas personales obligatorias. La auditoría identifica esa cuenta, no a una persona concreta. La salud pública devuelve el estado del servicio sin catálogo, usuarios ni detalles de conexión; el formulario de acceso permite autenticarse y no da acceso anónimo a datos.
 
 ## Flujo y contrato
 
 El navegador habla con el proxy del mismo origen de Next.js. El proxy añade un token interno, y NestJS verifica por separado ese token y la sesión. Enviar un token interno desde el navegador no crea una sesión ni permite omitirla. La API de staging no publica un puerto al exterior.
 
-| Endpoint                | Solicitud                                    | Resultado                                                                 |
-| ----------------------- | -------------------------------------------- | ------------------------------------------------------------------------- |
-| `POST /api/auth/login`  | JSON `{ username, password }`, origen válido | Cookie de sesión y `{ user: { id, username, displayName }, environment }` |
-| `GET /api/auth/me`      | Cookie válida                                | La misma información pública de sesión                                    |
-| `POST /api/auth/logout` | JSON `{}`, origen válido                     | Revoca la sesión en PostgreSQL, borra la cookie y devuelve `{ ok: true }` |
+| Endpoint                | Solicitud                                                      | Resultado                                                                 |
+| ----------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `POST /api/auth/login`  | JSON `{ username, password, rememberSession? }`, origen válido | Cookie y `{ user, environment, operationsReady }`                         |
+| `GET /api/auth/me`      | Cookie válida                                                  | La misma información pública de sesión                                    |
+| `POST /api/auth/logout` | JSON `{}`, origen válido                                       | Revoca la sesión en PostgreSQL, borra la cookie y devuelve `{ ok: true }` |
 
-`environment` es `local`, `test` o `staging`. La interfaz de staging muestra **ENTORNO DE PRUEBAS**. Las páginas del servidor llaman a `requireSession()` antes de renderizar datos; las mutaciones usan `request.user.id` como actor de auditoría, sin aceptar una identidad del cliente.
+`environment` es `local`, `test`, `staging` o `production`. Staging muestra **ENTORNO DE PRUEBAS**; producción bloquea `/demo` y usa su base independiente. Las páginas del servidor llaman a `requireSession()` antes de renderizar datos; las mutaciones usan `request.user.id` como actor de auditoría, sin aceptar una identidad del cliente. `operationsReady` informa si el entorno está habilitado para escrituras comerciales; iniciar sesión no activa ese permiso.
 
 ## Protección de credenciales y sesiones
 
-Las contraseñas tienen entre 14 y 256 caracteres. Se guardan mediante scrypt con sal aleatoria de 16 bytes, `N=131072, r=8, p=1` y salida de 64 bytes. La API limita a una derivación simultánea para acotar memoria; el perfil sigue la [recomendación de OWASP para scrypt](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+Las contraseñas nuevas admiten entre 8 y 256 caracteres para aceptar la elección explícita del propietario. Se guardan mediante scrypt con sal aleatoria de 16 bytes, `N=131072, r=8, p=1` y salida de 64 bytes. La API limita a una derivación simultánea para acotar memoria; el perfil sigue la [recomendación de OWASP para scrypt](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html). Las credenciales elegidas no se incluyen en esta documentación ni en Git.
 
-Cada sesión usa 32 bytes aleatorios. PostgreSQL conserva solamente su SHA-256. La sesión caduca a las 8 horas y tras 30 minutos de inactividad. Cerrar sesión o restablecer la contraseña revoca el acceso en el servidor. El inicio de sesión y el restablecimiento comparten un bloqueo transaccional por usuario para evitar que una contraseña anterior genere una sesión durante un cambio de contraseña.
+Cada sesión usa 32 bytes aleatorios. PostgreSQL conserva solamente su SHA-256. Sin marcar la opción, caduca a las 8 horas o tras 30 minutos de inactividad. **Mantener sesión activa**, desmarcada inicialmente, conserva la cookie y la sesión hasta 30 días desde el acceso, incluso al cerrar el navegador; no prolonga indefinidamente la fecha de vencimiento. La migración aditiva `0012_remembered_session` identifica estas sesiones y mantiene las anteriores como normales. Cerrar sesión o restablecer la contraseña revoca ambos tipos en el servidor. El inicio de sesión y el restablecimiento comparten un bloqueo transaccional por usuario para evitar que una contraseña anterior genere una sesión durante un cambio de contraseña.
 
-En staging la cookie se llama `__Host-mm_session`, con `Secure; HttpOnly; SameSite=Strict; Path=/`, sin atributo Domain. Local/test usan `mm_session` sobre loopback. Los atributos siguen la [guía de sesiones de OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html). Nunca se guarda el token en localStorage.
+En staging y producción la cookie se llama `__Host-mm_session`, con `Secure; HttpOnly; SameSite=Strict; Path=/`, sin atributo Domain. Su `Max-Age` coincide con las 8 horas o 30 días elegidos. Local/test usan `mm_session` sobre loopback. Los atributos siguen la [guía de sesiones de OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html). No se guardan contraseña ni token en localStorage; cerrar sesión elimina la cookie. Borrar las cookies o usar navegación privada puede exigir entrar nuevamente.
 
 El límite persistido es de 8 intentos por usuario normalizado cada 15 minutos, más 120 intentos globales por minuto. Los intentos contra usuarios inexistentes ejecutan la misma verificación costosa y dan el mismo mensaje de error. Un acceso correcto reinicia el contador de ese usuario. El límite global y el trabajo simultáneo acotado pueden producir un 429 durante una ráfaga legítima; se debe esperar antes de volver a intentar.
 
@@ -28,17 +28,17 @@ Las mutaciones requieren el origen configurado y JSON. El proxy rechaza solicitu
 
 ## Configuración
 
-| Variable                 | Uso                                                                                       |
-| ------------------------ | ----------------------------------------------------------------------------------------- |
-| `MM_APP_ENV`             | `local`, `test` o `staging`; no existe modo sin autenticación                             |
-| `MM_APP_ORIGIN`          | Origen exacto, sin ruta. Staging requiere HTTPS y un dominio ajeno a loopback             |
-| `MM_API_BASE_URL`        | Dirección privada de NestJS, consultada exclusivamente por el servidor Next.js            |
-| `MM_INTERNAL_TOKEN`      | Secreto entre servidores, nunca una contraseña de usuario ni una variable `NEXT_PUBLIC_*` |
-| `MM_INTERNAL_TOKEN_FILE` | En staging, archivo Docker secret del token interno                                       |
-| `MM_API_HOST`            | Loopback local; `0.0.0.0` dentro de la red aislada del contenedor de staging              |
-| `MM_PRIVATE_DIR`         | Directorio autorizado para el archivo privado de invitación                               |
+| Variable                 | Uso                                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `MM_APP_ENV`             | `local`, `test`, `staging` o `production`; no existe modo sin autenticación                          |
+| `MM_APP_ORIGIN`          | Origen exacto, sin ruta. Staging y producción requieren HTTPS; QA de producción usa loopback aislado |
+| `MM_API_BASE_URL`        | Dirección privada de NestJS, consultada exclusivamente por el servidor Next.js                       |
+| `MM_INTERNAL_TOKEN`      | Secreto entre servidores, nunca una contraseña de usuario ni una variable `NEXT_PUBLIC_*`            |
+| `MM_INTERNAL_TOKEN_FILE` | En staging, archivo Docker secret del token interno                                                  |
+| `MM_API_HOST`            | Loopback local; `0.0.0.0` dentro de la red aislada del contenedor de staging                         |
+| `MM_PRIVATE_DIR`         | Directorio autorizado para el archivo privado de invitación                                          |
 
-`.env.example` solo contiene ejemplos. Los valores reales permanecen en archivos privados fuera de Git. El iniciador de staging lee los secretos de `/run/secrets/`; API usa el rol limitado `mm_app`, y las herramientas administrativas usan `mm_owner`. La aplicación solo puede leer `app_users`: no puede crear usuarios ni cambiar sus contraseñas.
+`.env.example` solo contiene ejemplos. Los valores reales permanecen en archivos privados fuera de Git. Staging usa `mm_app`/`mm_owner`; producción usa otros secretos y los roles limitados `mm_prod_app`/`mm_prod_owner`. La aplicación solo puede leer `app_users`: no puede crear usuarios ni cambiar sus contraseñas. El procedimiento de producción y su respaldo con permisos están en [despliegue](despliegue-produccion.md) y [backup](backup-produccion.md); los comandos de staging siguientes conservan su alcance exclusivo de pruebas.
 
 ## Invitar o restablecer un usuario
 

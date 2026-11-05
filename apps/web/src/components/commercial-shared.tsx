@@ -137,8 +137,8 @@ export function RateNotice({ rate }: { rate: RateStatus | null }) {
           </span>
         ) : (
           <span>
-            Tasa BCV no disponible. Los cobros en VES permanecen bloqueados; puedes registrar
-            operaciones en USD.
+            Tasa BCV no disponible. Los cobros en VES permanecen bloqueados. USD no requiere esta
+            conversión.
           </span>
         )}
       </AlertDescription>

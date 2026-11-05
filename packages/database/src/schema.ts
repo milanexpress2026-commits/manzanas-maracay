@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 export * from './schema.auth';
 export * from './schema.commerce';
 export * from './schema.push';
+export * from './schema.environment';
 import {
   pgTable,
   uuid,
@@ -223,6 +224,9 @@ export const lots = pgTable(
       .notNull()
       .default(sql`ARRAY['box','half_box','blister']::text[]`),
     boxWeightKgSnapshot: numeric('box_weight_kg_snapshot', { precision: 8, scale: 3 }),
+    confirmationStatusSnapshot: text('confirmation_status_snapshot')
+      .notNull()
+      .default('legacy_unverified'),
     receivedAt: time('received_at').notNull(),
     unitCostUsd: money('unit_cost_usd').notNull(),
     receivedBoxes: integer('received_boxes').notNull().default(0),
@@ -246,6 +250,10 @@ export const lots = pgTable(
       sql`(${t.blistersPerBoxSnapshot} is null or ${t.blistersPerBoxSnapshot} between 1 and 100) and ${t.unitCostUsd}>=0 and ${t.packingRuleVersion}>0`,
     ),
     check('lots_receipt_valid', sql`${t.receivedBoxes}>=0 and ${t.inventoryVersion}>=0`),
+    check(
+      'lot_confirmation_snapshot_valid',
+      sql`${t.confirmationStatusSnapshot} in ('confirmed','pending','legacy_unverified')`,
+    ),
   ],
 );
 // A container is a physical location/identity, not an additional stock quantity.

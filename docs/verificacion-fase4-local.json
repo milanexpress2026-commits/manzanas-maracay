@@ -1,0 +1,53 @@
+{
+  "phase": 4,
+  "baselineCommit": "f6cff80ddaea19fa9c2ac1954cf0b4f6c6de4e94",
+  "branch": "phase-4/produccion-separada",
+  "localOnly": true,
+  "typecheck": "passed",
+  "build": "passed",
+  "unit": {
+    "files": 13,
+    "passed": 136
+  },
+  "regressionE2E": {
+    "durationMinutes": 4.8,
+    "passed": 53
+  },
+  "productionQA": {
+    "apiTests": 6,
+    "passed": 12,
+    "emptyTests": 2,
+    "uiTests": 4,
+    "execution": {
+      "runId": "67a94e711faec9abdb1bff9a",
+      "startedAt": "2026-11-05T06:00:41.369Z",
+      "baseCommit": "f6cff80ddaea19fa9c2ac1954cf0b4f6c6de4e94",
+      "environment": "production",
+      "purpose": "isolated_synthetic_regression",
+      "origin": "https://localhost:3143",
+      "emptyPassed": true,
+      "operationsPassed": true,
+      "databaseCleaned": true,
+      "emptyBusinessTablesVerified": 20,
+      "limitedMigrationOwner": true,
+      "finishedAt": "2026-11-05T06:02:18.425Z"
+    }
+  },
+  "migrations": {
+    "report": "verificacion-migraciones-fase4.json",
+    "passed": true,
+    "count": 13
+  },
+  "offsiteEncryptionSyntheticChecks": {
+    "realBackup": false,
+    "passed": 11
+  },
+  "deployedProduction": false,
+  "publishedProduction": false,
+  "limitations": [
+    "Chromium local; tablet física pendiente",
+    "VES bloqueado sin fuente oficial verificable",
+    "Pruebas sintéticas solo en bases temporales",
+    "Restauración real en contenedor y copia externa aún pendientes de preparación remota"
+  ]
+}

@@ -57,8 +57,12 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
   const command = useCommand();
   useEffect(() => setDate(caracasDateTime()), []);
   const activeSuppliers = suppliers.data?.filter((s) => s.active) ?? [];
+  const receivingConfigurations =
+    catalog.data?.configurations.filter(
+      (c) => session.environment !== 'production' || c.confirmationStatus === 'confirmed',
+    ) ?? [];
   const ready = !!catalog.data && !!suppliers.data && !catalog.error && !suppliers.error;
-  const canReceive = ready && activeSuppliers.length > 0 && catalog.data!.configurations.length > 0;
+  const canReceive = ready && activeSuppliers.length > 0 && receivingConfigurations.length > 0;
   const totalBoxes = lines.reduce(
     (sum, line) => sum + (Number.isSafeInteger(Number(line.boxes)) ? Number(line.boxes) : 0),
     0,
@@ -186,10 +190,12 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                       Primero <Link href="/proveedores">agrega un proveedor activo</Link>.
                     </p>
                   ) : null}
-                  {catalog.data!.configurations.length === 0 ? (
+                  {receivingConfigurations.length === 0 ? (
                     <p>
                       Primero{' '}
-                      <Link href="/catalogo">crea una configuración de empaque en el catálogo</Link>
+                      <Link href="/catalogo">
+                        crea y confirma una configuración de empaque en el catálogo
+                      </Link>
                       .
                     </p>
                   ) : null}
@@ -327,7 +333,7 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
                               }
                             >
                               <option value="">Selecciona un empaque del catálogo</option>
-                              {catalog.data!.configurations.map((c) => (
+                              {receivingConfigurations.map((c) => (
                                 <option value={c.id} key={c.id}>
                                   {productLabel(c)} · {packingLabel(c)}
                                 </option>

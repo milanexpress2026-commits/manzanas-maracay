@@ -1,4 +1,4 @@
-const CACHE = 'mm-offline-v3';
+const CACHE = 'mm-offline-v4';
 const LOGO = '/brand/logo-manzanas-maracay.webp';
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/offline.html', LOGO])));

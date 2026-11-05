@@ -78,6 +78,20 @@
       "when": 1793832703076,
       "tag": "0010_commercial_json_alias",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793848314415,
+      "tag": "0011_production_isolation",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793855922391,
+      "tag": "0012_remembered_session",
+      "breakpoints": true
     }
   ]
 }
