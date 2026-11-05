@@ -19,7 +19,7 @@ flowchart LR
   N --> DB
 ```
 
-`/demo` contiene datos sintéticos estáticos y filtros locales, sin consultar la API privada ni persistir operaciones. El acceso interno conserva sus usuarios y sesiones. La demo no convierte endpoints existentes en anónimos. La raíz distingue demostración y acceso interno; la disponibilidad en el host público depende de la release registrada en [staging.md](staging.md).
+`/demo` contiene datos sintéticos estáticos y filtros locales, sin consultar la API privada ni persistir operaciones. El acceso interno conserva sus usuarios y sesiones. La demo no convierte endpoints existentes en anónimos. La raíz distingue demostración y acceso interno. La release completa `phase3-ef3d64616313`, commit `ef3d64616313b3a5f2184f37365dc751da07af29`, está desplegada y saludable en el host público; [staging.md](staging.md) registra las comprobaciones.
 
 `packages/domain` contiene tipos, validaciones Zod y reglas puras, sin React, NestJS ni PostgreSQL. `packages/database` conserva esquema Drizzle y migraciones. Los servicios usan SQL parametrizado cuando necesitan expresar bloqueos y validaciones transaccionales; Drizzle mantiene también los snapshots de esquema. Las reglas comerciales primarias están en [domain-rules.md](domain-rules.md).
 
@@ -84,6 +84,8 @@ WhatsApp abre `wa.me` con teléfono internacional guardado, comprobante y saldo 
 
 Push requiere claves VAPID fuera de Git y opt-in de una sola tablet. Sin configuración queda deshabilitado. El proceso revalida deuda/fecha/suscripción, deduplica comprobante/fecha y envía avisos genéricos sin datos privados. No mantiene una transacción abierta durante la llamada al proveedor. El centro autenticado es el fallback; aceptación del proveedor no acredita recepción en Android/iOS. [push-cobranza.md](push-cobranza.md) detalla permisos, seguridad y prueba real pendiente.
 
+En la release actual, los archivos VAPID externos están montados y validados solo en API. El overlay de staging añade `push_egress`, una red de salida exclusiva de API, y conserva las redes internas de datos/aplicación sin puertos públicos para API/PG. No se cambiaron DNS, Caddy ni redes compartidas. Hay cero dispositivos activos y no se enviaron notificaciones. El opt-in y la entrega en la tablet Android corporativa, así como la apertura del perfil corporativo de WhatsApp, siguen pendientes; tener el servidor configurado no acredita esos pasos.
+
 ## Migraciones y entornos
 
 | Migración                          | Responsabilidad                                                                                 |
@@ -115,6 +117,8 @@ La ejecución `2b09937b4ce6d75ddacd867c` verificó once migraciones fresh/upgrad
 
 La PWA conserva manifiesto/iconos de marca, página offline y avisos genéricos. No guarda respuestas operativas ni encola escrituras offline. La UI retiene la clave idempotente tras una respuesta perdida para reintentar el mismo comando.
 
-El estado desplegado, backup/restauración, alias exclusivo `mm-staging-web`, controles de recursos y rollback se documentan en [staging.md](staging.md) e [infrastructure.md](infrastructure.md). Cambios de DNS/proxy/firewall/red compartida requieren autorización específica. La nueva demo no autoriza tocar aplicaciones ajenas. Producción sigue pendiente de copia externa segura, revisión fiscal y validación en dispositivos reales; el estado de implementación no equivale a una release desplegada.
+El estado desplegado, backup/restauración, alias exclusivo `mm-staging-web`, controles de recursos y rollback se documentan en [staging.md](staging.md) e [infrastructure.md](infrastructure.md). Cambios de DNS/proxy/firewall/red compartida requieren autorización específica. La nueva demo no autoriza tocar aplicaciones ajenas. Producción sigue pendiente de copia externa segura, revisión fiscal y validación en dispositivos reales; el despliegue aprobado corresponde a staging.
 
-La demo temporal web está activa como `demo-db16c5745423` desde el commit `db16c574542347cc15c89498184873b9e5953d84` y verificada externamente a las 23:42:14 UTC ([informe](verificacion-demo-publica.json)). Conserva API/esquema de Fase 2. El código comercial `28110ef0f0bf1079ffa60b3f60545c2bfd194290` está publicado en PR #2 en borrador; su despliegue completo sigue pendiente. La [revisión visual](visual-review-fase-3.md) registra 30 vistas/axe, vídeo real y mediciones básicas.
+La demo temporal `demo-db16c5745423`, verificada a las 23:42:14 UTC del 4 de noviembre ([informe histórico](verificacion-demo-publica.json)), fue sustituida por la release completa `phase3-ef3d64616313`. API y esquema ya corresponden a Fase 3. El smoke publicado aprobó acceso, ocho rechazos anónimos, operación DEMO, idempotencia de venta/abono, PDF con logo, compensaciones auditadas, restitución de stock y revocación al salir. BCV permanece no disponible y VES bloqueado.
+
+El respaldo posterior a esa prueba se restauró correctamente en recursos aislados propios el **5 de noviembre de 2026 a las 00:50:48 UTC**; los recursos temporales fueron retirados. El [informe de staging](verificacion-staging-fase3.json) reúne migración, infraestructura, smoke y restauración. No hay copia externa acreditada todavía. La [revisión visual](visual-review-fase-3.md) conserva la evidencia local de 30 vistas/axe, vídeo real y mediciones básicas, distinta de estas comprobaciones del servidor.

@@ -2,7 +2,11 @@
 
 Aplicación para una distribuidora venezolana de frutas importadas. La fase 3 incorpora empaques configurables, recepción con precios, ventas FIFO, clientes, crédito, abonos y comprobantes comerciales PDF. La demo pública usa ejemplos sintéticos; la operación interna conserva autenticación.
 
-Repositorio público autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama `phase-3/comercial-demo`, basada en `phase-2/inventario-staging` (`f9b532b`). El [PR #1 de fase 2](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1) permanece separado, sin merge. URL de pruebas: [manzanas.ganamosclub.net](https://manzanas.ganamosclub.net). Release y verificación exactas en [staging](docs/staging.md).
+Repositorio público autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama `phase-3/comercial-demo`, basada en `phase-2/inventario-staging` (`f9b532b`). El [PR #2 de fase 3](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/2) permanece en borrador contra la rama de fase 2; el [PR #1](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/1) se conserva, sin merge. URL de pruebas: [manzanas.ganamosclub.net](https://manzanas.ganamosclub.net). Release y verificación exactas en [staging](docs/staging.md).
+
+**Fase 3 desplegada y verificada en staging:** `phase3-ef3d64616313`, construida desde `ef3d64616313b3a5f2184f37365dc751da07af29`, saludable el 5 de noviembre de 2026 a las 00:39:12 UTC. [Demo pública](https://manzanas.ganamosclub.net/demo) y [acceso interno](https://manzanas.ganamosclub.net/login). La web, API y esquema comerciales están activos; la publicación temporal solo web quedó sustituida. Los commits posteriores de documentación no cambian ese commit desplegado.
+
+La verificación aprobó typecheck/build, **90 unitarias y 53 E2E**, once migraciones desde base limpia y desde fase 2, smoke comercial HTTPS con PDF y logo, y respaldo/restauración aislada posterior. La auditoría conservó los recursos ajenos y PostgreSQL propio; detalles y límites en el [informe de staging de fase 3](docs/verificacion-staging-fase3.json).
 
 ## Abrir localmente
 

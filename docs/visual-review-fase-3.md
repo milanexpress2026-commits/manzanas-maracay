@@ -55,3 +55,9 @@ Se midió `/demo` en el build de producción local con Chromium sin interfaz, do
 | 390 px | 2 | 380 ms | 911 ms | 10 | 180.124 bytes | 177.124 bytes |
 
 El encabezado se entrega desde el servidor y puede aparecer antes de `DOMContentLoaded`; su visibilidad no mide hidratación completa ni disponibilidad de todos los controles. Los bytes corresponden a los recursos `.js` observados hasta que la red quedó inactiva, incluidos los cargados anticipadamente. Son cuatro observaciones bajo emulación sobre el mismo equipo: no sustituyen mediciones de una tablet física, de Safari ni de la conexión al VPS, y no se aplicó un umbral de aprobación arbitrario.
+
+## Verificación externa de la versión publicada
+
+La versión `phase3-ef3d64616313` se comprobó en un navegador nuevo contra el sitio publicado el 5 de noviembre de 2026 a las 00:41 UTC. El [registro externo](verificacion-fase3-browser.json) confirma respuesta 200 en las siete rutas públicas, respuesta 401 en cuatro intentos anónimos a operaciones privadas (GET, POST y PATCH), acceso interno con cookie segura y revocación de la sesión al salir.
+
+Se inspeccionaron las capturas reales de staging a [1440 px](capturas/fase3/staging-fase3-1440.png) y [390 px](capturas/fase3/staging-fase3-390.png). El sello corresponde a esa versión; la advertencia de demostración, los datos de ejemplo y el estado BCV no disponible permanecen visibles. La vista móvil distribuye las métricas en dos columnas y apila los paneles sin recortes ni solapamientos apreciables. No se detectaron problemas visuales nuevos en estas dos capturas. Esta comprobación externa no añade mediciones de velocidad: las cuatro muestras de rendimiento de la sección anterior siguen correspondiendo al entorno local, no al VPS ni a un dispositivo Android físico.

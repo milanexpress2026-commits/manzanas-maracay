@@ -1,12 +1,12 @@
 # Revisión de seguridad de la fase 3
 
-Revisión del 4 de noviembre de 2026 sobre el árbol de trabajo `phase-3/comercial-demo`, basado en `f9b532b75c1ffce668571dc7db0ed20b5a52c36f`. **No se identificó una vulnerabilidad explotable de alta confianza pendiente en los flujos examinados.** Se encontró y corrigió un defecto de integridad del costo histórico antes de aplicar la migración; sus tres regresiones ya pasan. Esto no certifica el despliegue: las comprobaciones HTTP, PostgreSQL y Android reales se registran por separado.
+Revisión de código del 4 de noviembre de 2026 sobre `phase-3/comercial-demo`, basada en `f9b532b75c1ffce668571dc7db0ed20b5a52c36f`. **No se identificó una vulnerabilidad explotable de alta confianza pendiente en los flujos examinados.** Se encontró y corrigió un defecto de integridad del costo histórico antes de aplicar la migración; sus tres regresiones ya pasan. La revisión no equivale a una certificación de seguridad. La evidencia operativa posterior de `phase3-ef3d64616313`, commit `ef3d64616313b3a5f2184f37365dc751da07af29`, se incorpora abajo; la entrega real en Android sigue pendiente.
 
 ## Alcance y criterio
 
 Se revisaron los cambios de catálogo/inventario, comandos comerciales, acceso privado, proxy Next.js, demo, PDF, BCV y push. Se consultaron `security-best-practices` —referencias Next.js, React y Express/Node— y la skill local `security-review` de Sentry fijada en [skills.md](skills.md), además de la guía de integridad propia. Se trazaron entradas de navegador hasta consultas, documentos y salidas externas. La exclusión genérica de Sentry sobre código autenticado no se aplicó: integridad de operaciones y referencias cruzadas forman parte del encargo.
 
-El modelo actual es un solo negocio con operadores internos autorizados, sin acceso de clientes ni separación por empresas. No se presume una jerarquía de permisos que no está implementada. Las operaciones no pueden convertir visitantes de la demo en operadores. Esta revisión no leyó secretos, abrió servicios, modificó infraestructura ni envió mensajes o notificaciones reales.
+El modelo actual es un solo negocio con operadores internos autorizados, sin acceso de clientes ni separación por empresas. No se presume una jerarquía de permisos que no está implementada. Las operaciones no pueden convertir visitantes de la demo en operadores. La revisión estática no leyó secretos, abrió servicios ni modificó infraestructura; el despliegue autorizado y sus pruebas posteriores se distinguen expresamente de ese examen. No se enviaron mensajes ni notificaciones reales.
 
 ## Hallazgo corregido
 
@@ -42,16 +42,26 @@ El modelo actual es un solo negocio con operadores internos autorizados, sin acc
 - `npx vitest run tests/unit/bcv.test.ts tests/unit/push.test.ts`: **40/40 aprobados**; orígenes, vigencia, errores, redondeo, SSRF, configuración, deduplicación de intento y transporte simulado. No acredita recepción física de push.
 - `npx vitest run tests/unit/push-lifecycle-security.test.ts tests/unit/cost-replay-regressions.test.ts`: **6/6 aprobados** a las 19:11 ART. PG y `web-push` están simulados. Sin VAPID no existe consulta periódica; con VAPID válido y ninguna tablet activa pasan tres ciclos sin llamada al proveedor; una URL de metadata se rechaza antes de transacción o envío.
 - `npx tsc --noEmit -p tsconfig.check.json`: aprobado nuevamente después de agregar las tres pruebas de lifecycle. Este comando no sustituye el typecheck propio de la interfaz ni el build final.
+- `tests/unit/staging-runtime-security.test.ts`: **9/9 aprobados**, con lectura de archivos y lanzamiento de procesos simulados. Comprueban ausencia de configuración, pareja válida, configuración parcial/mixta, rutas y tamaños inválidos, pareja incorrecta y aislamiento de web/migrador. No usan los secretos de staging.
 - `npm audit --json` contra `https://registry.npmjs.org/`: **0 vulnerabilidades reportadas**, 692 dependencias, a las 19:06 ART. Resultado íntegro local: `work/phase3/npm-audit-security.json` fuera del repositorio. Lockfile examinado: SHA-256 `117706b8ad1c55399916070770adc8c7f59c63eb6ad18acd9e97426bee6da0d7`.
 
 Durante una instalación anterior el resumen mostró 2 avisos bajos y 4 moderados; ese resultado no se conservó con nombres/advisories. Las últimas instalaciones y este JSON indicaron cero. No hay evidencia suficiente para atribuir la diferencia a una causa concreta. No se ejecutó `npm audit fix`; cero avisos no significa ausencia de vulnerabilidades desconocidas.
 
-## Condiciones pendientes de comprobar en el entorno final
+## Evidencia posterior de integración y staging
 
-1. Repetir rechazo anónimo de GET/POST/PATCH/DELETE privados y PDF, y comprobar `Cache-Control`/cookies/headers sobre la URL publicada. La demo pública debe seguir sin llamadas a datos privados.
-2. Ejecutar migración desde fase 2 y desde base vacía con rol real de aplicación; acreditar persistencia, restricciones SQL, reversas, idempotencia y concurrencia. No se da por probado con mocks.
-3. Si se configura push: VAPID externo a Git y solo en API; confirmar cero dispositivos activos antes de habilitar el temporizador. Cualquier salida de red necesaria debe ser exclusiva de Manzanas Maracay, conservar API/PG sin puertos públicos y no alterar redes compartidas. Esta revisión no hizo ese cambio ni declara el estado remoto.
-4. El propietario eligió una **tablet Android corporativa con WhatsApp**. Falta el opt-in explícito en ese navegador y la prueba real de permiso, entrega, revocación y apertura autenticada. No se enviaron avisos de prueba a clientes. WhatsApp sigue siendo una acción manual revisada por el operador.
-5. Mantener VES deshabilitado mientras no haya fuente oficial verificada e incorporación confiable de la tasa. Ver [bcv.md](bcv.md). La selección de una tablet no cambia esta condición.
+La batería local final aprobó typecheck/build, **90 unitarias y 53 E2E**. Se ensayaron las once migraciones desde base vacía y desde el código exacto de Fase 2, conservando las 16 tablas históricas examinadas y los seis hashes previos; los resultados concretos están en [verificacion-migraciones-fase3.json](verificacion-migraciones-fase3.json). Las pruebas PostgreSQL incluyen restricciones, compensaciones, idempotencia y concurrencia. Esta cobertura corresponde a los casos ejecutados, no a todas las secuencias posibles de uso.
 
-Los puntos pendientes son comprobaciones de entrega y capacidades todavía no verificadas; no se presentan como vulnerabilidades demostradas. Si cambia código, lockfile o configuración, revisar el cambio y actualizar la evidencia correspondiente antes de afirmar el resultado final.
+La release completa `phase3-ef3d64616313` está desplegada y saludable. La prueba de navegador y el smoke comercial publicado aprobaron acceso interno, **ocho rechazos anónimos**, venta y abono DEMO idempotentes, PDF con logo, compensaciones auditadas, restitución de stock y revocación de sesión al salir. El caso USD vendió 40,00 con costo histórico 25,0000, abonó 10,00 y verificó saldo 30,00; tras las compensaciones, deuda cero y costo de stock restaurado a 25,0000. Son datos sintéticos del smoke, no operaciones comerciales reales. La demo pública permanece separada de los datos operativos. Véanse los resultados públicos en [staging.md](staging.md) y [entrega-fase-3.md](entrega-fase-3.md).
+
+VAPID está configurado mediante archivos externos montados únicamente en API. La nueva red `manzanas-maracay-staging_push_egress` pertenece exclusivamente a API; se conservan sus redes internas, API/PG no publican puertos y no se cambiaron Caddy, DNS ni redes compartidas. Se comprobó **cero dispositivos activos** y no se crearon suscripciones ni se enviaron notificaciones. Tener claves y salida de red disponibles no acredita transporte o recepción reales.
+
+El respaldo posterior al smoke se restauró en recursos aislados propios el **5 de noviembre de 2026 a las 00:50:48 UTC** y se retiraron los recursos temporales. La [evidencia consolidada](verificacion-staging-fase3.json) registra también la auditoría final de infraestructura a las 00:55:37 UTC, con diez contenedores ajenos conservados y un reinicio repetitivo preexistente cuya salud no se da por acreditada. La copia segura fuera del VPS sigue pendiente. Este resultado acredita el ensayo efectuado, no disponibilidad de una copia externa.
+
+## Límites que permanecen
+
+1. El propietario eligió una **tablet Android corporativa con WhatsApp**. Falta el opt-in explícito en ese navegador y la prueba real de permiso, entrega, revocación y apertura autenticada; también confirmar que la acción manual de WhatsApp utiliza el perfil corporativo. No se enviaron avisos de prueba a clientes.
+2. BCV sigue no disponible en el smoke autenticado. Mantener VES bloqueado mientras no haya fuente oficial verificada e incorporación confiable de la tasa; USD continúa operativo. Ver [bcv.md](bcv.md).
+3. Antes de considerar producción, falta copia externa segura del respaldo, revisión fiscal y validación en dispositivos reales. El despliegue verificado es staging.
+4. La revisión estática, los tests y los ocho rechazos del smoke no prueban exhaustivamente todas las combinaciones de método/ruta, los navegadores ni todos los historiales de negocio. Si cambia código, lockfile o configuración, revisar ese cambio y actualizar su evidencia.
+
+Los pendientes describen capacidades o verificaciones aún no completadas; no se presentan como vulnerabilidades demostradas. El resultado de `npm audit` conserva su fecha y lockfile originales y no se convierte en un nuevo escaneo por haber desplegado.

@@ -6,6 +6,8 @@ El 4 de noviembre de 2026 se consultaron exclusivamente las fuentes oficiales [w
 
 No se pudo verificar valor, HTML ni vigencia de una publicación oficial actual. Tampoco se identificó una API oficial accesible y documentada. Por ello no se implementa un scraper basado en selectores supuestos y no se presenta una tasa de prueba como real. La actualización automática permanece sin configurar. Los resultados describen la observación de este entorno y momento; no afirman que el sitio oficial esté permanentemente caído.
 
+En la release desplegada `phase3-ef3d64616313` (commit `ef3d64616313b3a5f2184f37365dc751da07af29`), el [smoke autenticado](verificacion-staging-fase3.json) confirmó BCV no disponible. **Los cobros VES siguen bloqueados; las operaciones USD están habilitadas.** La nueva salida de red de API para push no activa un recolector BCV ni verifica una tasa por sí sola. No se incorporó una tasa real o sintética en staging para sortear este bloqueo.
+
 ## Comportamiento implementado
 
 `BcvService` implementa el contrato existente `OfficialRateProvider`, leyendo exclusivamente la tabla privada e inmutable `bcv_rates`. `getCurrent(at)` devuelve el registro y su identidad histórica, o `null`; no acepta un valor de tasa enviado por el navegador. La consulta usa el instante del cobro suministrado por el servicio de negocio, nunca la zona horaria del navegador.
@@ -25,4 +27,6 @@ Requiere volver a comprobar conexión TLS, fuente oficial y semántica de fecha 
 
 ## Evidencia y límites
 
-`tests/unit/bcv.test.ts` contiene 18 casos focalizados de metadatos, ambigüedad, origen, valor, fechas, cambio de día Caracas, caída de caché y redondeo VES. Se ejecutaron satisfactoriamente durante la implementación. Los fixtures jamás se cargan mediante semillas ni endpoints. Las pruebas integradas de pagos y la entrega final deben acreditar además la persistencia de deuda y tasa histórica; una prueba unitaria no sustituye la verificación de una tasa BCV real.
+`tests/unit/bcv.test.ts` contiene 18 casos focalizados de metadatos, ambigüedad, origen, valor, fechas, cambio de día Caracas, caída de caché y redondeo VES. Se ejecutaron satisfactoriamente durante la implementación. Los fixtures jamás se cargan mediante semillas ni endpoints. El E2E comercial local acreditó tasa histórica y deuda USD estable al introducir una tasa sintética posterior, dentro de su base aislada de pruebas; la batería integrada aprobó 90 unitarias y 53 E2E.
+
+El smoke publicado realizó una venta y un abono DEMO en USD, verificó idempotencia y comprobantes, y compensó las operaciones conservando auditoría y stock. Confirmó el estado BCV no disponible; no efectuó un cobro VES con tasa oficial. Los resultados están separados de la investigación de la fuente y se registran en [entrega-fase-3.md](entrega-fase-3.md) y [staging.md](staging.md). Ninguna de esas pruebas sustituye la verificación de una publicación BCV real.

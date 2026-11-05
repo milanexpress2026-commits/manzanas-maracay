@@ -1,0 +1,279 @@
+{
+  "reportedAt": "2026-11-05T01:04:23.726067+00:00",
+  "environment": "staging",
+  "origin": "https://manzanas.ganamosclub.net",
+  "release": "phase3-ef3d64616313",
+  "codeCommit": "ef3d64616313b3a5f2184f37365dc751da07af29",
+  "releaseHealthyAt": "2026-11-05T00:39:12.487397+00:00",
+  "finalInfrastructureAuditAt": "2026-11-05T00:55:37.473059+00:00",
+  "migration": {
+    "beforeCount": 6,
+    "afterCount": 11,
+    "previousHashesPreserved": true,
+    "previousTablesCounted": 14,
+    "countsPreservedExceptOneExpectedCatalogAuditEvent": true,
+    "physicalStockAndMovementHistoryPreserved": true,
+    "priorAuditHistoryPreserved": true,
+    "integrityBeforeStartup": {
+      "active_devices": 0,
+      "unknown_available_costs": 0,
+      "empty_nonzero_costs": 0,
+      "cost_projection_errors": 0,
+      "unvalidated_constraints": 0
+    }
+  },
+  "infrastructure": {
+    "ownPostgresNotRecreatedOrRestarted": true,
+    "otherContainerCount": 10,
+    "otherIdentitiesImagesNetworksPortsUnchanged": true,
+    "stableOtherStartTimesRunningAndHealthUnchanged": true,
+    "preExistingRestartingContainers": 1,
+    "preExistingRestartingContainersLimit": "Identity/image/network/ports verified; pre-existing restart loops do not establish healthy services.",
+    "sharedDnsProxyFirewallNotModified": true,
+    "apiOnlyOwnPushNetworkEnabled": true,
+    "pushDeviceSubscriptionsCreated": 0,
+    "pushNotificationsSent": 0
+  },
+  "beforePublicHostChecks": {
+    "verifiedAt": "2026-11-05T00:33:02.287Z",
+    "rounds": [
+      {
+        "attempt": 1,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 2,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 3,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 4,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 5,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      }
+    ]
+  },
+  "afterPublicHostChecks": {
+    "verifiedAt": "2026-11-05T00:41:29.660Z",
+    "rounds": [
+      {
+        "attempt": 1,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 2,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 3,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 4,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "attempt": 5,
+        "results": [
+          {
+            "name": "Manzanas",
+            "status": 200
+          },
+          {
+            "name": "Socios",
+            "status": 302
+          },
+          {
+            "name": "Pedal",
+            "status": 200
+          }
+        ]
+      }
+    ]
+  },
+  "browserReport": "verificacion-fase3-browser.json",
+  "liveCommerce": {
+    "version": "phase3-ef3d64616313",
+    "passed": true,
+    "checks": {
+      "stagingAuthenticated": true,
+      "bcvUnavailable": true,
+      "pushUnsubscribed": true,
+      "demoReceipt": true,
+      "saleIdempotency": true,
+      "paymentIdempotency": true,
+      "salePdfLogo": true,
+      "paymentPdfLogo": true,
+      "auditedCompensations": true,
+      "stockRestored": true,
+      "logoutRevoked": true
+    },
+    "counts": {
+      "anonymousDenials": 8,
+      "activePushDevices": 0,
+      "salePdfBytes": 2105336,
+      "paymentPdfBytes": 2105078,
+      "closedDemoBoxes": 1,
+      "demoSales": 1,
+      "demoPayments": 1,
+      "stockMovements": 3,
+      "casesPassed": 4
+    },
+    "demoUsd": {
+      "sale": "40.00",
+      "historicalCost": "25.0000",
+      "payment": "10.00",
+      "balanceAfterPayment": "30.00",
+      "finalDebt": "0.00",
+      "remainingStockCost": "25.0000"
+    }
+  },
+  "retainedSyntheticFixture": "One clearly marked DEMO QA box at USD 25 historical cost; sale USD 40 cancelled and payment USD 10 reversed through audit events; final debt USD 0. No customer phone, WhatsApp message or push subscription.",
+  "backups": {
+    "beforeMigration": {
+      "sha256": "1f9c3ddd3da983d6f7a8c5770e3fd6061e630900130e259f216f4c583d0312fd",
+      "writersStopped": true,
+      "isolatedRestoreVerified": true
+    },
+    "afterCommerceSmoke": {
+      "release": "phase3-ef3d64616313",
+      "verifiedAt": "2026-11-05T00:50:48.056847+00:00",
+      "sha256": "348febeaa23867d6b1a5b440fd19fc2aa872b61c57d224220a5341b93e25aecf",
+      "isolatedRestoreVerified": true,
+      "temporaryResourcesCleaned": true,
+      "externalCopyAvailable": false
+    },
+    "externalCopyAvailable": false
+  },
+  "remainingExternalChecks": [
+    "Android tablet opt-in and real push delivery",
+    "Corporate WhatsApp application/profile",
+    "Verified official BCV rate before enabling VES",
+    "Secure off-VPS backup copy",
+    "Fiscal and outstanding business configuration validation"
+  ],
+  "productionReady": false
+}
