@@ -235,8 +235,7 @@ export function CatalogTemplates({
           ) : null}
         </div>
         <p className={styles.help}>
-          {template.note} La plantilla orienta el empaque; puedes ajustar sus capacidades sin
-          renombrar la fruta.
+          {template.note} Puedes ajustar las presentaciones antes de guardar.
         </p>
         {template.requiresCaliber ? (
           <fieldset className={styles.choices}>

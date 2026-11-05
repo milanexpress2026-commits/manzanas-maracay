@@ -348,6 +348,8 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
   await page.getByLabel('Fruta, variedad y calibre').selectOption(config.id);
   await page.getByLabel('Cajas cerradas recibidas').fill('1');
   await page.getByLabel('Costo por caja (USD)').fill('25');
+  await page.getByLabel('Blíster por caja', { exact: true }).fill('4');
+  await page.getByLabel('Preparación de media caja', { exact: true }).selectOption('counted');
   await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
   await page.getByLabel('Promocional divisa', { exact: true }).first().fill('42');
   const receiptKeys: string[] = [];
@@ -368,6 +370,12 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
     return route.continue();
   });
   await expect(page.getByLabel('Fecha y hora de recepción')).not.toHaveValue('');
+  await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'Revisa y confirma el empaque pendiente',
+  );
+  await page.getByRole('checkbox', { name: /Verifiqué este empaque/ }).check();
   await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   const received = page.waitForRequest(

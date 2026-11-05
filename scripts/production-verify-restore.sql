@@ -82,26 +82,26 @@ BEGIN
       OR EXISTS(SELECT 1 FROM pg_namespace WHERE nspname NOT LIKE 'pg_%' AND nspname<>'information_schema'
         AND has_schema_privilege('mm_prod_rates',oid,'CREATE,USAGE WITH GRANT OPTION'))
       OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-        WHERE n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
-          AND c.relkind='S' AND has_sequence_privilege('mm_prod_rates',c.oid,'USAGE,SELECT,UPDATE'))
+        WHERE CASE WHEN c.relkind='S' AND n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+          THEN has_sequence_privilege('mm_prod_rates',c.oid,'USAGE,SELECT,UPDATE') ELSE false END)
       OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         CROSS JOIN (VALUES('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),('REFERENCES'),('TRIGGER')) p(priv)
-        WHERE n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
-          AND c.relkind IN('r','p','v','m','f') AND has_table_privilege('mm_prod_rates',c.oid,p.priv)
+        WHERE CASE WHEN c.relkind IN('r','p','v','m','f') AND n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+          THEN has_table_privilege('mm_prod_rates',c.oid,p.priv) ELSE false END
           AND NOT(n.nspname='public' AND ((c.relname='runtime_environment' AND p.priv='SELECT')
             OR(c.relname IN('bcv_rates','usdt_rates') AND p.priv IN('SELECT','INSERT')))))
       OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         CROSS JOIN (VALUES('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),('REFERENCES'),('TRIGGER')) p(priv)
-        WHERE n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
-          AND c.relkind IN('r','p','v','m','f') AND has_table_privilege('mm_prod_rates',c.oid,p.priv||' WITH GRANT OPTION'))
+        WHERE CASE WHEN c.relkind IN('r','p','v','m','f') AND n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+          THEN has_table_privilege('mm_prod_rates',c.oid,p.priv||' WITH GRANT OPTION') ELSE false END)
       OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         CROSS JOIN (VALUES('SELECT'),('INSERT'),('UPDATE'),('REFERENCES')) p(priv)
-        WHERE n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
-          AND c.relkind IN('r','p','v','m','f') AND (
+        WHERE CASE WHEN c.relkind IN('r','p','v','m','f') AND n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+          THEN (
             has_any_column_privilege('mm_prod_rates',c.oid,p.priv||' WITH GRANT OPTION') OR
             (has_any_column_privilege('mm_prod_rates',c.oid,p.priv) AND NOT(n.nspname='public' AND (
               (c.relname='runtime_environment' AND p.priv='SELECT') OR
-              (c.relname IN('bcv_rates','usdt_rates') AND p.priv IN('SELECT','INSERT'))))))) THEN
+              (c.relname IN('bcv_rates','usdt_rates') AND p.priv IN('SELECT','INSERT')))))) ELSE false END) THEN
       RAISE EXCEPTION 'Collector has unexpected effective privileges';
     END IF;
     -- A role exists in every isolated restore, including the 13-migration backup

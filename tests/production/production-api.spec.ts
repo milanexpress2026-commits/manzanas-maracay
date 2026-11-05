@@ -175,6 +175,30 @@ test.afterEach(async ({ request }) => {
 
 test('binding inmutable, dueño sin superusuario, permisos mínimos y rechazo SQL de DEMO', async () => {
   await database('owner', async (client) => {
+    // Execute the exact type-sensitive guards from the restore verifier against
+    // pg_class, including TOAST tables and indexes. WHERE predicate ordering
+    // cannot protect has_sequence_privilege from receiving a non-sequence OID.
+    const verifier = await fs.readFile(
+      path.resolve('scripts/production-verify-restore.sql'),
+      'utf8',
+    );
+    const checks = [...verifier.matchAll(/CASE WHEN c\.relkind[\s\S]*?ELSE false END/g)].map(
+      (match) => match[0],
+    );
+    expect(checks).toHaveLength(4);
+    const kinds = (
+      await client.query("select distinct relkind from pg_class where relkind in ('r','i','S','t')")
+    ).rows.map((row) => row.relkind);
+    expect(kinds.sort()).toEqual(['S', 'i', 'r', 't']);
+    for (const expression of checks) {
+      const privileges = expression.includes('has_any_column_privilege')
+        ? "('SELECT'),('INSERT'),('UPDATE'),('REFERENCES')"
+        : "('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),('REFERENCES'),('TRIGGER')";
+      const result = await client.query(
+        `select count(*)::int n from pg_class c join pg_namespace n on n.oid=c.relnamespace cross join (values ${privileges}) p(priv) where ${expression.replaceAll("'mm_prod_rates'", 'current_user')}`,
+      );
+      expect(Number.isInteger(result.rows[0].n)).toBe(true);
+    }
     const before = (await client.query('select count(*)::int as count from fruits')).rows[0].count;
     const seedPool = new Pool({ connectionString: (await state()).ownerUrl, max: 1 });
     try {
