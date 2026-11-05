@@ -6,8 +6,8 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { Pool } from 'pg';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq, and, asc, sql } from 'drizzle-orm';
+import { drizzle, type NodePgTransaction } from 'drizzle-orm/node-postgres';
+import { eq, and, asc, sql, type ExtractTablesWithRelations } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import * as schema from '../../../packages/database/src/schema';
 import {
@@ -19,10 +19,23 @@ import {
   updatePackingSchema,
   updateVarietySchema,
   confirmedPresentationsReady,
+  catalogPreparationInputSchema,
+  catalogPreparationSchema,
+  catalogConfigurationBatchSchema,
+  catalogNameKey,
+  previewCatalogPreparation,
+  emptyCatalogPreparationCounts,
+  type Catalog,
+  type CatalogPreparedConfiguration,
+  type CatalogPreparationResult,
 } from '../../../packages/domain/src/index';
 import { z } from 'zod';
 import { assertBusinessWritesReady, operationsReady } from './production-state';
 import { authConfig } from './auth/config';
+type CatalogTransaction = NodePgTransaction<
+  typeof schema,
+  ExtractTablesWithRelations<typeof schema>
+>;
 
 @Injectable()
 export class CatalogService implements OnModuleDestroy {
@@ -143,6 +156,94 @@ export class CatalogService implements OnModuleDestroy {
       { isolationLevel: 'repeatable read', accessMode: 'read only' },
     );
   }
+  async preparationPreview(body: unknown) {
+    const data = catalogPreparationInputSchema.parse(body);
+    return previewCatalogPreparation(data, (await this.read()) as Catalog);
+  }
+  private async ensureConfiguration(
+    tx: CatalogTransaction,
+    data: z.infer<typeof configurationSchema>,
+  ): Promise<CatalogPreparedConfiguration> {
+    const [fruit] = await tx
+      .select({ id: schema.fruits.id })
+      .from(schema.fruits)
+      .where(eq(schema.fruits.id, data.fruitId));
+    const [variety] = data.varietyId
+      ? await tx
+          .select({ id: schema.varieties.id })
+          .from(schema.varieties)
+          .where(
+            and(
+              eq(schema.varieties.id, data.varietyId),
+              eq(schema.varieties.fruitId, data.fruitId),
+            ),
+          )
+      : [true];
+    const [caliber] = data.caliberId
+      ? await tx
+          .select({ id: schema.calibers.id })
+          .from(schema.calibers)
+          .where(
+            and(eq(schema.calibers.id, data.caliberId), eq(schema.calibers.fruitId, data.fruitId)),
+          )
+      : [true];
+    if (!fruit || !variety || !caliber)
+      throw new BadRequestException(
+        'La fruta, variedad y calibre deben corresponder a la combinación revisada.',
+      );
+    const [inserted] = await tx
+      .insert(schema.variants)
+      .values({
+        fruitId: data.fruitId,
+        varietyId: data.varietyId,
+        caliberId: data.caliberId,
+        commercialLine: data.commercialLine,
+      })
+      .onConflictDoNothing()
+      .returning();
+    const [existing] = inserted
+      ? [inserted]
+      : await tx
+          .select()
+          .from(schema.variants)
+          .where(
+            and(
+              eq(schema.variants.fruitId, data.fruitId),
+              sql`${schema.variants.varietyId} is not distinct from ${data.varietyId}::uuid`,
+              sql`${schema.variants.caliberId} is not distinct from ${data.caliberId}::uuid`,
+              eq(schema.variants.commercialLine, data.commercialLine),
+            ),
+          );
+    if (!existing) throw new ConflictException('Cambió la combinación. Actualiza el catálogo.');
+    const [packing] = await tx
+      .insert(schema.packingRules)
+      .values({
+        variantId: existing.id,
+        blistersPerBox: data.blistersPerBox,
+        packingModel: data.packingModel,
+        halfPreparation: data.halfPreparation,
+        allowedPresentations: data.allowedPresentations,
+        boxWeightKg: data.boxWeightKg,
+        confirmationStatus: 'pending',
+        notes: data.notes,
+      })
+      .onConflictDoNothing()
+      .returning();
+    const [rule] = packing
+      ? [packing]
+      : await tx
+          .select()
+          .from(schema.packingRules)
+          .where(eq(schema.packingRules.variantId, existing.id));
+    if (!rule) throw new ConflictException('Cambió el empaque. Actualiza el catálogo.');
+    // Reusing a combination never changes its name, version, prices or confirmed packaging.
+    return {
+      id: rule.id,
+      variantId: existing.id,
+      created: !!packing,
+      confirmationStatus: rule.confirmationStatus as 'pending' | 'confirmed',
+    };
+  }
   async mutate(kind: string, body: unknown, key: string | undefined, id?: string, actor?: string) {
     assertBusinessWritesReady();
     if (!actor || !z.uuid().safeParse(actor).success)
@@ -150,19 +251,23 @@ export class CatalogService implements OnModuleDestroy {
     if (!key || !z.uuid().safeParse(key).success)
       throw new BadRequestException('Falta una clave válida para guardar sin duplicados.');
     const parsed =
-      kind === 'calibers-batch'
-        ? caliberBatchSchema.parse(body)
-        : kind === 'update-variety'
-          ? updateVarietySchema.parse(body)
-          : kind === 'fruits'
-            ? fruitSchema.parse(body)
-            : kind === 'varieties'
-              ? varietySchema.parse(body)
-              : kind === 'calibers'
-                ? caliberSchema.parse(body)
-                : kind === 'configurations'
-                  ? configurationSchema.parse(body)
-                  : updatePackingSchema.parse(body);
+      kind === 'preparation'
+        ? catalogPreparationSchema.parse(body)
+        : kind === 'configurations-batch'
+          ? catalogConfigurationBatchSchema.parse(body)
+          : kind === 'calibers-batch'
+            ? caliberBatchSchema.parse(body)
+            : kind === 'update-variety'
+              ? updateVarietySchema.parse(body)
+              : kind === 'fruits'
+                ? fruitSchema.parse(body)
+                : kind === 'varieties'
+                  ? varietySchema.parse(body)
+                  : kind === 'calibers'
+                    ? caliberSchema.parse(body)
+                    : kind === 'configurations'
+                      ? configurationSchema.parse(body)
+                      : updatePackingSchema.parse(body);
     if (id && !z.uuid().safeParse(id).success)
       throw new BadRequestException('Identificador inválido.');
     if (
@@ -187,9 +292,117 @@ export class CatalogService implements OnModuleDestroy {
           throw new ConflictException('Esta solicitud ya se usó con otros datos.');
         return receipt.response;
       }
+      // Catalog commands share a short lock; unique indexes additionally protect
+      // external concurrent writers. Always acquire this after the command key.
+      await tx.execute(sql`select pg_advisory_xact_lock(68493004)`);
       let result: Record<string, unknown>,
         before: unknown = null;
-      if (kind === 'calibers-batch') {
+      if (kind === 'preparation') {
+        const data = catalogPreparationSchema.parse(parsed);
+        const response: CatalogPreparationResult = {
+          id: key,
+          created: emptyCatalogPreparationCounts(),
+          reused: emptyCatalogPreparationCounts(),
+          fruits: [],
+        };
+        for (const fruit of [...data.fruits].sort((a, b) =>
+          catalogNameKey(a.name).localeCompare(catalogNameKey(b.name)),
+        )) {
+          const [inserted] = await tx
+            .insert(schema.fruits)
+            .values({ name: fruit.name })
+            .onConflictDoNothing()
+            .returning();
+          const [existing] = inserted
+            ? [inserted]
+            : await tx
+                .select()
+                .from(schema.fruits)
+                .where(sql`lower(btrim(${schema.fruits.name}))=lower(btrim(${fruit.name}))`);
+          if (!existing) throw new ConflictException('Cambió el catálogo. Vuelve a intentar.');
+          (inserted ? response.created : response.reused).fruits++;
+          const createdVarieties = fruit.varieties.length
+            ? await tx
+                .insert(schema.varieties)
+                .values(fruit.varieties.map((name) => ({ fruitId: existing.id, name })))
+                .onConflictDoNothing()
+                .returning()
+            : [];
+          const createdCalibers = fruit.calibers.length
+            ? await tx
+                .insert(schema.calibers)
+                .values(fruit.calibers.map((label) => ({ fruitId: existing.id, label })))
+                .onConflictDoNothing()
+                .returning()
+            : [];
+          const varieties = (
+            await tx
+              .select()
+              .from(schema.varieties)
+              .where(eq(schema.varieties.fruitId, existing.id))
+          ).filter((row) =>
+            fruit.varieties.some((name) => catalogNameKey(name) === catalogNameKey(row.name)),
+          );
+          const calibers = (
+            await tx.select().from(schema.calibers).where(eq(schema.calibers.fruitId, existing.id))
+          ).filter((row) =>
+            fruit.calibers.some((label) => catalogNameKey(label) === catalogNameKey(row.label)),
+          );
+          response.created.varieties += createdVarieties.length;
+          response.created.calibers += createdCalibers.length;
+          response.reused.varieties += varieties.length - createdVarieties.length;
+          response.reused.calibers += calibers.length - createdCalibers.length;
+          const configurations: CatalogPreparedConfiguration[] = [];
+          for (const draft of fruit.drafts) {
+            const rule = await this.ensureConfiguration(
+              tx,
+              configurationSchema.parse({
+                fruitId: existing.id,
+                varietyId: draft.varietyName
+                  ? varieties.find(
+                      (row) => catalogNameKey(row.name) === catalogNameKey(draft.varietyName!),
+                    )!.id
+                  : null,
+                caliberId: draft.caliberLabel
+                  ? calibers.find(
+                      (row) => catalogNameKey(row.label) === catalogNameKey(draft.caliberLabel!),
+                    )!.id
+                  : null,
+                commercialLine: draft.commercialLine,
+                blistersPerBox: draft.blistersPerBox,
+                packingModel: draft.packingModel,
+                halfPreparation: draft.halfPreparation,
+                allowedPresentations: draft.allowedPresentations,
+                boxWeightKg: draft.boxWeightKg,
+                confirmationStatus: 'pending',
+                notes: draft.notes,
+              }),
+            );
+            configurations.push(rule);
+            (rule.created ? response.created : response.reused).configurations++;
+          }
+          response.fruits.push({
+            id: existing.id,
+            name: existing.name,
+            varieties: varieties.map(({ id, name }) => ({ id, name })),
+            calibers: calibers.map(({ id, label }) => ({ id, label })),
+            configurations,
+          });
+        }
+        result = { ...response };
+      } else if (kind === 'configurations-batch') {
+        const data = catalogConfigurationBatchSchema.parse(parsed);
+        const configurations: CatalogPreparedConfiguration[] = [];
+        for (const row of data.configurations)
+          configurations.push(await this.ensureConfiguration(tx, row));
+        const createdCount = configurations.filter((row) => row.created).length;
+        result = {
+          id: key,
+          configurations,
+          createdCount,
+          reusedCount: configurations.length - createdCount,
+        };
+      } else if (kind === 'calibers-batch') {
         const data = caliberBatchSchema.parse(parsed);
         const [fruit] = await tx
           .select()

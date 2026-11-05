@@ -629,6 +629,57 @@ export class InventoryService implements OnModuleDestroy {
       ).rows[0];
       if (!warehouse) throw new NotFoundException('Falta el almacén inicial.');
       const demo = commandIsDemo(data.isDemo);
+      const confirmations = new Map(
+        data.lines
+          .filter((line) => line.packingConfirmation)
+          .map((line) => [line.configurationId, line.packingConfirmation!]),
+      );
+      if (confirmations.size) {
+        // The operator explicitly confirms the catalog for this receipt and future
+        // lots. Prior lot snapshots remain immutable. One transaction also covers
+        // failed costs/prices/stock and the idempotent response.
+        await client.query('select pg_advisory_xact_lock(68493004)');
+        for (const [configurationId, confirmation] of [...confirmations].sort(([a], [b]) =>
+          a.localeCompare(b),
+        )) {
+          const before = (
+            await client.query('select * from packing_rules where id=$1 for update', [
+              configurationId,
+            ])
+          ).rows[0];
+          if (!before)
+            throw new BadRequestException('El empaque ya no existe. Actualiza el catálogo.');
+          if (before.version !== confirmation.expectedVersion)
+            throw new ConflictException(
+              'Otra persona cambió este empaque. Actualiza y revisa la confirmación de la recepción.',
+            );
+          const after = (
+            await client.query(
+              `update packing_rules set packing_model=$2,half_preparation=$3,
+            allowed_presentations=$4,blisters_per_box=$5,box_weight_kg=$6,confirmation_status='confirmed',
+            version=version+1,updated_at=now() where id=$1 returning *`,
+              [
+                configurationId,
+                confirmation.packingModel,
+                confirmation.halfPreparation,
+                confirmation.allowedPresentations,
+                confirmation.blistersPerBox,
+                confirmation.boxWeightKg,
+              ],
+            )
+          ).rows[0];
+          await this.audit(
+            client,
+            'packing_rules',
+            configurationId,
+            'confirm_on_receipt',
+            before,
+            after,
+            actor,
+            key!,
+          );
+        }
+      }
       const purchaseId = (
         await client.query(
           `insert into purchases(supplier_id,reference,purchased_at,status,notes,is_demo) values($1,$2,$3,'received',$4,$5) returning id`,

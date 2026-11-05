@@ -121,26 +121,10 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   const configuration = catalog.configurations.find((c) => c.fruit === fruit)!;
   expect(configuration.confirmationStatus).toBe('pending');
   await page.goto('/recepciones?producto=' + configuration.id);
-  await expect(
-    page.getByText('Este producto tiene el empaque pendiente.', { exact: false }),
-  ).toBeVisible();
-  await expect(
-    page.getByLabel('Fruta, variedad y calibre').getByRole('option', { name: fruit, exact: false }),
-  ).toHaveCount(0);
-
-  await page.goto('/catalogo');
-  await page.getByRole('button', { name: 'Editar ' + fruit, exact: true }).click();
-  await page
-    .getByRole('checkbox', { name: 'Confirmo que este empaque y sus presentaciones son correctos' })
-    .check();
-  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  catalog = (await (await page.request.get('/api/catalog')).json()) as Catalog;
-  expect(catalog.configurations.find((c) => c.id === configuration.id)?.confirmationStatus).toBe(
-    'confirmed',
+  await expect(page.getByText('Confirmar el empaque pendiente', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Fruta, variedad y calibre', { exact: true })).toHaveValue(
+    configuration.id,
   );
-
-  await page.goto('/recepciones');
   await page.getByLabel('Proveedor', { exact: true }).selectOption({ label: supplier });
   await page.getByLabel('Referencia del documento').fill('QA ingreso UI ' + suffix);
   await page.getByLabel('Fruta, variedad y calibre').selectOption(configuration.id);
@@ -149,6 +133,7 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
   await page.getByLabel('Promocional divisa', { exact: true }).fill('40');
   await page.getByLabel('Regular · Bs. BCV', { exact: true }).fill('45');
+  await page.getByRole('checkbox', { name: /Verifiqué este empaque/ }).check();
   await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
   await page
     .getByRole('dialog')
@@ -157,6 +142,10 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await expect(
     page.getByRole('heading', { name: 'Mercancía recibida', exact: true }),
   ).toBeVisible();
+  catalog = (await (await page.request.get('/api/catalog')).json()) as Catalog;
+  expect(catalog.configurations.find((c) => c.id === configuration.id)?.confirmationStatus).toBe(
+    'confirmed',
+  );
   const inventory = await (await page.request.get('/api/inventory')).json();
   const lot = inventory.lots.find(
     (item: { configurationId: string; fruit: string }) => item.fruit === fruit,
@@ -190,7 +179,8 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await page.getByLabel('Cantidad', { exact: true }).fill('2');
   await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
   await expect(page.getByLabel('Total de la venta', { exact: true })).toHaveText('USD 80,00');
-  await page.getByLabel('Abono hoy (opcional) · USD', { exact: true }).fill('0');
+  await expect(page.getByRole('checkbox', { name: 'Registrar un abono ahora' })).not.toBeChecked();
+  await expect(page.locator('#sale-paid')).toHaveCount(0);
   await page.getByRole('button', { name: 'Revisar y registrar crédito', exact: true }).click();
   await page
     .getByRole('dialog')
@@ -207,7 +197,12 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await expect(page.getByRole('button', { name: 'Cobrar por WhatsApp' })).toBeDisabled();
   await page.getByRole('button', { name: 'Registrar abono', exact: true }).click();
   await page.getByLabel('Monto recibido · USD', { exact: true }).fill('30');
-  await expect(page.getByRole('option', { name: 'Bolívares · tasa del acuerdo' })).toBeDisabled();
+  await expect(
+    page.getByRole('option', { name: 'Bolívares a tasa BCV', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole('option', { name: 'Bolívares a tasa USDT compra', exact: true }),
+  ).toBeDisabled();
   await page.getByRole('button', { name: 'Revisar abono', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar abono', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

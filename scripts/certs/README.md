@@ -8,9 +8,11 @@ Fuente de la autoridad emisora: [cadena pública de Sectigo](https://www.sectigo
 
 El recolector comprueba la huella y añade únicamente este intermedio a las raíces estándar de Node para la petición a `https://www.bcv.org.ve/`. Conserva la verificación de hostname, firma, fechas y raíz. No desactiva TLS, no confía en el certificado hoja y no modifica la confianza global del sistema ni otras peticiones.
 
-## Contenedor de staging
+## Empaquetado V4 y staging anterior
 
-`.dockerignore` excluye los archivos PEM del contexto de imagen. El despliegue proporciona este certificado público como un montaje individual **de solo lectura**, desde el archivo de la release cuyo hash ya se verificó, hasta `/app/scripts/certs/sectigo-public-server-dv-r36.pem`. No se monta una carpeta de secretos ni se modifica la imagen publicada.
+V4 incluye en la imagen de herramientas únicamente este certificado público mediante una excepción exacta en `.dockerignore`. Los demás PEM y todas las claves privadas siguen excluidos. La huella DER se comprueba dentro del recolector antes de cada ejecución. Producción no necesita montar una carpeta ni un archivo del host para completar esta cadena.
+
+La release anterior de staging `hotfix-8612e8230bb5` excluía todos los PEM. En esa release el despliegue proporciona el certificado como un montaje individual **de solo lectura**, desde el archivo de la release cuyo hash ya se verificó, hasta `/app/scripts/certs/sectigo-public-server-dv-r36.pem`. Se conserva aquí el procedimiento para reproducir esa evidencia histórica; no se modifica la imagen publicada.
 
 La ejecución de `docker compose run` del recolector añade la opción siguiente, sustituyendo `RUTA_RELEASE_VERIFICADA` por la ruta absoluta de la release activa comprobada:
 

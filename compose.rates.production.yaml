@@ -1,0 +1,32 @@
+# Opt-in, separately scheduled collector. Never attach its credentials to the API.
+services:
+  rate-refresh:
+    image: manzanas-maracay-production-tools:${MM_RELEASE:?Release exacta}
+    profiles: [rates]
+    restart: 'no'
+    init: true
+    user: '1000:1000'
+    entrypoint: [node, --import, tsx, scripts/refresh-rates.ts]
+    environment:
+      MM_APP_ENV: production
+      MM_RATES_PASSWORD_FILE: /run/secrets/rates_password
+    secrets: [rates_password]
+    networks: [database, rates_egress]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:size=32m,mode=1777']
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 60
+    logging:
+      driver: json-file
+      options: {max-size: '1m', max-file: '2'}
+networks:
+  rates_egress:
+    internal: false
+    labels:
+      org.manzanas-maracay.scope: production-rates-egress
+secrets:
+  rates_password:
+    file: '${MM_PRODUCTION_SECRETS_DIR:?Secretos exclusivos de producción}/rates_password'

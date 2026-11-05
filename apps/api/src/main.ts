@@ -97,6 +97,23 @@ class CatalogController {
   @Get() read() {
     return this.catalog.read();
   }
+  @Post('preparation/preview') preparationPreview(@Body() body: unknown) {
+    return this.catalog.preparationPreview(body);
+  }
+  @Post('preparation') preparation(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.catalog.mutate('preparation', body, key, undefined, request.user.id);
+  }
+  @Post('configurations/batch') configurationsBatch(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.catalog.mutate('configurations-batch', body, key, undefined, request.user.id);
+  }
   @Post('fruits') fruit(
     @Req() request: AuthenticatedRequest,
     @Body() body: unknown,

@@ -6,14 +6,14 @@ test.beforeEach(async ({ page }) => {
   await loginPage(page);
 });
 
-test('escritorio y móvil: carga real, accesibilidad y capturas', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  fs.mkdirSync('docs/capturas', { recursive: true });
-  for (const viewport of [
-    { width: 1440, height: 1000 },
-    { width: 390, height: 844 },
-  ]) {
+for (const viewport of [
+  { width: 1440, height: 1000 },
+  { width: 390, height: 844 },
+]) {
+  test(`catálogo a ${viewport.width}px: carga real, accesibilidad y captura`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    fs.mkdirSync('docs/capturas', { recursive: true });
     await page.setViewportSize(viewport);
     await page.goto('/catalogo');
     await page.waitForLoadState('networkidle');
@@ -39,9 +39,9 @@ test('escritorio y móvil: carga real, accesibilidad y capturas', async ({ page 
       path: `docs/capturas/catalogo-${viewport.width === 1440 ? 'escritorio' : 'movil'}.png`,
       fullPage: true,
     });
-  }
-  expect(errors).toEqual([]);
-});
+    expect(errors).toEqual([]);
+  });
+}
 test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar', async ({
   page,
 }) => {
@@ -56,7 +56,9 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
   await page.getByLabel('Nombre de la fruta').fill(fruit);
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByText(fruit, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('tabpanel', { name: 'Frutas', exact: true }).getByText(fruit, { exact: true }),
+  ).toBeVisible();
   await page.getByRole('tab', { name: /Variedades/ }).click();
   await page.getByRole('button', { name: 'Crear variedad', exact: true }).click();
   await page
@@ -90,8 +92,8 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
     .getByLabel('Calibre', { exact: true })
     .selectOption({ label: '70/75' });
   await page.getByRole('button', { name: 'Continuar al empaque' }).click();
-  await page.getByLabel('Presentación de la caja').selectOption('blister');
-  await page.getByLabel('Blíster por caja').fill('6');
+  await page.getByRole('dialog').getByLabel('Presentación de la caja').selectOption('blister');
+  await page.getByRole('dialog').getByLabel('Blíster por caja').fill('6');
   await page.getByText('Más opciones', { exact: true }).click();
   await page.getByLabel('Notas del empaque').fill('Prueba aislada; conteo de fruta pendiente.');
   await page.screenshot({ path: 'docs/capturas/formulario-movil.png', fullPage: true });
@@ -102,8 +104,8 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload();
   await page.getByRole('button', { name: `Editar ${variety} calibre 70/75` }).click();
-  await expect(page.getByLabel('Blíster por caja')).toHaveValue('6');
-  await page.getByLabel('Blíster por caja').fill('7');
+  await expect(page.getByRole('dialog').getByLabel('Blíster por caja')).toHaveValue('6');
+  await page.getByRole('dialog').getByLabel('Blíster por caja').fill('7');
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload();

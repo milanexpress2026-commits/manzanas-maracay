@@ -68,9 +68,29 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
   test.setTimeout(120000);
   const supplier = await demoSupplier(page);
   const catalog = (await (await page.request.get('/api/catalog')).json()) as Catalog;
-  const configs = ['80', '180'].map((caliber) =>
+  const sourceConfigs = ['80', '180'].map((caliber) =>
     catalog.configurations.find((c) => c.variety === 'Gala' && c.caliber === caliber)!,
   );
+  // La confirmación pertenece a estas configuraciones QA; no cambia las DEMO históricas.
+  const configs: { id: string }[] = [];
+  for (const source of sourceConfigs) {
+    const response = await page.request.post('/api/catalog/configurations', {
+      headers: { Origin: 'http://127.0.0.1:3200', 'Idempotency-Key': randomUUID() },
+      data: {
+        fruitId: source.fruitId,
+        varietyId: source.varietyId,
+        caliberId: source.caliberId,
+        commercialLine: `DEMO operaciones UI ${randomUUID()}`,
+        packingModel: 'blister',
+        halfPreparation: 'pending',
+        blistersPerBox: null,
+        allowedPresentations: ['box', 'half_box', 'blister'],
+        confirmationStatus: 'pending',
+      },
+    });
+    expect(response.status(), await response.text()).toBe(201);
+    configs.push(await response.json());
+  }
   await page.goto('/recepciones');
   await page.getByLabel('Proveedor', { exact: true }).selectOption(supplier.id);
   await page.getByLabel('Referencia del documento').fill(`DEMO-${randomUUID()}`);
@@ -81,7 +101,20 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
     await line.getByLabel('Fruta, variedad y calibre').selectOption(configs[i].id);
     await line.getByLabel('Cajas cerradas recibidas').fill('1');
     await line.getByLabel('Costo por caja (USD)').fill('0,10');
-    await line.getByLabel('Blíster por caja en este lote').fill('4');
+    await expect(line.getByText('Confirmar el empaque pendiente', { exact: true })).toBeVisible();
+    await line.getByLabel('Blíster por caja', { exact: true }).fill('4');
+    await line.getByLabel('Preparación de media caja', { exact: true }).selectOption('counted');
+  }
+  await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'Revisa y confirma el empaque pendiente',
+  );
+  for (let i = 0; i < configs.length; i++) {
+    await page
+      .getByRole('region', { name: `Producto ${i + 1}`, exact: true })
+      .getByRole('checkbox', { name: /Verifiqué este empaque/ })
+      .check();
   }
   const commandKeys: string[] = [];
   let serverReceipt: ReceiptResult | undefined;

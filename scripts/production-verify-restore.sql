@@ -2,7 +2,7 @@
 BEGIN READ ONLY;
 SET LOCAL statement_timeout='120s';
 DO $$
-DECLARE required_table text; item record;
+DECLARE required_table text; item record; usdt_table oid; collector_configured boolean;
 BEGIN
   IF current_database()<>'manzanas_maracay_production' OR current_user<>'mm_prod_bootstrap'
     OR NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname=current_user AND rolsuper) THEN
@@ -67,6 +67,62 @@ BEGIN
       RAISE EXCEPTION 'Restored application can mutate administrative data';
     END IF;
   END LOOP;
+  -- V3/V4 rate schema is optional for restoration of older phase-4 backups.
+  usdt_table:=to_regclass('public.usdt_rates');
+  IF usdt_table IS NOT NULL THEN
+    IF NOT has_table_privilege('mm_prod_app',usdt_table,'SELECT')
+      OR has_table_privilege('mm_prod_app',usdt_table,'INSERT,UPDATE,DELETE,TRUNCATE,TRIGGER')
+    THEN RAISE EXCEPTION 'Application rate cache must remain read-only'; END IF;
+  END IF;
+  IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='mm_prod_rates') THEN
+    IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='mm_prod_rates'
+        AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls OR rolinherit OR rolconnlimit<>2))
+      OR EXISTS(SELECT 1 FROM pg_auth_members WHERE member='mm_prod_rates'::regrole OR roleid='mm_prod_rates'::regrole)
+      OR has_database_privilege('mm_prod_rates',current_database(),'CREATE,TEMPORARY,CONNECT WITH GRANT OPTION')
+      OR EXISTS(SELECT 1 FROM pg_namespace WHERE nspname NOT LIKE 'pg_%' AND nspname<>'information_schema'
+        AND has_schema_privilege('mm_prod_rates',oid,'CREATE,USAGE WITH GRANT OPTION'))
+      OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+        WHERE CASE WHEN c.relkind='S' AND n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+          THEN has_sequence_privilege('mm_prod_rates',c.oid,'USAGE,SELECT,UPDATE') ELSE false END)
+      OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+        CROSS JOIN (VALUES('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),('REFERENCES'),('TRIGGER')) p(priv)
+        WHERE CASE WHEN c.relkind IN('r','p','v','m','f') AND n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+          THEN has_table_privilege('mm_prod_rates',c.oid,p.priv) ELSE false END
+          AND NOT(n.nspname='public' AND ((c.relname='runtime_environment' AND p.priv='SELECT')
+            OR(c.relname IN('bcv_rates','usdt_rates') AND p.priv IN('SELECT','INSERT')))))
+      OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+        CROSS JOIN (VALUES('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),('REFERENCES'),('TRIGGER')) p(priv)
+        WHERE CASE WHEN c.relkind IN('r','p','v','m','f') AND n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+          THEN has_table_privilege('mm_prod_rates',c.oid,p.priv||' WITH GRANT OPTION') ELSE false END)
+      OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+        CROSS JOIN (VALUES('SELECT'),('INSERT'),('UPDATE'),('REFERENCES')) p(priv)
+        WHERE CASE WHEN c.relkind IN('r','p','v','m','f') AND n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'
+          THEN (
+            has_any_column_privilege('mm_prod_rates',c.oid,p.priv||' WITH GRANT OPTION') OR
+            (has_any_column_privilege('mm_prod_rates',c.oid,p.priv) AND NOT(n.nspname='public' AND (
+              (c.relname='runtime_environment' AND p.priv='SELECT') OR
+              (c.relname IN('bcv_rates','usdt_rates') AND p.priv IN('SELECT','INSERT')))))) ELSE false END) THEN
+      RAISE EXCEPTION 'Collector has unexpected effective privileges';
+    END IF;
+    -- A role exists in every isolated restore, including the 13-migration backup
+    -- from before rate collection existed. Require working cache permissions
+    -- only when the dump actually contains collector grants; never invent them.
+    collector_configured:=has_table_privilege('mm_prod_rates','public.runtime_environment','SELECT')
+      OR has_table_privilege('mm_prod_rates','public.bcv_rates','SELECT,INSERT');
+    IF usdt_table IS NOT NULL THEN
+      collector_configured:=collector_configured OR has_table_privilege('mm_prod_rates',usdt_table,'SELECT,INSERT');
+    END IF;
+    IF collector_configured THEN
+      IF usdt_table IS NULL OR NOT has_database_privilege('mm_prod_rates',current_database(),'CONNECT')
+        OR NOT has_schema_privilege('mm_prod_rates','public','USAGE')
+        OR NOT has_table_privilege('mm_prod_rates','public.runtime_environment','SELECT')
+        OR NOT has_table_privilege('mm_prod_rates','public.bcv_rates','SELECT')
+        OR NOT has_table_privilege('mm_prod_rates','public.bcv_rates','INSERT')
+        OR NOT has_table_privilege('mm_prod_rates',usdt_table,'SELECT')
+        OR NOT has_table_privilege('mm_prod_rates',usdt_table,'INSERT')
+      THEN RAISE EXCEPTION 'Restored collector cache permissions are incomplete'; END IF;
+    END IF;
+  END IF;
   FOREACH required_table IN ARRAY ARRAY['auth_sessions','auth_login_buckets'] LOOP
     IF NOT has_table_privilege('mm_prod_app','public.'||required_table,'INSERT')
       OR NOT has_table_privilege('mm_prod_app','public.'||required_table,'UPDATE')

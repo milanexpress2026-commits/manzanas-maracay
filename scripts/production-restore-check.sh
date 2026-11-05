@@ -94,11 +94,16 @@ set -o noclobber
 if ! docker exec -i "$container" psql -X -U mm_prod_bootstrap -d "$database" -v ON_ERROR_STOP=1 > "$logfile" 2>&1 <<'SQL'
 CREATE ROLE mm_prod_owner LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE ROLE mm_prod_app NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+-- Restore the collector ACL when present in a V4 dump; no live password/login.
+CREATE ROLE mm_prod_rates NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS CONNECTION LIMIT 2;
 ALTER DATABASE manzanas_maracay_production OWNER TO mm_prod_owner;
 ALTER SCHEMA public OWNER TO mm_prod_owner;
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
 REVOKE ALL ON DATABASE manzanas_maracay_production FROM PUBLIC;
 GRANT CONNECT ON DATABASE manzanas_maracay_production TO mm_prod_app;
+-- pg_dump without --create does not recover database-level CONNECT. This
+-- isolated role stays NOLOGIN; its table/schema ACL still comes from the dump.
+GRANT CONNECT ON DATABASE manzanas_maracay_production TO mm_prod_rates;
 SQL
 then fail 'No se prepararon roles aislados; revisar log privado.'; fi
 if ! docker exec -i "$container" pg_restore --username=mm_prod_owner --dbname="$database" \

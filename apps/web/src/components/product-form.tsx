@@ -9,6 +9,7 @@ import {
   fruitSchema,
   varietySchema,
   confirmedPresentationsReady,
+  suggestedBlistersPerBox,
   type Catalog,
   type Caliber,
   type Fruit,
@@ -49,12 +50,14 @@ export function ProductForm({
   onSaved,
   onBusyChange,
   returnToSale = false,
+  caliberMemory,
 }: {
   catalog: Catalog;
   onCancel: () => void;
   onSaved: (configurationId: string) => Promise<void>;
   onBusyChange: (busy: boolean) => void;
   returnToSale?: boolean;
+  caliberMemory?: { current: Partial<Record<CatalogFamily, string[]>> };
 }) {
   const [local, setLocal] = useState(catalog);
   const [step, setStep] = useState(1);
@@ -75,6 +78,8 @@ export function ProductForm({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [savedId, setSavedId] = useState('');
+  const localCaliberMemory = useRef<Partial<Record<CatalogFamily, string[]>>>({});
+  const rememberedCalibers = caliberMemory ?? localCaliberMemory;
   const keys = useRef(new Map<string, { json: string; key: string }>());
   const submitting = useRef(false);
   const stepTitle = useRef<HTMLHeadingElement>(null);
@@ -85,6 +90,14 @@ export function ProductForm({
   const variety = varieties.find((row) => row.id === varietyId);
   const caliber = calibers.find((row) => row.id === caliberId);
   const suggestions = caliberSuggestions[family];
+  const audioSuggestion =
+    model === 'blister'
+      ? suggestedBlistersPerBox(
+          currentFruit?.name ?? '',
+          variety?.name ?? null,
+          caliber?.label ?? null,
+        )
+      : null;
   const productName = [
     currentFruit?.name,
     variety?.name,
@@ -107,19 +120,44 @@ export function ProductForm({
   };
   function chooseFamily(next: CatalogFamily) {
     setFamily(next);
-    setChosenCalibers([...(caliberSuggestions[next] ?? [])]);
+    setChosenCalibers([...(rememberedCalibers.current[next] ?? caliberSuggestions[next] ?? [])]);
     setLine((current) =>
       next === 'bulk' ? 'Granel' : current === 'Granel' ? 'Estándar' : current,
     );
     setConfirmed(false);
   }
-  function chooseFruit(id: string, name?: string) {
-    setFruitId(id);
-    setVarietyId('');
+  function chooseCalibers(next: string[]) {
+    rememberedCalibers.current[family] = [...next];
+    setChosenCalibers(next);
+  }
+  function nextProduct(sameVariety: boolean) {
+    setSavedId('');
     setCaliberId('');
-    chooseFamily(
-      catalogFamilyFor(name ?? local.fruits.find((fruit) => fruit.id === id)?.name ?? ''),
+    setConfirmed(false);
+    setBlisters('');
+    setError('');
+    setNotice('');
+    setNotes('');
+    if (!sameVariety) {
+      setFruitId('');
+      setVarietyId('');
+      setModel('');
+      setHalf('pending');
+      setPresentations(['box']);
+      setWeight('');
+      setLine('Estándar');
+      setFamily('other');
+    }
+    move(1);
+  }
+  function chooseFruit(id: string, name?: string) {
+    const nextFamily = catalogFamilyFor(
+      name ?? local.fruits.find((fruit) => fruit.id === id)?.name ?? '',
     );
+    setFruitId(id);
+    setVarietyId(nextFamily === 'kiwi' ? 'none' : '');
+    setCaliberId(['kiwi', 'grape'].includes(nextFamily) ? 'none' : '');
+    chooseFamily(nextFamily);
     setNotice('');
     setError('');
   }
@@ -319,6 +357,14 @@ export function ProductForm({
             <Link href="/ventas/nueva">Volver a la venta</Link>
           </Button>
         ) : null}
+        <div className={styles.inlineActions}>
+          <Button type="button" variant="outline" onClick={() => nextProduct(true)}>
+            Agregar otro calibre o variedad
+          </Button>
+          <Button type="button" variant="outline" onClick={() => nextProduct(false)}>
+            Agregar otra fruta
+          </Button>
+        </div>
         <Button type="button" variant="ghost" onClick={onCancel}>
           Volver al catálogo
         </Button>
@@ -444,10 +490,10 @@ export function ProductForm({
                             type="checkbox"
                             checked={chosenCalibers.includes(label)}
                             onChange={(event) =>
-                              setChosenCalibers((current) =>
+                              chooseCalibers(
                                 event.target.checked
-                                  ? [...current, label]
-                                  : current.filter((value) => value !== label),
+                                  ? [...chosenCalibers, label]
+                                  : chosenCalibers.filter((value) => value !== label),
                               )
                             }
                           />
@@ -515,6 +561,12 @@ export function ProductForm({
               <>
                 <Field>
                   <FieldLabel htmlFor="product-blisters">Blíster por caja</FieldLabel>
+                  {audioSuggestion ? (
+                    <p className={styles.hint}>
+                      Cantidad sugerida según audio: {audioSuggestion}; verificar con la mercancía.
+                      Sigue pendiente hasta tu confirmación.
+                    </p>
+                  ) : null}
                   <Input
                     id="product-blisters"
                     type="number"
@@ -530,7 +582,7 @@ export function ProductForm({
                     }}
                   />
                   <FieldDescription>
-                    Escribe solo una cantidad conocida. El calibre no completa este dato.
+                    Escribe la cantidad verificada. La sugerencia no confirma el empaque.
                   </FieldDescription>
                 </Field>
                 <Field>

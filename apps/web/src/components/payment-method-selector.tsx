@@ -1,69 +1,86 @@
 'use client';
-import { paymentMethodOptions, type PaymentCurrency } from '@mm/domain';
-export type { PaymentCurrency } from '@mm/domain';
+import type { SettlementBasis } from '@mm/domain';
+import { ChevronDown } from 'lucide-react';
+import {
+  paymentChoices,
+  paymentChoiceDetails,
+  paymentChoiceUnavailable,
+  type PaymentChoice,
+} from '@/lib/sales-flow';
 import { Field, FieldDescription, FieldLabel } from './ui/field';
-import { Input } from './ui/input';
 import { NativeSelect } from './ui/native-select';
-
-export const defaultPaymentMethod = (currency: PaymentCurrency) =>
-  paymentMethodOptions.find((option) => option.currency === currency)?.id ?? '';
+import styles from './sales-flow.module.css';
 
 export function PaymentMethodSelector({
   id,
-  currency,
   value,
   onChange,
+  basis,
+  quotes,
+  mixed = false,
   label = 'Método de cobro',
 }: {
   id: string;
-  currency: PaymentCurrency;
-  value: string;
-  onChange: (value: string) => void;
+  value: PaymentChoice;
+  onChange: (value: PaymentChoice) => void;
+  basis: SettlementBasis | null;
+  quotes: { bcv: boolean; usdt: boolean };
+  mixed?: boolean;
   label?: string;
 }) {
-  const options = [
-    ...paymentMethodOptions
-      .filter((option) => option.currency === currency)
-      .map((option) => ({ value: option.id, label: option.label, enabled: true })),
-    { value: 'Transferencia', label: 'Transferencia bancaria · por confirmar', enabled: false },
-    { value: 'Pago móvil', label: 'Pago móvil · por confirmar', enabled: false },
-    { value: 'Punto de venta', label: 'Punto de venta · por confirmar', enabled: false },
-    { value: 'other', label: 'Otro… · por confirmar', enabled: false },
-  ];
-  const other = value.startsWith('Otro: ');
+  const options = paymentChoices.map((option) => ({
+    ...option,
+    reason: paymentChoiceUnavailable(option.id, basis, quotes, mixed),
+  }));
+  const selected = paymentChoiceDetails(value);
+  const issue = options.find((option) => option.id === value)?.reason;
   return (
-    <Field>
+    <Field className={styles.paymentMethod}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <NativeSelect
         id={id}
-        value={other ? 'other' : value}
+        value={value}
         required
-        onChange={(e) => onChange(e.target.value === 'other' ? 'Otro: ' : e.target.value)}
+        aria-invalid={!!issue}
+        aria-describedby={id + '-help'}
+        onChange={(event) => {
+          const option = options.find((item) => item.id === event.target.value);
+          if (option && !option.reason) onChange(option.id);
+        }}
       >
-        <option value="">Selecciona el método</option>
         {options.map((option) => (
-          <option key={option.value} value={option.value} disabled={!option.enabled}>
+          <option key={option.id} value={option.id} disabled={!!option.reason}>
             {option.label}
           </option>
         ))}
       </NativeSelect>
-      {other ? (
-        <>
-          <FieldLabel htmlFor={id + '-other'}>Especifica el método</FieldLabel>
-          <Input
-            id={id + '-other'}
-            value={value.slice(6)}
-            required
-            minLength={2}
-            maxLength={60}
-            onChange={(e) => onChange('Otro: ' + e.target.value)}
-          />
-        </>
+      <FieldDescription id={id + '-help'}>
+        {selected.currency === 'VES'
+          ? 'Recibes bolívares. La cotización corresponde al acuerdo original.'
+          : selected.currency === 'USDT'
+            ? 'Recibes USDT; se aplica 1:1 a la deuda en USD.'
+            : 'Recibes dólares en efectivo.'}
+      </FieldDescription>
+      {issue ? (
+        <p role="alert" className={styles.methodIssue}>
+          {issue}
+        </p>
       ) : null}
-      {currency === 'VES' ? (
-        <FieldDescription>
-          El registro identifica el cobro en bolívares; no realiza una transferencia bancaria.
-        </FieldDescription>
+      {options.some((option) => option.reason) ? (
+        <details className={styles.methodHelp}>
+          <summary>
+            Opciones no disponibles <ChevronDown aria-hidden="true" size={16} />
+          </summary>
+          <ul>
+            {options
+              .filter((option) => option.reason)
+              .map((option) => (
+                <li key={option.id}>
+                  <strong>{option.label}:</strong> {option.reason}
+                </li>
+              ))}
+          </ul>
+        </details>
       ) : null}
     </Field>
   );

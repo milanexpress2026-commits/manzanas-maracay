@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js';
-import type { PackingModel, HalfPreparation, Presentation } from './index';
+import {
+  packingFields,
+  validPacking,
+  confirmedPresentationsReady,
+  type PackingModel,
+  type HalfPreparation,
+  type Presentation,
+} from './index';
 
 const text = z.string().trim();
 const optionalText = (max: number) => text.max(max).default('');
@@ -19,6 +26,28 @@ export const updateSupplierSchema = supplierSchema
 export const costSchema = text
   .regex(/^\d{1,14}(\.\d{1,4})?$/, 'Usa un costo USD positivo, con hasta 4 decimales.')
   .transform((value) => new Decimal(value).toFixed(4));
+export const receiptPackingConfirmationSchema = z.lazy(() =>
+  z
+    .object({
+      expectedVersion: z.number().int().positive(),
+      confirmed: z.literal(true),
+      packingModel: z.enum(['blister', 'halves', 'whole']),
+      halfPreparation: z.enum(['counted', 'commercial', 'pending', 'none']),
+      allowedPresentations: z
+        .array(z.enum(['box', 'half_box', 'blister']))
+        .min(1)
+        .max(3),
+      blistersPerBox: z.number().int().min(1).max(100).nullable(),
+      boxWeightKg: packingFields.boxWeightKg,
+    })
+    .strict()
+    .refine(validPacking, 'Revisa el empaque que estás confirmando.')
+    .refine(
+      (value) => confirmedPresentationsReady({ ...value, confirmationStatus: 'confirmed' }),
+      'Confirma solo presentaciones con cantidad de blíster y preparación de media conocidas.',
+    ),
+);
+export type ReceiptPackingConfirmation = z.infer<typeof receiptPackingConfirmationSchema>;
 export const receiptSchema = z
   .object({
     supplierId: z.uuid(),
@@ -34,6 +63,7 @@ export const receiptSchema = z
             boxes: z.number().int().min(1).max(1000),
             unitCostUsd: costSchema,
             blistersPerBox: z.number().int().min(1).max(100).optional(),
+            packingConfirmation: receiptPackingConfirmationSchema.optional(),
             priceAction: z.enum(['keep', 'update']).default('keep'),
             prices: z
               .array(
@@ -55,6 +85,29 @@ export const receiptSchema = z
       .max(50),
   })
   .strict()
+  .superRefine((value, ctx) => {
+    const confirmations = new Map<string, string>();
+    for (const line of value.lines) {
+      const confirmation = line.packingConfirmation;
+      if (!confirmation) continue;
+      const hash = JSON.stringify(confirmation);
+      if (
+        confirmations.has(line.configurationId) &&
+        confirmations.get(line.configurationId) !== hash
+      )
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'Dos líneas confirman empaques distintos del mismo producto. Unifica la revisión.',
+        });
+      confirmations.set(line.configurationId, hash);
+      if (line.blistersPerBox !== undefined && line.blistersPerBox !== confirmation.blistersPerBox)
+        ctx.addIssue({
+          code: 'custom',
+          message: 'La cantidad del lote debe coincidir con el empaque que estás confirmando.',
+        });
+    }
+  })
   .refine(
     (value) => value.lines.reduce((total, line) => total + line.boxes, 0) <= 1000,
     'Una recepción admite hasta 1.000 cajas; divide las recepciones mayores.',

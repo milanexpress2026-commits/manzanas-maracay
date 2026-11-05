@@ -1,7 +1,9 @@
 'use client';
 import Link from 'next/link';
-import type { Presentation } from '@mm/domain';
+import { suggestedBlistersPerBox, type Presentation, type Configuration } from '@mm/domain';
 import { ReceiptPrices } from './receipt-prices';
+import { PackingReviewFields, type PackingReviewValue } from './packing-review-fields';
+import preparationStyles from './catalog-preparation.module.css';
 import {
   caracasDateTime,
   caracasInstant,
@@ -32,6 +34,10 @@ type LineDraft = {
   notes: string;
   priceAction: 'keep' | 'update';
   prices: { presentation: Presentation; promoUsd: string; regularUsd: string }[];
+  packing: PackingReviewValue | null;
+  packingVersion: number | null;
+  packingConfirmed: boolean;
+  packingChanged: boolean;
 };
 const blankLine = (key: number): LineDraft => ({
   key,
@@ -42,7 +48,20 @@ const blankLine = (key: number): LineDraft => ({
   notes: '',
   priceAction: 'keep',
   prices: [],
+  packing: null,
+  packingVersion: null,
+  packingConfirmed: false,
+  packingChanged: false,
 });
+function packingValue(config: Configuration): PackingReviewValue {
+  return {
+    packingModel: config.packingModel,
+    halfPreparation: config.halfPreparation,
+    allowedPresentations: [...config.allowedPresentations],
+    blistersPerBox: config.blistersPerBox,
+    boxWeightKg: config.boxWeightKg,
+  };
+}
 export function ReceiptScreen({
   session,
   initialConfigurationId = '',
@@ -66,16 +85,11 @@ export function ReceiptScreen({
   const preselectionApplied = useRef(false);
   useEffect(() => setDate(caracasDateTime()), []);
   const activeSuppliers = suppliers.data?.filter((s) => s.active) ?? [];
-  const receivingConfigurations =
-    catalog.data?.configurations.filter(
-      (c) => session.environment !== 'production' || c.confirmationStatus === 'confirmed',
-    ) ?? [];
+  const receivingConfigurations = catalog.data?.configurations ?? [];
   const requestedProduct = catalog.data?.configurations.find(
     (row) => row.id === initialConfigurationId,
   );
-  const requestedProductAllowed =
-    requestedProduct &&
-    (session.environment !== 'production' || requestedProduct.confirmationStatus === 'confirmed');
+  const requestedProductAllowed = !!requestedProduct;
   useEffect(() => {
     if (!initialConfigurationId || !catalog.data || preselectionApplied.current) return;
     preselectionApplied.current = true;
@@ -86,6 +100,8 @@ export function ReceiptScreen({
             {
               ...current[0],
               configurationId: requestedProduct.id,
+              packing: packingValue(requestedProduct),
+              packingVersion: requestedProduct.version,
               prices: requestedProduct.allowedPresentations.map((presentation) => ({
                 presentation,
                 promoUsd:
@@ -115,6 +131,19 @@ export function ReceiptScreen({
   function validate(e: FormEvent) {
     e.preventDefault();
     command.setError('');
+    const pending = lines.find(
+      (line) =>
+        (line.packingChanged ||
+          catalog.data?.configurations.find((config) => config.id === line.configurationId)
+            ?.confirmationStatus === 'pending') &&
+        !line.packingConfirmed,
+    );
+    if (pending) {
+      command.setError(
+        'Revisa y confirma el empaque pendiente en el producto recibido antes de continuar.',
+      );
+      return;
+    }
     let receivedAt: string;
     try {
       receivedAt = caracasInstant(date);
@@ -131,6 +160,16 @@ export function ReceiptScreen({
         configurationId: line.configurationId,
         boxes: Number(line.boxes),
         unitCostUsd: line.cost.trim().replace(',', '.'),
+        ...(line.packingConfirmed && line.packing && line.packingVersion !== null
+          ? {
+              packingConfirmation: {
+                ...line.packing,
+                boxWeightKg: line.packing.boxWeightKg?.trim().replace(',', '.') || null,
+                expectedVersion: line.packingVersion,
+                confirmed: true,
+              },
+            }
+          : {}),
         ...(line.blisters ? { blistersPerBox: Number(line.blisters) } : {}),
         notes: line.notes,
         priceAction: line.priceAction,
@@ -159,6 +198,7 @@ export function ReceiptScreen({
       const result = await command.run<ReceiptResult>('/api/receipts', review);
       setSaved(result);
       setReview(null);
+      void catalog.reload();
     } catch {}
   }
   function reset() {
@@ -195,9 +235,7 @@ export function ReceiptScreen({
           <Alert>
             <Info aria-hidden="true" />
             <AlertDescription>
-              {requestedProduct
-                ? 'Este producto tiene el empaque pendiente. Confírmalo antes de recibir mercancía.'
-                : 'No se encontró el producto del enlace. Elige uno del catálogo para continuar.'}{' '}
+              No se encontró el producto del enlace. Elige uno del catálogo para continuar.{' '}
               <Link href={`/catalogo${returnToSale ? '?returnTo=/ventas/nueva' : ''}`}>
                 Revisar catálogo
               </Link>
@@ -366,10 +404,17 @@ export function ReceiptScreen({
                               id={`line-product-${line.key}`}
                               required
                               value={line.configurationId}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const nextConfig = catalog.data!.configurations.find(
+                                  (c) => c.id === e.target.value,
+                                );
                                 updateLine(line.key, {
                                   configurationId: e.target.value,
                                   blisters: '',
+                                  packing: nextConfig ? packingValue(nextConfig) : null,
+                                  packingVersion: nextConfig?.version ?? null,
+                                  packingConfirmed: false,
+                                  packingChanged: false,
                                   priceAction: 'keep',
                                   prices:
                                     catalog
@@ -391,13 +436,14 @@ export function ReceiptScreen({
                                             ?.prices.find((p) => p.presentation === presentation)
                                             ?.regularUsd ?? '',
                                       })) ?? [],
-                                })
-                              }
+                                });
+                              }}
                             >
                               <option value="">Selecciona un empaque del catálogo</option>
                               {receivingConfigurations.map((c) => (
                                 <option value={c.id} key={c.id}>
                                   {productLabel(c)} · {packingLabel(c)}
+                                  {c.confirmationStatus === 'pending' ? ' · Revisar aquí' : ''}
                                 </option>
                               ))}
                             </NativeSelect>
@@ -436,7 +482,8 @@ export function ReceiptScreen({
                               />
                               <FieldDescription>Hasta cuatro decimales.</FieldDescription>
                             </Field>
-                            {config?.packingModel === 'blister' ? (
+                            {config?.packingModel === 'blister' &&
+                            config.confirmationStatus === 'confirmed' ? (
                               <Field>
                                 <FieldLabel htmlFor={`line-blisters-${line.key}`}>
                                   Blíster por caja en este lote
@@ -465,6 +512,78 @@ export function ReceiptScreen({
                               </Field>
                             ) : null}
                           </div>
+                          {config && line.packing ? (
+                            <details
+                              className={preparationStyles.draft}
+                              open={config.confirmationStatus === 'pending' || undefined}
+                            >
+                              <summary className={preparationStyles.option}>
+                                {config.confirmationStatus === 'pending'
+                                  ? 'Confirmar el empaque pendiente'
+                                  : 'Revisar empaque para esta y próximas recepciones'}
+                              </summary>
+                              <p className={preparationStyles.help}>
+                                Este empaque se usará en esta recepción y próximos lotes; los lotes
+                                anteriores no cambian. Verifica la mercancía y confirma abajo.
+                              </p>
+                              <PackingReviewFields
+                                id={`receipt-packing-${line.key}`}
+                                value={line.packing}
+                                suggestion={suggestedBlistersPerBox(
+                                  config.fruit,
+                                  config.variety,
+                                  config.caliber,
+                                )}
+                                onChange={(packing) =>
+                                  updateLine(line.key, {
+                                    packing,
+                                    packingConfirmed: false,
+                                    packingChanged: true,
+                                    prices: packing.allowedPresentations.map(
+                                      (presentation) =>
+                                        line.prices.find(
+                                          (price) => price.presentation === presentation,
+                                        ) ?? { presentation, promoUsd: '', regularUsd: '' },
+                                    ),
+                                  })
+                                }
+                              />
+                              <label className={preparationStyles.confirmation}>
+                                <input
+                                  type="checkbox"
+                                  checked={line.packingConfirmed}
+                                  onChange={(event) =>
+                                    updateLine(line.key, { packingConfirmed: event.target.checked })
+                                  }
+                                />
+                                <span>
+                                  Verifiqué este empaque y confirmo su uso en esta recepción y
+                                  próximos lotes.
+                                </span>
+                              </label>
+                              {line.packingChanged && config.confirmationStatus === 'confirmed' ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    updateLine(line.key, {
+                                      packing: packingValue(config),
+                                      packingChanged: false,
+                                      packingConfirmed: false,
+                                      prices: config.allowedPresentations.map(
+                                        (presentation) =>
+                                          line.prices.find(
+                                            (price) => price.presentation === presentation,
+                                          ) ?? { presentation, promoUsd: '', regularUsd: '' },
+                                      ),
+                                    })
+                                  }
+                                >
+                                  Descartar cambios de empaque
+                                </Button>
+                              ) : null}
+                            </details>
+                          ) : null}
                           <Field>
                             <FieldLabel htmlFor={`line-notes-${line.key}`}>
                               Notas del lote
@@ -544,19 +663,27 @@ export function ReceiptScreen({
                       const config = catalog.data?.configurations.find(
                         (c) => c.id === line.configurationId,
                       );
+                      const reviewedPacking = line.packingConfirmation ?? config;
                       return (
                         <li key={index}>
                           <strong>{config ? productLabel(config) : 'Producto'}</strong>
                           <span>
                             {line.boxes} cajas ·{' '}
-                            {config?.packingModel === 'blister'
-                              ? (line.blistersPerBox ?? config.blistersPerBox ?? 'Pendiente') +
-                                ' blíster/caja'
-                              : config
-                                ? packingLabel(config)
+                            {reviewedPacking?.packingModel === 'blister'
+                              ? (line.blistersPerBox ??
+                                  reviewedPacking.blistersPerBox ??
+                                  'Pendiente') + ' blíster/caja'
+                              : reviewedPacking
+                                ? packingLabel(reviewedPacking)
                                 : ''}
                           </span>
                           <span>{displayMoney(line.unitCostUsd)} por caja</span>
+                          {line.packingConfirmation ? (
+                            <span>
+                              Empaque verificado para este lote y próximas recepciones; historial
+                              anterior conservado.
+                            </span>
+                          ) : null}
                           <span>
                             {line.priceAction === 'update'
                               ? 'Actualizar precios comerciales'
