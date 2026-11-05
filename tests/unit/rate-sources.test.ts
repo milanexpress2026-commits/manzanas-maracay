@@ -65,4 +65,19 @@ describe('official source parsing', () => {
       selectUsdtRate([{ ...row, valid_until: new Date(at.getTime() + 86400000) }], at),
     ).toBeNull();
   });
+  it.each([
+    '{"success":true,"code":"000000","data":{"asset":"USDT","fiat":"VES"},"other":{"price":1010}}',
+    '{"success":true,"code":"000000","data":{"asset":"USDT","fiat":"VES","other":{"price":1010}}}',
+    '{"success":true,"code":"000000","data":{"asset":"USDT","fiat":"VES","pr\\u0069ce":999,"price":1010}}',
+    '{"success":true,"code":"000000","data":{},"data":{"asset":"USDT","fiat":"VES","price":1010}}',
+  ])('rejects a quote outside data.price or an ambiguous JSON key: %s', (raw) => {
+    expect(() => parseUsdtSource(raw, at)).toThrow();
+  });
+  it.each(['123456789012.12345678', '"123456789012.12345678"'])(
+    'preserves all decimal digits in the data.price token %s',
+    (price) => {
+      const raw = `{"success":true,"code":"000000","data":{"asset":"USDT","fiat":"VES","price":${price}}}`;
+      expect(parseUsdtSource(raw, at).rate).toBe('123456789012.12345678');
+    },
+  );
 });

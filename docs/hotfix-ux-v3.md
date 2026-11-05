@@ -47,7 +47,21 @@ El diagnóstico del registro real “Manzana Gala” se realizó en lectura y se
 
 ## Verificación y entrega
 
-Pendiente de incorporar resultados finales: check completo, E2E, QA con base vacía, preservación de 13 migraciones, capturas/vídeo, staging exacto y comprobación de tasas del recolector.
+Pruebas locales del 5 de noviembre de 2026:
+
+| Comprobación | Resultado comprobado |
+| --- | --- |
+| Comprobación final del código, incluida la corrección del lector | **Typecheck, 188 unitarias en 19 archivos y build API/web PASS**. |
+| Suite completa en navegador | **74/74 PASS**, diez minutos, candidato `8bed277fd2a216f2e4305ebd404bad2faeeacb49`; autenticación, catálogo, ventas, pagos, FIFO, tasas, reintentos, cinco anchos de catálogo y cuatro de ventas. |
+| Producción simulada exclusivamente en localhost con base nueva | **13/13 PASS**: 2 casos de preparación cerrada, recorrido vacío a 390 px, 4 de interfaz y 6 de API. Veintiuna tablas operativas vacías al empezar; base temporal retirada al terminar. |
+| Migraciones | Instalación nueva con 14 migraciones y actualización 11→13→14; 35 tablas conservadas, trece hashes históricos intactos, acuerdos antiguos y pagos sin reinterpretación. Dos bases temporales retiradas. |
+| Lector de cotización USDT, corrección posterior a la suite HTTP | Se reprodujeron cuatro respuestas ambiguas aceptadas indebidamente; **11/11 unitarias dirigidas PASS** tras vincular el token decimal a `data.price` y rechazar claves duplicadas. Conserva ocho decimales sin usar el número binario para el importe. |
+
+La suite HTTP y la QA vacía corresponden al candidato indicado; el cambio posterior afecta únicamente al lector del recolector y sus pruebas, y quedó incluido en la compilación final y las 188 unitarias. La verificación del recolector remoto se registra con la release efectiva, sin atribuirle retroactivamente las pruebas anteriores.
+
+Los dos fallos de entrada reproducidos antes de la corrección y seis fallos iniciales de dominio quedaron cubiertos por las pruebas posteriores. Hubo también intentos intermedios con selectores ambiguos y una lectura temporal de catálogo fallida; la suite final pasó sin omitir casos. El primer lanzador local de migración se detuvo por falta de `MM_APP_ENV=test`; se corrigió el lanzador, sin relajar el guard del programa, y el ensayo completo pasó.
+
+Ver [comparación visual](visual-review-hotfix-ux-v3.md), [venta a 390 px](capturas/hotfix-ux-v3/contado-390.png) y [vídeo de base vacía a primera venta](capturas/ux-v3/catalogo-vacio-y-venta-qa.webm). Son datos sintéticos locales. Los registros detallados permanecen fuera de Git en `.local/ux-v3`; el resultado remoto y las identidades exactas se incorporan después del despliegue.
 
 La actualización autorizada es de QA/staging. No se cambia DNS, Caddy, firewall ni el tráfico de producción. El procedimiento prepara imágenes por SHA, verifica respaldo restaurado antes y después de migrar y compara los servicios ajenos. Una reversión de esquema requiere restauración coordinada y revisión de escrituras posteriores; no se afirma que bastaría arrancar una imagen antigua sobre el esquema nuevo.
 

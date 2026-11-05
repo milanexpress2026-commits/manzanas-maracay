@@ -54,23 +54,50 @@ export function parseBcvSource(html: string, fetchedAt: Date): CollectedRate {
 
 /** Binance's own public BUY quote, all available methods; no third-party aggregate. */
 export function parseUsdtSource(raw: string, fetchedAt: Date): CollectedRate {
-  const data = JSON.parse(raw) as {
+  let priceOwner: unknown;
+  let priceToken: string | undefined;
+  // Node 24 preserves the primitive's original token in the reviver context.
+  // Bind that token to its actual parent instead of searching another JSON branch.
+  const data = JSON.parse(
+    raw,
+    function (this: unknown, key: string, value: unknown, context?: { source?: string }) {
+      if (key === 'price') {
+        priceOwner = this;
+        priceToken = context?.source;
+      }
+      return value;
+    },
+  ) as {
     success?: boolean;
     code?: string;
     data?: { asset?: string; fiat?: string; price?: unknown };
-  };
-  const prices = [...raw.matchAll(/"price"\s*:\s*("?)(\d+(?:\.\d{1,8})?)\1(?=\s*[,}])/g)];
+  } | null;
+  // JSON.parse overwrites duplicate keys. Count complete JSON string tokens first,
+  // decoding escaped keys too, and reject an ambiguous data/price envelope.
+  let dataKeys = 0;
+  let priceKeys = 0;
+  for (const token of raw.matchAll(/"(?:[^"\\]|\\.)*"/gs)) {
+    if (!/^\s*:/.test(raw.slice(token.index + token[0].length))) continue;
+    const key: unknown = JSON.parse(token[0]);
+    if (key === 'data') dataKeys++;
+    if (key === 'price') priceKeys++;
+  }
+  const price = priceToken?.match(/^(?:"(\d{1,12}(?:\.\d{1,8})?)"|(\d{1,12}(?:\.\d{1,8})?))$/);
+  const decimal = price?.[1] ?? price?.[2];
   if (
     !Number.isFinite(fetchedAt.getTime()) ||
-    data.success !== true ||
-    data.code !== '000000' ||
-    data.data?.asset !== 'USDT' ||
-    data.data?.fiat !== 'VES' ||
-    prices.length !== 1
+    data?.success !== true ||
+    data?.code !== '000000' ||
+    data?.data?.asset !== 'USDT' ||
+    data?.data?.fiat !== 'VES' ||
+    priceOwner !== data.data ||
+    dataKeys !== 1 ||
+    priceKeys !== 1 ||
+    !decimal
   )
     throw new Error('No hay una cotización USDT/VES de compra válida.');
   return {
-    rate: exactRate(prices[0]![2]!),
+    rate: exactRate(decimal),
     source: 'BINANCE_P2P_BUY',
     sourceUrl: USDT_SOURCE_URL,
     validFrom: new Date(fetchedAt),
