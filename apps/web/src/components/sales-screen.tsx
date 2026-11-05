@@ -1,39 +1,46 @@
 'use client';
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Decimal from 'decimal.js';
 import {
   Plus,
+  Minus,
+  ChevronDown,
   Search,
   ShoppingCart,
   Trash2,
   ArrowLeft,
-  ArrowRight,
   UserPlus,
-  Info,
-  FileText,
 } from 'lucide-react';
 import {
   saleSchema,
+  paymentMethodLabel,
   type SaleSummary,
   type SaleDetail,
   type Catalog,
-  type Configuration,
   type ClientSummary,
   type Presentation,
   type PriceBasis,
+  type SaleAvailability,
 } from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { NativeSelect } from './ui/native-select';
-import { Field, FieldLabel, FieldDescription } from './ui/field';
-import { Alert, AlertDescription } from './ui/alert';
+import { Field, FieldGroup, FieldSet, FieldLegend, FieldLabel, FieldDescription } from './ui/field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { LoadError, LoadingRows, PageFooter, FormError, SaveButton } from './operations-ui';
-import { ClientDialog, SaleTable, RateNotice, type RateStatus } from './commercial-shared';
+import {
+  ClientDialog,
+  SaleTable,
+  RateNotice,
+  RateSnapshot,
+  useQuoteCurrent,
+  type RateStatus,
+  type RateValue,
+} from './commercial-shared';
 import { useRemote, useCommand, displayMoney } from '@/lib/inventory-api';
 import {
   productLabel,
@@ -44,39 +51,24 @@ import {
   caracasDate,
   addCaracasDays,
 } from '@/lib/commercial-ui';
-type DraftLine = {
-  key: number;
-  configurationId: string;
-  presentation: Presentation | '';
-  quantity: string;
-  priceBasis: PriceBasis | '';
-  agreedUnitUsd: string;
-};
-const blank = (key: number): DraftLine => ({
-  key,
-  configurationId: '',
-  presentation: '',
-  quantity: '1',
-  priceBasis: '',
-  agreedUnitUsd: '',
-});
-function availablePresentations(config: Configuration) {
-  return config.allowedPresentations.filter(
-    (p) =>
-      p === 'box' ||
-      (p === 'blister'
-        ? config.blistersPerBox !== null
-        : config.halfPreparation !== 'pending' && config.halfPreparation !== 'none'),
-  );
-}
-function reference(config: Configuration | undefined, line: DraftLine) {
-  const price = config?.prices.find((p) => p.presentation === line.presentation);
-  return line.priceBasis === 'usd_cash_promo'
-    ? price?.promoUsd
-    : line.priceBasis === 'ves_regular'
-      ? price?.regularUsd
-      : null;
-}
+import {
+  PaymentMethodSelector,
+  defaultPaymentMethod,
+  type PaymentCurrency,
+} from './payment-method-selector';
+import {
+  emptySaleLine,
+  salePresentations,
+  salePrices,
+  saleReference,
+  changeSaleLine,
+  saleLineTotal,
+  keepSaleDraft,
+  takeSaleDraft,
+  clearSaleDraft,
+  type SaleDraftLine,
+} from '@/lib/sales-flow';
+import styles from './sales-flow.module.css';
 export function SalesScreen({ session }: { session: AppSession }) {
   const sales = useRemote<SaleSummary[]>('/api/sales?limit=200');
   const [query, setQuery] = useState('');
@@ -140,124 +132,305 @@ export function SalesScreen({ session }: { session: AppSession }) {
   );
 }
 export function NewSaleScreen({ session }: { session: AppSession }) {
-  const router = useRouter(),
-    catalog = useRemote<Catalog>('/api/catalog'),
-    clients = useRemote<ClientSummary[]>('/api/clients?limit=200'),
-    rate = useRemote<RateStatus>('/api/rates/current');
-  const [clientId, setClientId] = useState(''),
-    [newClient, setNewClient] = useState(false),
-    [condition, setCondition] = useState<'cash' | 'credit'>('cash'),
-    [date, setDate] = useState(''),
-    [due, setDue] = useState(''),
-    [reminder, setReminder] = useState(''),
-    [notes, setNotes] = useState('');
-  const [lines, setLines] = useState<DraftLine[]>([blank(1)]),
-    [nextKey, setNextKey] = useState(2);
-  const [paid, setPaid] = useState(''),
-    [currency, setCurrency] = useState<'USD' | 'VES'>('USD'),
-    [method, setMethod] = useState('Efectivo');
+  const router = useRouter();
+  const catalog = useRemote<Catalog>('/api/catalog');
+  const clients = useRemote<ClientSummary[]>('/api/clients?limit=200');
+  const availability = useRemote<SaleAvailability>('/api/inventory/sale-availability');
+  const rate = useRemote<RateStatus>('/api/rates/current');
+  const [clientId, setClientId] = useState('');
+  const [newClient, setNewClient] = useState(false);
+  const [condition, setCondition] = useState<'cash' | 'credit'>('cash');
+  const [basis, setBasis] = useState<PriceBasis | ''>('');
+  const [date, setDate] = useState('');
+  const [due, setDue] = useState('');
+  const [reminder, setReminder] = useState('');
+  const [notes, setNotes] = useState('');
+  const [lines, setLines] = useState<SaleDraftLine[]>([emptySaleLine(1)]);
+  const [nextKey, setNextKey] = useState(2);
+  const [paid, setPaid] = useState('0');
+  const [currency, setCurrency] = useState<PaymentCurrency>('USD');
+  const [method, setMethod] = useState(defaultPaymentMethod('USD'));
+  const [restored, setRestored] = useState(false);
+  const [reviewQuote, setReviewQuote] = useState<RateValue | null>(null);
+  const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
+  const [reviewTotals, setReviewTotals] = useState({ total: '0.00', balance: '0.00' });
   const [review, setReview] = useState<ReturnType<typeof saleSchema.parse> | null>(null);
   const command = useCommand();
-  useEffect(() => setDate(caracasDateTime()), []);
-  const ready = !!catalog.data && !!clients.data && !catalog.error && !clients.error;
-  const activeClients = clients.data?.filter((c) => c.active) ?? [];
-  const sellingConfigurations =
+  const scope = session.environment + ':' + session.user.id;
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    const draft = takeSaleDraft(scope);
+    if (draft) {
+      setClientId(draft.clientId);
+      setCondition(draft.condition);
+      setDate(draft.date);
+      setDue(draft.due);
+      setReminder(draft.reminder);
+      setNotes(draft.notes);
+      setLines(draft.lines);
+      setNextKey(draft.nextKey);
+      setPaid(draft.paid);
+      setCurrency(draft.currency);
+      setMethod(draft.method);
+      setRestored(true);
+      setBasis(draft.lines.find((line) => line.priceBasis)?.priceBasis ?? '');
+    } else {
+      setDate(caracasDateTime());
+      const requestedClient = new URL(window.location.href).searchParams.get('cliente');
+      if (requestedClient && /^[a-f0-9-]{36}$/i.test(requestedClient)) setClientId(requestedClient);
+    }
+  }, [scope]);
+  const activeClients = clients.data?.filter((client) => client.active) ?? [];
+  const configurations =
     catalog.data?.configurations.filter(
-      (c) => session.environment !== 'production' || c.confirmationStatus === 'confirmed',
+      (config) => session.environment !== 'production' || config.confirmationStatus === 'confirmed',
     ) ?? [];
-  let total = new Decimal(0),
-    referenceTotal = new Decimal(0);
-  for (const line of lines) {
-    try {
-      if (line.agreedUnitUsd && /^\d+$/.test(line.quantity))
-        total = total.plus(
-          new Decimal(normalizedMoney(line.agreedUnitUsd))
-            .times(line.quantity)
-            .toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
-        );
-      const ref = reference(
-        catalog.data?.configurations.find((c) => c.id === line.configurationId),
-        line,
-      );
-      if (ref != null && /^\d+$/.test(line.quantity))
-        referenceTotal = referenceTotal.plus(
-          new Decimal(ref).times(line.quantity).toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
-        );
-    } catch {}
-  }
+  const ready = !!catalog.data && !!clients.data && !catalog.error && !clients.error;
+  const total = lines.reduce((sum, line) => sum.plus(saleLineTotal(line)), new Decimal(0));
+  const activeRate = basis === 'usd_cash_promo' ? rate.data?.usdt?.rate : rate.data?.rate;
+  const quoteCurrent = useQuoteCurrent(activeRate);
+  const rateAvailable =
+    quoteCurrent &&
+    (basis === 'usd_cash_promo'
+      ? rate.data?.usdt?.status === 'available'
+      : rate.data?.status === 'available');
+  const received =
+    condition === 'cash'
+      ? currency === 'VES'
+        ? activeRate && rateAvailable
+          ? total.times(activeRate.rate).toFixed(2, Decimal.ROUND_HALF_UP)
+          : ''
+        : total.toFixed(2)
+      : paid;
   let paidUsd = new Decimal(0);
   try {
-    if (paid)
-      paidUsd =
-        currency === 'USD'
-          ? new Decimal(normalizedMoney(paid))
-          : rate.data?.status === 'available' && rate.data.rate
-            ? new Decimal(normalizedMoney(paid))
-                .div(rate.data.rate.rate)
-                .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    if (normalizedMoney(received)) {
+      paidUsd = new Decimal(normalizedMoney(received));
+      if (currency === 'VES')
+        paidUsd =
+          activeRate && rateAvailable
+            ? paidUsd.div(activeRate.rate).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
             : new Decimal(0);
+    }
   } catch {}
-  function update(key: number, changes: Partial<DraftLine>) {
+  const balance = total.minus(paidUsd);
+  const fullyPaid = total.gt(0) && balance.eq(0);
+  let positivePayment = false;
+  try {
+    positivePayment = new Decimal(normalizedMoney(received) || 0).gt(0);
+  } catch {}
+  useEffect(() => {
+    if (condition === 'cash' || fullyPaid) {
+      setDue('');
+      setReminder('');
+    }
+  }, [condition, fullyPaid]);
+  const quantities = lines.reduce(
+    (result, line) => {
+      if (line.presentation && /^\d+$/.test(line.quantity) && line.configurationId)
+        result[line.presentation] = (result[line.presentation] ?? 0) + Number(line.quantity);
+      return result;
+    },
+    {} as Partial<Record<Presentation, number>>,
+  );
+  const quantityText = Object.entries(quantities)
+    .map(
+      ([presentation, count]) =>
+        `${count} ${presentation === 'box' ? (count === 1 ? 'caja' : 'cajas') : presentation === 'half_box' ? (count === 1 ? 'media caja' : 'medias cajas') : count === 1 ? 'blíster' : 'blísteres'}`,
+    )
+    .join(' · ');
+  function preserveDraft() {
+    keepSaleDraft(scope, {
+      clientId,
+      condition,
+      date,
+      due,
+      reminder,
+      notes,
+      lines,
+      nextKey,
+      paid,
+      currency,
+      method,
+    });
+  }
+  function changeCondition(value: 'cash' | 'credit') {
+    setCondition(value);
+    setDue('');
+    setReminder('');
+    setPaid('0');
+    setCurrency('USD');
+    setMethod(defaultPaymentMethod('USD'));
+    command.setError('');
+  }
+  function changeBasis(value: PriceBasis | '') {
+    setBasis(value);
     setLines((current) =>
-      current.map((line) => {
+      current.map((line) =>
+        changeSaleLine(
+          line,
+          { priceBasis: value },
+          configurations.find((config) => config.id === line.configurationId),
+        ),
+      ),
+    );
+    // The agreement changes only here, never when choosing cash/credit or a payment currency.
+  }
+  function update(key: number, changes: Partial<SaleDraftLine>) {
+    const config = configurations.find(
+      (item) =>
+        item.id ===
+        (changes.configurationId ?? lines.find((line) => line.key === key)?.configurationId),
+    );
+    setLines((current) => {
+      const updated = current.map((line) => {
         if (line.key !== key) return line;
-        const next = { ...line, ...changes },
-          config = catalog.data?.configurations.find((c) => c.id === next.configurationId);
-        if (changes.configurationId !== undefined) {
-          const allowed = config ? availablePresentations(config) : [];
-          next.presentation = allowed.length === 1 ? allowed[0] : '';
+        let next = changeSaleLine(line, changes, config);
+        if (changes.configurationId !== undefined || changes.presentation !== undefined) {
+          if (basis) next = changeSaleLine(next, { priceBasis: basis }, config);
         }
-        if (
-          changes.configurationId !== undefined ||
-          changes.presentation !== undefined ||
-          changes.priceBasis !== undefined
-        )
-          next.agreedUnitUsd = reference(config, next) ?? '';
         return next;
-      }),
+      });
+      return updated;
+    });
+    // Derive the sole valid list from the chosen presentation without inferring from payment type.
+    if (
+      !basis &&
+      config &&
+      (changes.configurationId !== undefined || changes.presentation !== undefined)
+    ) {
+      const allowed = salePresentations(config);
+      const presentation = changes.presentation ?? (allowed.length === 1 ? allowed[0] : '');
+      const options = salePrices(config, presentation);
+      if (options.length === 1 && !lines.some((line) => line.key !== key && line.configurationId))
+        changeBasis(options[0].basis);
+    }
+  }
+  function stockIssue(line: SaleDraftLine) {
+    if (!line.configurationId || !line.presentation || !availability.data) return '';
+    const item = availability.data.items.find(
+      (entry) =>
+        entry.configurationId === line.configurationId && entry.presentation === line.presentation,
+    );
+    if (!item) return 'Esta presentación todavía no tiene existencias disponibles.';
+    const requested = lines
+      .filter(
+        (other) =>
+          other.configurationId === line.configurationId &&
+          other.presentation === line.presentation,
+      )
+      .reduce((sum, other) => sum + (Number(other.quantity) || 0), 0);
+    if (requested <= item.availableQuantity) return '';
+    return (
+      item.blockedReason ||
+      `Hay ${item.availableQuantity} ${presentationNames[line.presentation].toLocaleLowerCase('es')} disponibles. Reduce la cantidad o registra una recepción.`
     );
   }
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  async function submit(event: FormEvent) {
+    event.preventDefault();
     command.setError('');
     if (review) {
+      if (reviewQuote && !reviewQuoteCurrent) {
+        command.setError(
+          'La cotización venció. Vuelve a editar y actualiza la tasa antes de confirmar.',
+        );
+        return;
+      }
       try {
         const result = await command.run<SaleDetail>('/api/sales', review);
+        clearSaleDraft();
         router.push('/ventas/' + result.id);
       } catch {}
+      return;
+    }
+    if (
+      condition === 'credit' &&
+      paid.trim() &&
+      !/^\d{1,14}(\.\d{1,2})?$/.test(normalizedMoney(paid))
+    ) {
+      command.setError(
+        'Escribe un abono válido, con hasta dos decimales, o deja 0 si pagará después.',
+      );
+      return;
+    }
+    if (!activeClients.some((client) => client.id === clientId)) {
+      command.setError('Selecciona un cliente activo o crea uno para esta venta.');
+      return;
+    }
+    if (!availability.data || availability.error) {
+      command.setError('Actualiza las existencias antes de revisar la venta.');
+      return;
+    }
+    for (const line of lines) {
+      const config = configurations.find((item) => item.id === line.configurationId);
+      if (!config) {
+        command.setError('Selecciona el producto que vas a entregar.');
+        return;
+      }
+      if (!basis || saleReference(config, line) == null) {
+        command.setError(
+          'Elige el precio acordado y define su importe de lista para cada presentación.',
+        );
+        return;
+      }
+      const issue = stockIssue(line);
+      if (issue) {
+        command.setError(issue);
+        return;
+      }
+    }
+    if (
+      currency === 'VES' &&
+      (condition === 'cash' || positivePayment) &&
+      (!activeRate || !rateAvailable)
+    ) {
+      command.setError(
+        'La tasa correspondiente al precio pactado no está verificada. Puedes cobrar en USD o USDT.',
+      );
+      return;
+    }
+    if (paidUsd.gt(total)) {
+      command.setError(
+        'El cobro supera el total. Revisa el abono; no se aplicará el excedente a otra deuda.',
+      );
+      return;
+    }
+    if (condition === 'cash' && !paidUsd.eq(total)) {
+      command.setError('Contado debe liquidar el total. Para un abono parcial, elige Crédito.');
       return;
     }
     let soldAt: string;
     try {
       soldAt = caracasInstant(date);
-    } catch (e) {
-      command.setError(e instanceof Error ? e.message : 'Revisa la fecha.');
-      return;
-    }
-    let withPayment = false;
-    try {
-      withPayment = paid.trim() !== '' && !new Decimal(normalizedMoney(paid)).isZero();
-    } catch {
-      command.setError('Revisa el monto pagado.');
+    } catch (error) {
+      command.setError(error instanceof Error ? error.message : 'Revisa la fecha de venta.');
       return;
     }
     const parsed = saleSchema.safeParse({
       clientId,
       condition,
       soldAt,
-      dueDate: condition === 'credit' && due ? due : null,
-      reminderDate: reminder || null,
       notes,
-      lines: lines.map((l) => ({
-        configurationId: l.configurationId,
-        presentation: l.presentation,
-        quantity: Number(l.quantity),
-        priceBasis: l.priceBasis,
-        agreedUnitUsd: normalizedMoney(l.agreedUnitUsd),
+      dueDate: condition === 'credit' && balance.gt(0) && due ? due : null,
+      reminderDate: condition === 'credit' && balance.gt(0) && reminder ? reminder : null,
+      lines: lines.map((line) => ({
+        configurationId: line.configurationId,
+        presentation: line.presentation,
+        quantity: Number(line.quantity),
+        priceBasis: basis,
+        agreedUnitUsd: normalizedMoney(line.agreedUnitUsd),
       })),
-      ...(withPayment
+      ...(positivePayment
         ? {
-            initialPayment: { currency, amount: normalizedMoney(paid), method, receivedAt: soldAt },
+            initialPayment: {
+              currency,
+              amount: normalizedMoney(received),
+              method,
+              receivedAt: new Date().toISOString(),
+              ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
+            },
           }
         : {}),
     });
@@ -265,43 +438,17 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       command.setError(parsed.error.issues[0]?.message ?? 'Revisa los datos de la venta.');
       return;
     }
-    if (
-      lines.some(
-        (l) =>
-          reference(
-            catalog.data?.configurations.find((c) => c.id === l.configurationId),
-            l,
-          ) == null,
-      )
-    ) {
-      command.setError(
-        'Configura el precio de referencia de cada presentación antes de vender. Puedes hacerlo en Catálogo.',
-      );
-      return;
-    }
-    if (withPayment && currency === 'VES' && rate.data?.status !== 'available') {
-      command.setError(
-        'No hay BCV vigente verificado para recibir VES. La venta a crédito sin pago puede continuar.',
-      );
-      return;
-    }
-    if (paidUsd.gt(total)) {
-      command.setError(
-        'El pago inicial supera la venta. Revisa el monto; no se aplicará el excedente automáticamente.',
-      );
-      return;
-    }
-    if (condition === 'cash' && !paidUsd.eq(total)) {
-      command.setError(
-        'Para registrar un pago parcial o cero, elige Crédito. Contado requiere el pago completo.',
-      );
-      return;
-    }
+    setReviewQuote(currency === 'VES' && activeRate ? { ...activeRate } : null);
+    setReviewTotals({ total: total.toFixed(2), balance: balance.toFixed(2) });
     setReview(parsed.data);
   }
+  const basisChoices = [
+    { value: 'usd_cash_promo', label: 'Promocional divisa' },
+    { value: 'ves_regular', label: 'Regular · Bs. BCV' },
+  ];
   return (
     <AppShell session={session} current="/ventas">
-      <main id="app-main" className="main-content operations-page">
+      <main id="app-main" className={'main-content operations-page ' + styles.salePage}>
         <Link className="back-link" href="/ventas">
           <ArrowLeft aria-hidden="true" />
           Ventas
@@ -309,387 +456,560 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         <div className="page-heading">
           <div>
             <h1>Nueva venta</h1>
-            <p>Selecciona los productos; la mercancía más antigua se asigna automáticamente.</p>
+            <p>Elige el cliente, agrega la mercancía y revisa el cobro.</p>
           </div>
         </div>
+        {restored ? (
+          <div className={styles.restored} role="status">
+            <span>Recuperamos el borrador al volver. Revisa precios y existencias.</span>
+            <Button type="button" variant="ghost" onClick={() => setRestored(false)}>
+              Entendido
+            </Button>
+          </div>
+        ) : null}
         {catalog.error ? (
           <LoadError error={catalog.error} retry={() => void catalog.reload()} />
         ) : null}
         {clients.error ? (
           <LoadError error={clients.error} retry={() => void clients.reload()} />
         ) : null}
-        {!ready && (catalog.loading || clients.loading) ? <LoadingRows /> : null}
-        {ready && !sellingConfigurations.length ? (
-          <Alert>
-            <Info aria-hidden="true" />
-            <AlertDescription>
-              Antes de vender,{' '}
-              <Link href="/catalogo">agrega un producto y confirma su empaque</Link>. Después
-              registra su recepción y los precios de las presentaciones que vas a vender.
-            </AlertDescription>
-          </Alert>
+        {availability.error ? (
+          <LoadError error={availability.error} retry={() => void availability.reload()} />
         ) : null}
+        {!ready && (catalog.loading || clients.loading) ? <LoadingRows /> : null}
         {ready ? (
-          <form onSubmit={submit} className="commercial-layout">
-            <div>
-              <fieldset disabled={command.busy}>
-                <section className="operations-panel commercial-form-panel">
-                  <h2 className="commercial-section-title">
-                    <ShoppingCart aria-hidden="true" />
-                    Datos de la venta
-                  </h2>
-                  <div className="commercial-form-grid">
-                    <Field className="full-width">
-                      <FieldLabel htmlFor="sale-client">Cliente</FieldLabel>
-                      <div className="inline-actions">
-                        <NativeSelect
-                          id="sale-client"
-                          required
-                          value={clientId}
-                          onChange={(e) => setClientId(e.target.value)}
-                        >
-                          <option value="">Selecciona un cliente</option>
-                          {activeClients.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                        <Button type="button" variant="outline" onClick={() => setNewClient(true)}>
-                          <UserPlus aria-hidden="true" />
-                          Nuevo cliente
-                        </Button>
-                      </div>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="sale-date">
-                        Fecha y hora de venta en Venezuela
-                      </FieldLabel>
-                      <Input
-                        id="sale-date"
-                        required
-                        type="datetime-local"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="sale-condition">Condición de venta</FieldLabel>
-                      <NativeSelect
-                        id="sale-condition"
-                        value={condition}
-                        onChange={(e) => setCondition(e.target.value as 'cash' | 'credit')}
-                      >
-                        <option value="cash">Contado</option>
-                        <option value="credit">Crédito</option>
-                      </NativeSelect>
-                      <FieldDescription>
-                        Crédito permite retirar sin pagar o con un abono parcial.
-                      </FieldDescription>
-                    </Field>
-                    {condition === 'credit' ? (
-                      <Field>
-                        <FieldLabel htmlFor="sale-due">Fecha de pago pactada, opcional</FieldLabel>
-                        <Input
-                          id="sale-due"
-                          type="date"
-                          value={due}
-                          onChange={(e) => setDue(e.target.value)}
-                        />
-                        <div className="date-shortcuts">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            type="button"
-                            onClick={() =>
-                              setDue(addCaracasDays(date.slice(0, 10) || caracasDate(), 7))
-                            }
-                          >
-                            7 días
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            type="button"
-                            onClick={() =>
-                              setDue(addCaracasDays(date.slice(0, 10) || caracasDate(), 15))
-                            }
-                          >
-                            15 días
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            type="button"
-                            onClick={() => setDue('')}
-                          >
-                            Sin fecha
-                          </Button>
-                        </div>
-                      </Field>
-                    ) : null}
-                    <Field>
-                      <FieldLabel htmlFor="sale-reminder">
-                        Recordatorio interno, opcional
-                      </FieldLabel>
-                      <Input
-                        id="sale-reminder"
-                        type="date"
-                        value={reminder}
-                        onChange={(e) => setReminder(e.target.value)}
-                      />
-                      <FieldDescription>
-                        Recordar llamar no implica que el cliente haya prometido pagar ese día.
-                      </FieldDescription>
-                    </Field>
-                  </div>
-                </section>
-                <section aria-label="Productos de la venta">
-                  <h2 className="commercial-section-title">Productos</h2>
-                  {lines.map((line, index) => {
-                    const config = catalog.data!.configurations.find(
-                        (c) => c.id === line.configurationId,
-                      ),
-                      allowed = config ? availablePresentations(config) : [];
-                    const ref = reference(config, line);
-                    return (
-                      <section
-                        key={line.key}
-                        className="commercial-line"
-                        aria-labelledby={'sale-line-' + line.key}
-                      >
-                        <div className="commercial-line-header">
-                          <h3 id={'sale-line-' + line.key}>Producto {index + 1}</h3>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            type="button"
-                            disabled={lines.length === 1}
-                            aria-label={'Quitar producto ' + (index + 1)}
-                            onClick={() =>
-                              setLines((current) => current.filter((l) => l.key !== line.key))
-                            }
-                          >
-                            <Trash2 />
-                          </Button>
-                        </div>
-                        <div className="commercial-line-fields">
-                          <Field className="line-product">
-                            <FieldLabel htmlFor={'sale-product-' + line.key}>Producto</FieldLabel>
-                            <NativeSelect
-                              id={'sale-product-' + line.key}
-                              required
-                              value={line.configurationId}
-                              onChange={(e) =>
-                                update(line.key, { configurationId: e.target.value })
-                              }
-                            >
-                              <option value="">Selecciona un producto</option>
-                              {sellingConfigurations.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {productLabel(c)}
-                                </option>
-                              ))}
-                            </NativeSelect>
-                          </Field>
-                          <Field>
-                            <FieldLabel htmlFor={'sale-presentation-' + line.key}>
-                              Presentación
-                            </FieldLabel>
-                            <NativeSelect
-                              id={'sale-presentation-' + line.key}
-                              required
-                              value={line.presentation}
-                              onChange={(e) =>
-                                update(line.key, { presentation: e.target.value as Presentation })
-                              }
-                              disabled={!config || allowed.length === 1}
-                            >
-                              <option value="">Selecciona</option>
-                              {allowed.map((p) => (
-                                <option key={p} value={p}>
-                                  {presentationNames[p]}
-                                  {config?.boxWeightKg && p !== 'blister'
-                                    ? ' · ' +
-                                      new Decimal(config.boxWeightKg)
-                                        .div(p === 'half_box' ? 2 : 1)
-                                        .toString() +
-                                      ' kg'
-                                    : ''}
-                                </option>
-                              ))}
-                            </NativeSelect>
-                          </Field>
-                          <Field>
-                            <FieldLabel htmlFor={'sale-quantity-' + line.key}>Cantidad</FieldLabel>
-                            <Input
-                              id={'sale-quantity-' + line.key}
-                              required
-                              type="number"
-                              inputMode="numeric"
-                              min={1}
-                              max={1000}
-                              step={1}
-                              value={line.quantity}
-                              onChange={(e) => update(line.key, { quantity: e.target.value })}
-                            />
-                          </Field>
-                          <Field className="line-wide">
-                            <FieldLabel htmlFor={'sale-basis-' + line.key}>
-                              Referencia comercial
-                            </FieldLabel>
-                            <NativeSelect
-                              id={'sale-basis-' + line.key}
-                              required
-                              value={line.priceBasis}
-                              onChange={(e) =>
-                                update(line.key, { priceBasis: e.target.value as PriceBasis })
-                              }
-                            >
-                              <option value="">Elige una referencia</option>
-                              <option value="usd_cash_promo">Promocional USD efectivo</option>
-                              <option value="ves_regular">Normal USD para cobro VES</option>
-                            </NativeSelect>
-                          </Field>
-                          <Field className="line-wide">
-                            <FieldLabel htmlFor={'sale-price-' + line.key}>
-                              Precio unitario pactado (USD)
-                            </FieldLabel>
-                            <Input
-                              id={'sale-price-' + line.key}
-                              required
-                              inputMode="decimal"
-                              value={line.agreedUnitUsd}
-                              onChange={(e) => update(line.key, { agreedUnitUsd: e.target.value })}
-                            />
-                          </Field>
-                        </div>
-                        <div className="commercial-line-summary">
-                          <span>
-                            Referencia:{' '}
-                            <strong>{ref != null ? displayMoney(ref) : 'Sin configurar'}</strong>
-                          </span>
-                          <span>El precio pactado no cambia la lista general.</span>
-                        </div>
-                        {config?.halfPreparation === 'pending' ? (
-                          <p className="commercial-help">
-                            La preparación de medias cajas está pendiente de confirmar para este
-                            producto.
-                          </p>
-                        ) : null}
-                      </section>
-                    );
-                  })}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={lines.length >= 50}
-                    onClick={() => {
-                      setLines((current) => [...current, blank(nextKey)]);
-                      setNextKey((k) => k + 1);
-                    }}
-                  >
-                    <Plus aria-hidden="true" />
-                    Agregar producto
-                  </Button>
-                </section>
-                <section className="operations-panel commercial-form-panel">
-                  <h2 className="commercial-section-title">Pago inicial</h2>
-                  <p className="commercial-help">
-                    Deja el monto vacío o en cero si la venta queda totalmente a crédito. No se crea
-                    un abono de cero.
-                  </p>
-                  <div className="commercial-form-grid">
-                    <Field>
-                      <FieldLabel htmlFor="sale-currency">Moneda del pago inicial</FieldLabel>
-                      <NativeSelect
-                        id="sale-currency"
-                        value={currency}
-                        onChange={(e) => {
-                          setCurrency(e.target.value as 'USD' | 'VES');
-                          setMethod(e.target.value === 'USD' ? 'Efectivo' : '');
-                        }}
-                      >
-                        <option value="USD">USD</option>
-                        <option value="VES" disabled={rate.data?.status !== 'available'}>
-                          VES — requiere BCV verificado
+          <form onSubmit={submit} className={styles.layout}>
+            <fieldset disabled={command.busy} className={styles.main}>
+              <section className={styles.surface} aria-label="Cliente y condición de venta">
+                <div className={styles.customer}>
+                  <Field>
+                    <FieldLabel htmlFor="sale-client">Cliente</FieldLabel>
+                    <NativeSelect
+                      id="sale-client"
+                      required
+                      value={clientId}
+                      onChange={(event) => setClientId(event.target.value)}
+                    >
+                      <option value="">Selecciona un cliente</option>
+                      {activeClients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.name}
                         </option>
-                      </NativeSelect>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="sale-paid">Monto pagado</FieldLabel>
-                      <Input
-                        id="sale-paid"
-                        inputMode="decimal"
-                        value={paid}
-                        onChange={(e) => setPaid(e.target.value)}
-                        placeholder="0,00"
+                      ))}
+                    </NativeSelect>
+                  </Field>
+                  <Button type="button" variant="outline" onClick={() => setNewClient(true)}>
+                    <UserPlus aria-hidden="true" />
+                    Nuevo cliente
+                  </Button>
+                </div>
+                {!activeClients.length ? (
+                  <p className={styles.lineHelp}>
+                    Crea el primer cliente con su nombre. WhatsApp es opcional.
+                  </p>
+                ) : null}
+                <FieldSet className={styles.condition}>
+                  <FieldLegend>Condición de venta</FieldLegend>
+                  <div className={styles.segments}>
+                    <label>
+                      <input
+                        type="radio"
+                        name="sale-condition"
+                        value="cash"
+                        checked={condition === 'cash'}
+                        onChange={() => changeCondition('cash')}
                       />
-                      {currency === 'USD' ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          type="button"
-                          onClick={() => setPaid(total.toFixed(2))}
-                        >
-                          Pagar total en USD
-                        </Button>
-                      ) : null}
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="sale-method">Método del pago inicial</FieldLabel>
-                      <Input
-                        id="sale-method"
-                        value={method}
-                        maxLength={80}
-                        onChange={(e) => setMethod(e.target.value)}
+                      Contado
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="sale-condition"
+                        value="credit"
+                        checked={condition === 'credit'}
+                        onChange={() => changeCondition('credit')}
                       />
-                    </Field>
+                      Crédito
+                    </label>
                   </div>
-                  <RateNotice rate={rate.data} />
+                </FieldSet>
+              </section>
+              <section className={styles.surface} aria-label="Productos de la venta">
+                <div className={styles.productsHeader}>
+                  <h2>Productos</h2>
+                  <span>
+                    {lines.length} {lines.length === 1 ? 'línea' : 'líneas'}
+                  </span>
+                </div>
+                {!configurations.length ? (
+                  <p className={styles.lineHelp}>
+                    Aún no hay productos con empaque confirmado.{' '}
+                    <Link href="/catalogo?returnTo=/ventas/nueva" onClick={preserveDraft}>
+                      Agregar producto
+                    </Link>
+                    .
+                  </p>
+                ) : (
+                  <>
+                    {lines.map((line, index) => {
+                      const config = configurations.find(
+                        (item) => item.id === line.configurationId,
+                      );
+                      const allowed = config ? salePresentations(config) : [];
+                      const ref = saleReference(config, line);
+                      const stock = availability.data?.items.find(
+                        (item) =>
+                          item.configurationId === line.configurationId &&
+                          item.presentation === line.presentation,
+                      );
+                      const issue = stockIssue(line);
+                      const options = salePrices(config, line.presentation);
+                      return (
+                        <section
+                          key={line.key}
+                          className={styles.line}
+                          aria-labelledby={'sale-line-' + line.key}
+                        >
+                          <div className={styles.lineHeader}>
+                            <h3 id={'sale-line-' + line.key}>Producto {index + 1}</h3>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              type="button"
+                              disabled={lines.length === 1}
+                              aria-label={'Quitar producto ' + (index + 1)}
+                              onClick={() =>
+                                setLines((current) =>
+                                  current.filter((item) => item.key !== line.key),
+                                )
+                              }
+                            >
+                              <Trash2 aria-hidden="true" />
+                            </Button>
+                          </div>
+                          <FieldGroup className={styles.lineFields}>
+                            <Field className={styles.productField}>
+                              <FieldLabel htmlFor={'sale-product-' + line.key}>Producto</FieldLabel>
+                              <NativeSelect
+                                id={'sale-product-' + line.key}
+                                required
+                                value={line.configurationId}
+                                onChange={(event) =>
+                                  update(line.key, { configurationId: event.target.value })
+                                }
+                              >
+                                <option value="">Selecciona un producto</option>
+                                {configurations.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {productLabel(item)}
+                                  </option>
+                                ))}
+                              </NativeSelect>
+                            </Field>
+                            <Field>
+                              <FieldLabel htmlFor={'sale-presentation-' + line.key}>
+                                Presentación
+                              </FieldLabel>
+                              <NativeSelect
+                                id={'sale-presentation-' + line.key}
+                                required
+                                value={line.presentation}
+                                onChange={(event) =>
+                                  update(line.key, {
+                                    presentation: event.target.value as Presentation,
+                                  })
+                                }
+                                disabled={!config || allowed.length === 1}
+                              >
+                                <option value="">Selecciona</option>
+                                {allowed.map((presentation) => (
+                                  <option key={presentation} value={presentation}>
+                                    {presentationNames[presentation]}
+                                    {config?.boxWeightKg && presentation !== 'blister'
+                                      ? ' · ' +
+                                        new Decimal(config.boxWeightKg)
+                                          .div(presentation === 'half_box' ? 2 : 1)
+                                          .toString() +
+                                        ' kg'
+                                      : ''}
+                                  </option>
+                                ))}
+                              </NativeSelect>
+                            </Field>
+                            <Field data-invalid={!!issue}>
+                              <FieldLabel htmlFor={'sale-quantity-' + line.key}>
+                                Cantidad
+                              </FieldLabel>
+                              <div className={styles.quantity}>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  aria-label={'Reducir cantidad del producto ' + (index + 1)}
+                                  disabled={Number(line.quantity) <= 1}
+                                  onClick={() =>
+                                    update(line.key, {
+                                      quantity: String(
+                                        Math.max(1, (Number(line.quantity) || 1) - 1),
+                                      ),
+                                    })
+                                  }
+                                >
+                                  <Minus aria-hidden="true" />
+                                </Button>
+                                <Input
+                                  id={'sale-quantity-' + line.key}
+                                  required
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  max={1000}
+                                  step={1}
+                                  value={line.quantity}
+                                  aria-invalid={!!issue}
+                                  aria-describedby={issue ? 'stock-' + line.key : undefined}
+                                  onChange={(event) =>
+                                    update(line.key, { quantity: event.target.value })
+                                  }
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  aria-label={'Aumentar cantidad del producto ' + (index + 1)}
+                                  disabled={
+                                    Number(line.quantity) >= 1000 ||
+                                    (!!stock && Number(line.quantity) >= stock.availableQuantity)
+                                  }
+                                  onClick={() =>
+                                    update(line.key, {
+                                      quantity: String((Number(line.quantity) || 0) + 1),
+                                    })
+                                  }
+                                >
+                                  <Plus aria-hidden="true" />
+                                </Button>
+                              </div>
+                            </Field>
+                            <Field>
+                              <FieldLabel htmlFor={'sale-price-' + line.key}>
+                                Precio unitario (USD)
+                              </FieldLabel>
+                              <Input
+                                id={'sale-price-' + line.key}
+                                required
+                                inputMode="decimal"
+                                value={line.agreedUnitUsd}
+                                onChange={(event) =>
+                                  update(line.key, { agreedUnitUsd: event.target.value })
+                                }
+                              />
+                            </Field>
+                            <div className={styles.lineAmount}>
+                              <span>Subtotal</span>
+                              <strong>{displayMoney(saleLineTotal(line).toFixed(2))}</strong>
+                            </div>
+                          </FieldGroup>
+                          {issue ? (
+                            <p id={'stock-' + line.key} className={styles.error}>
+                              {issue}{' '}
+                              <Link
+                                href={
+                                  '/recepciones?producto=' +
+                                  line.configurationId +
+                                  '&returnTo=/ventas/nueva'
+                                }
+                                onClick={preserveDraft}
+                              >
+                                Registrar recepción
+                              </Link>
+                            </p>
+                          ) : stock ? (
+                            <p className={styles.lineHelp}>
+                              Disponibles: {stock.availableQuantity}{' '}
+                              {line.presentation &&
+                                presentationNames[line.presentation].toLocaleLowerCase('es')}
+                              . Se comprueban de nuevo al confirmar.
+                            </p>
+                          ) : null}
+                          {config &&
+                          line.presentation &&
+                          (!options.length || (basis && ref == null)) ? (
+                            <p className={styles.error}>
+                              Falta el precio de esta presentación.{' '}
+                              <Link
+                                href={
+                                  '/catalogo?producto=' +
+                                  config.id +
+                                  '&precios=1&returnTo=/ventas/nueva'
+                                }
+                                onClick={preserveDraft}
+                              >
+                                Definir precio
+                              </Link>
+                            </p>
+                          ) : null}
+                          {ref !== null &&
+                          line.priceEdited &&
+                          normalizedMoney(line.agreedUnitUsd) &&
+                          /^\d+(\.\d{1,4})?$/.test(normalizedMoney(line.agreedUnitUsd)) &&
+                          !new Decimal(normalizedMoney(line.agreedUnitUsd)).eq(ref) ? (
+                            <p className={styles.lineHelp}>
+                              Precio pactado para esta venta. Lista: {displayMoney(ref)}; diferencia
+                              por unidad:{' '}
+                              {displayMoney(
+                                new Decimal(ref)
+                                  .minus(normalizedMoney(line.agreedUnitUsd))
+                                  .toFixed(4),
+                              )}
+                              .
+                            </p>
+                          ) : null}
+                        </section>
+                      );
+                    })}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={lines.length >= 50}
+                      onClick={() => {
+                        setLines((current) => [...current, emptySaleLine(nextKey)]);
+                        setNextKey((key) => key + 1);
+                      }}
+                    >
+                      <Plus aria-hidden="true" />
+                      Agregar producto
+                    </Button>
+                    <Field className={styles.agreement}>
+                      <FieldLabel htmlFor="sale-basis">Precio acordado</FieldLabel>
+                      <NativeSelect
+                        id="sale-basis"
+                        required
+                        value={basis}
+                        onChange={(event) => changeBasis(event.target.value as PriceBasis)}
+                      >
+                        <option value="">Elige el precio acordado con el cliente</option>
+                        {basisChoices.map((choice) => (
+                          <option key={choice.value} value={choice.value}>
+                            {choice.label}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                      <FieldDescription>
+                        Se conserva al cobrar, aunque el pago sea después.
+                      </FieldDescription>
+                    </Field>
+                  </>
+                )}
+              </section>
+              <details className={styles.optional}>
+                <summary>
+                  Más opciones
+                  <ChevronDown aria-hidden="true" />
+                </summary>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="sale-date">Fecha y hora de venta en Venezuela</FieldLabel>
+                    <Input
+                      id="sale-date"
+                      required
+                      type="datetime-local"
+                      value={date}
+                      onChange={(event) => setDate(event.target.value)}
+                    />
+                  </Field>
                   <Field>
                     <FieldLabel htmlFor="sale-notes">Observaciones de la venta</FieldLabel>
                     <Textarea
                       id="sale-notes"
                       maxLength={500}
                       value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
+                      onChange={(event) => setNotes(event.target.value)}
                     />
                   </Field>
-                </section>
-              </fieldset>
-            </div>
-            <aside className="commercial-summary">
-              <h2>Resumen de la venta</h2>
+                  <p className={styles.muted}>
+                    El detalle del comprobante mostrará el costo y el margen de los lotes
+                    entregados. El precio pactado no cambia la lista general.
+                  </p>
+                </FieldGroup>
+              </details>
+            </fieldset>
+            <aside
+              className={styles.surface + ' ' + styles.summary + ' ' + styles.payment}
+              aria-label="Resumen y cobro"
+            >
+              <h2>{condition === 'cash' ? 'Cobrar venta' : 'Registrar crédito'}</h2>
               <dl>
-                <div>
-                  <dt>Referencia</dt>
-                  <dd>{displayMoney(referenceTotal.toFixed(2))}</dd>
-                </div>
-                <div>
-                  <dt>Descuento negociado</dt>
-                  <dd>{displayMoney(referenceTotal.minus(total).toFixed(2))}</dd>
-                </div>
-                <div className="summary-total">
-                  <dt>Total pactado</dt>
-                  <dd>{displayMoney(total.toFixed(2))}</dd>
-                </div>
-                <div>
-                  <dt>Pago inicial equivalente</dt>
-                  <dd>{displayMoney(paidUsd.toFixed(2))}</dd>
-                </div>
-                <div>
-                  <dt>Saldo pendiente</dt>
-                  <dd>{displayMoney(total.minus(paidUsd).toFixed(2))}</dd>
+                <div className={styles.total}>
+                  <dt>Total a cobrar</dt>
+                  <dd>
+                    <output aria-label="Total de la venta">{displayMoney(total.toFixed(2))}</output>
+                  </dd>
                 </div>
               </dl>
-              <p>
-                El costo FIFO y la ganancia bruta se calculan al confirmar, con los lotes realmente
-                asignados.
-              </p>
+              {quantityText ? <p className={styles.muted}>{quantityText}</p> : null}
+              <fieldset disabled={command.busy} className={styles.payment}>
+                {condition === 'credit' ? (
+                  <Field>
+                    <FieldLabel htmlFor="sale-paid">Abono hoy (opcional) · {currency}</FieldLabel>
+                    <Input
+                      id="sale-paid"
+                      inputMode="decimal"
+                      value={paid}
+                      onChange={(event) => setPaid(event.target.value)}
+                      placeholder="0,00"
+                    />
+                    <FieldDescription>Deja 0 si el cliente pagará después.</FieldDescription>
+                  </Field>
+                ) : null}
+                {condition === 'cash' || positivePayment ? (
+                  <div className={styles.paymentControls}>
+                    <PaymentMethodSelector
+                      id="sale-method"
+                      currency={currency}
+                      value={method}
+                      onChange={setMethod}
+                    />
+                    <Field>
+                      <FieldLabel htmlFor="sale-currency">Moneda del cobro</FieldLabel>
+                      <NativeSelect
+                        id="sale-currency"
+                        value={currency}
+                        onChange={(event) => {
+                          const value = event.target.value as PaymentCurrency;
+                          setCurrency(value);
+                          setMethod(defaultPaymentMethod(value));
+                          if (condition === 'credit' && (value === 'VES' || currency === 'VES'))
+                            setPaid('0');
+                        }}
+                      >
+                        <option value="USD">USD</option>
+                        <option value="USDT">USDT · 1:1 USD</option>
+                        <option value="VES" disabled={!basis || !rateAvailable || !activeRate}>
+                          Bolívares
+                        </option>
+                      </NativeSelect>
+                    </Field>
+                  </div>
+                ) : null}
+                {currency === 'VES' && (condition === 'cash' || positivePayment) ? (
+                  <>
+                    <RateNotice
+                      rate={rate.data}
+                      basis={basis === 'usd_cash_promo' ? 'divisa' : 'bcv'}
+                    />
+                    <Button type="button" variant="outline" onClick={() => void rate.reload()}>
+                      Actualizar tasa
+                    </Button>
+                  </>
+                ) : null}
+                {condition === 'cash' ? (
+                  <p className={styles.amountAuto}>
+                    <span>Cobrar total</span>
+                    <strong>
+                      {received
+                        ? displayMoney(received).replace(/^USD /, currency + ' ')
+                        : 'Tasa no disponible'}
+                    </strong>
+                  </p>
+                ) : null}
+                {condition === 'credit' && !fullyPaid ? (
+                  <div className={styles.dates}>
+                    <Field>
+                      <FieldLabel htmlFor="sale-due">Fecha acordada (opcional)</FieldLabel>
+                      <div className={styles.shortcuts}>
+                        <Button type="button" variant="outline" onClick={() => setDue('')}>
+                          Sin fecha
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setDue(addCaracasDays(date.slice(0, 10) || caracasDate(), 7))
+                          }
+                        >
+                          7 días
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setDue(addCaracasDays(date.slice(0, 10) || caracasDate(), 15))
+                          }
+                        >
+                          15 días
+                        </Button>
+                      </div>
+                      <Input
+                        id="sale-due"
+                        type="date"
+                        value={due}
+                        onChange={(event) => setDue(event.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="sale-reminder">Recordar cobrar (opcional)</FieldLabel>
+                      <Input
+                        id="sale-reminder"
+                        type="date"
+                        value={reminder}
+                        onChange={(event) => setReminder(event.target.value)}
+                      />
+                      <FieldDescription>
+                        Es un aviso para el negocio; no cambia la fecha acordada.
+                      </FieldDescription>
+                      {due ? (
+                        <Button type="button" variant="ghost" onClick={() => setReminder(due)}>
+                          Usar fecha acordada
+                        </Button>
+                      ) : null}
+                      {reminder ? (
+                        <Button type="button" variant="ghost" onClick={() => setReminder('')}>
+                          Quitar recordatorio
+                        </Button>
+                      ) : null}
+                    </Field>
+                  </div>
+                ) : null}
+                {condition === 'credit' && fullyPaid ? (
+                  <p role="status" className={styles.note}>
+                    Con este abono queda pagada. No se guardarán fechas de cobranza ni
+                    recordatorios.
+                  </p>
+                ) : null}
+              </fieldset>
+              {condition === 'credit' ? (
+                <dl>
+                  <div>
+                    <dt>Abonado hoy</dt>
+                    <dd>{displayMoney(paidUsd.toFixed(2))}</dd>
+                  </div>
+                  <div>
+                    <dt>Saldo pendiente</dt>
+                    <dd>
+                      <output aria-label="Saldo pendiente">
+                        {displayMoney(balance.toFixed(2))}
+                      </output>
+                    </dd>
+                  </div>
+                </dl>
+              ) : null}
               <FormError message={!review ? command.error : ''} />
-              <SaveButton busy={command.busy}>Revisar venta</SaveButton>
-              <p>Confirmar registra el comprobante, el egreso y el pago inicial juntos.</p>
+              <SaveButton busy={command.busy}>
+                {condition === 'cash' ? 'Revisar y cobrar' : 'Revisar y registrar crédito'}
+              </SaveButton>
+              <details className={styles.optional}>
+                <summary>
+                  Monedas y tasas
+                  <ChevronDown aria-hidden="true" />
+                </summary>
+                <p className={styles.muted}>
+                  USD y USDT conservan el importe pactado, 1:1. Bolívares requiere la tasa
+                  correspondiente y un método habilitado.
+                </p>
+                <RateNotice
+                  rate={rate.data}
+                  basis={basis === 'usd_cash_promo' ? 'divisa' : 'bcv'}
+                />
+              </details>
             </aside>
           </form>
         ) : null}
@@ -697,9 +1017,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         {newClient ? (
           <ClientDialog
             onClose={() => setNewClient(false)}
-            onSaved={async (c) => {
+            onSaved={async (client) => {
               await clients.reload();
-              setClientId(c.id);
+              setClientId(client.id);
               setNewClient(false);
             }}
           />
@@ -714,39 +1034,94 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
             <DialogHeader>
               <DialogTitle>Confirmar venta</DialogTitle>
               <DialogDescription>
-                Revisa la mercancía que se entrega. Al confirmar se descontará del inventario.
+                Revisa la mercancía y el cobro. Al confirmar se descontará del inventario.
               </DialogDescription>
             </DialogHeader>
             {review ? (
-              <form onSubmit={submit}>
-                <div className="receipt-review">
-                  <p>
-                    <strong>{clients.data?.find((c) => c.id === review.clientId)?.name}</strong> ·{' '}
-                    {review.condition === 'cash' ? 'Contado' : 'Crédito'}
-                  </p>
-                  <ul>
-                    {review.lines.map((line, i) => (
-                      <li key={i}>
+              <form onSubmit={submit} className={styles.review}>
+                <p>
+                  <strong>
+                    {activeClients.find((client) => client.id === review.clientId)?.name}
+                  </strong>
+                  <small>
+                    {review.condition === 'cash' ? 'Contado' : 'Crédito'} ·{' '}
+                    {basisChoices.find((choice) => choice.value === basis)?.label}
+                  </small>
+                </p>
+                <ul>
+                  {review.lines.map((line, index) => (
+                    <li key={index}>
+                      <span>
                         <strong>
                           {productLabel(
-                            catalog.data!.configurations.find(
-                              (c) => c.id === line.configurationId,
-                            )!,
+                            configurations.find((config) => config.id === line.configurationId)!,
                           )}
                         </strong>
-                        <span>
-                          {line.quantity} {presentationNames[line.presentation]} ·{' '}
-                          {displayMoney(line.agreedUnitUsd)} por presentación
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                        <small>
+                          {line.quantity} {presentationNames[line.presentation]} ×{' '}
+                          {displayMoney(line.agreedUnitUsd)}
+                        </small>
+                      </span>
+                      <strong>
+                        {displayMoney(
+                          new Decimal(line.agreedUnitUsd)
+                            .times(line.quantity)
+                            .toFixed(2, Decimal.ROUND_HALF_UP),
+                        )}
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+                <dl>
+                  <div className={styles.reviewTotal}>
+                    <dt>Total</dt>
+                    <dd>{displayMoney(reviewTotals.total)}</dd>
+                  </div>
+                  <div>
+                    <dt>{review.condition === 'cash' ? 'Cobro' : 'Abono hoy'}</dt>
+                    <dd>
+                      {review.initialPayment
+                        ? displayMoney(review.initialPayment.amount).replace(
+                            /^USD /,
+                            review.initialPayment.currency + ' ',
+                          )
+                        : 'Sin abono'}
+                    </dd>
+                  </div>
+                  {review.initialPayment ? (
+                    <div>
+                      <dt>Método</dt>
+                      <dd>{paymentMethodLabel(review.initialPayment.method)}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt>Saldo pendiente</dt>
+                    <dd>{displayMoney(reviewTotals.balance)}</dd>
+                  </div>
+                  {review.dueDate ? (
+                    <div>
+                      <dt>Fecha acordada</dt>
+                      <dd>{review.dueDate}</dd>
+                    </div>
+                  ) : null}
+                  {review.reminderDate ? (
+                    <div>
+                      <dt>Recordar cobrar</dt>
+                      <dd>{review.reminderDate}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+                {reviewQuote ? (
                   <p>
-                    Total <strong>{displayMoney(total.toFixed(2))}</strong> · Saldo{' '}
-                    {displayMoney(total.minus(paidUsd).toFixed(2))}
+                    <RateSnapshot
+                      quote={reviewQuote}
+                      basis={basis === 'usd_cash_promo' ? 'divisa' : 'bcv'}
+                    />
                   </p>
-                  <p>Se emite un comprobante comercial. No es una factura fiscal SENIAT.</p>
-                </div>
+                ) : null}
+                <p className={styles.muted}>
+                  Comprobante comercial. No es una factura fiscal SENIAT.
+                </p>
                 <FormError message={command.error} />
                 <div className="form-actions">
                   <Button

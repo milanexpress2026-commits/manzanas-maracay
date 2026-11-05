@@ -15,6 +15,11 @@ import { applyPresentationPrices } from './commerce-prices';
 import { assertBusinessWritesReady, commandIsDemo } from './production-state';
 import { authConfig } from './auth/config';
 import {
+  countSellablePresentation,
+  presentationCanUseLot,
+  type SaleAvailability,
+} from '../../../packages/domain/src/sale-availability';
+import {
   supplierSchema,
   updateSupplierSchema,
   receiptSchema,
@@ -155,6 +160,74 @@ export class InventoryService implements OnModuleDestroy {
       if (!warehouse)
         throw new NotFoundException('Falta preparar el almacén inicial. Ejecuta las migraciones.');
       return { warehouse, lots, totals };
+    });
+  }
+
+  async saleAvailability(): Promise<SaleAvailability> {
+    return this.read(async (client) => {
+      const checkedAt = new Date().toISOString();
+      const production = authConfig().environment === 'production';
+      const rules = (
+        await client.query<{
+          id: string;
+          variant_id: string;
+          confirmation_status: string;
+          allowed_presentations: Presentation[];
+        }>(
+          'select id,variant_id,confirmation_status,allowed_presentations from packing_rules order by id',
+        )
+      ).rows;
+      const lots = (
+        await client.query<{
+          id: string;
+          variant_id: string;
+          packingModel: PackingModel;
+          halfPreparation: HalfPreparation;
+          allowedPresentations: Presentation[];
+          blistersPerBox: number | null;
+          confirmed: boolean;
+        }>(
+          `select id,variant_id,packing_model_snapshot as "packingModel",
+            half_preparation_snapshot as "halfPreparation",allowed_presentations_snapshot as "allowedPresentations",
+            blisters_per_box_snapshot as "blistersPerBox",confirmation_status_snapshot='confirmed' as confirmed
+           from lots where is_demo=$1 and received_at<=$2::timestamptz order by received_at,created_at,id`,
+          [commandIsDemo(false), checkedAt],
+        )
+      ).rows;
+      const containers = lots.length
+        ? (
+            await client.query<ContainerStock>(
+              `${containerSelect} where c.lot_id=any($1::uuid[]) order by c.id`,
+              [lots.map((lot) => lot.id)],
+            )
+          ).rows
+        : [];
+      const byLot = new Map<string, ContainerStock[]>();
+      for (const container of containers) {
+        const list = byLot.get(container.lotId) ?? [];
+        list.push(container);
+        byLot.set(container.lotId, list);
+      }
+      const projected = lots.map((lot) => ({ ...lot, containers: byLot.get(lot.id) ?? [] }));
+      return {
+        checkedAt,
+        items: rules.flatMap((rule) =>
+          rule.allowed_presentations.map((presentation) => ({
+            configurationId: rule.id,
+            presentation,
+            ...(production && rule.confirmation_status !== 'confirmed'
+              ? {
+                  availableQuantity: 0,
+                  blockedReason: 'Confirma el empaque del producto antes de vender.',
+                }
+              : countSellablePresentation(
+                  projected.filter((lot) => lot.variant_id === rule.variant_id),
+                  presentation,
+                  production,
+                )),
+          })),
+        ),
+      };
     });
   }
   async detail(id: string): Promise<LotDetail> {
@@ -947,10 +1020,13 @@ export class InventoryService implements OnModuleDestroy {
           loaded.set(row.id, entry);
         }
         const { lot, state } = entry;
-        if (line.presentation === 'blister' && lot.packing_model_snapshot !== 'blister') continue;
         if (
-          line.presentation === 'half_box' &&
-          ['none', 'pending'].includes(lot.half_preparation_snapshot)
+          !presentationCanUseLot(line.presentation, {
+            packingModel: lot.packing_model_snapshot,
+            halfPreparation: lot.half_preparation_snapshot,
+            allowedPresentations: lot.allowed_presentations_snapshot,
+            blistersPerBox: lot.blisters_per_box_snapshot,
+          })
         )
           continue;
         while (remaining > 0) {

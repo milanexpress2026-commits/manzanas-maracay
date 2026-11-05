@@ -98,9 +98,16 @@ describe('VAPID files in staging runtime', () => {
       expect(run('api', scenario)).toMatchObject({ ok: false, launched: 0 });
     },
   );
-  it.each(['web', 'migrate'])('does not read or expose VAPID to %s', (mode) => {
+  it.each(['web', 'migrate', 'migrate-only'])('does not read or expose VAPID to %s', (mode) => {
     const result = run(mode, 'valid');
     expect(result).toMatchObject({ ok: true, vapidReads: 0 });
     expect(result.calls.every((call: { hasVapid: boolean }) => !call.hasVapid)).toBe(true);
+  });
+  it('upgrades an existing staging schema without seeding or replacing an account', () => {
+    const result = run('migrate-only', 'absent');
+    expect(result).toMatchObject({ ok: true, vapidReads: 0 });
+    expect(result.calls).toEqual([
+      { args: ['--import', 'tsx', 'scripts/migrate.ts'], hasVapid: false },
+    ]);
   });
 });

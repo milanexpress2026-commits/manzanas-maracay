@@ -402,7 +402,13 @@ test('abono USD, sobrepago concurrente, recibo privado y compensaciones conserva
   expect((await (await request.get('/api/rates/current')).json()).status).toBe('unavailable');
   const ves = await request.post('/api/payments', {
     headers: headers(),
-    data: { ...paymentInput, currency: 'VES', amount: '100' },
+    data: {
+      ...paymentInput,
+      currency: 'VES',
+      amount: '100',
+      method: 'bolivares',
+      rateId: randomUUID(),
+    },
   });
   expect(ves.status()).toBe(503);
 });

@@ -288,6 +288,14 @@ try {
     'test',
     '-c',
     'playwright.production.config.ts',
+    'ux-v3-empty.spec.ts',
+  ]);
+  report.emptyUxPassed = true;
+  await run([
+    'node_modules/playwright/cli.js',
+    'test',
+    '-c',
+    'playwright.production.config.ts',
     'production-ui.spec.ts',
   ]);
   await run([

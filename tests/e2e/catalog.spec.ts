@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import fs from 'node:fs';
 import { loginPage } from './helpers/auth';
-test.beforeEach(async ({ page }) => { await loginPage(page); });
+test.beforeEach(async ({ page }) => {
+  await loginPage(page);
+});
 
 test('escritorio y móvil: carga real, accesibilidad y capturas', async ({ page }) => {
   const errors: string[] = [];
@@ -16,7 +18,7 @@ test('escritorio y móvil: carga real, accesibilidad y capturas', async ({ page 
     await page.goto('/catalogo');
     await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { name: 'Catálogo de productos' })).toBeVisible();
-    await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
+    await expect(page.getByText('Catálogo actualizado')).toBeVisible();
     await expect(
       page.getByRole('button', { name: 'Ver Manzana Gala calibre 80', exact: true }),
     ).toBeVisible();
@@ -45,18 +47,18 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/catalogo');
-  await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
+  await expect(page.getByText('Catálogo actualizado')).toBeVisible();
   const suffix = Date.now().toString().slice(-7),
     fruit = `Mango ${suffix}`,
     variety = `Kent ${suffix}`;
   await page.getByRole('tab', { name: /Frutas/ }).click();
-  await page.getByRole('button', { name: 'Nueva fruta', exact: true }).click();
+  await page.getByRole('button', { name: 'Crear fruta', exact: true }).click();
   await page.getByLabel('Nombre de la fruta').fill(fruit);
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText(fruit, { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: /Variedades/ }).click();
-  await page.getByRole('button', { name: 'Nueva variedad', exact: true }).click();
+  await page.getByRole('button', { name: 'Crear variedad', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByLabel('Fruta', { exact: false })
@@ -65,7 +67,7 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('tab', { name: /Calibres/ }).click();
-  await page.getByRole('button', { name: 'Nuevo calibre', exact: true }).click();
+  await page.getByRole('button', { name: 'Crear calibre', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByLabel('Fruta', { exact: false })
@@ -74,23 +76,29 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('tab', { name: /Empaques/ }).click();
-  await page.getByRole('button', { name: 'Nueva configuración', exact: true }).click();
+  await page.getByRole('button', { name: 'Agregar producto', exact: true }).click();
   await page
     .getByRole('dialog')
-    .getByLabel('Fruta', { exact: false })
+    .getByLabel('Fruta', { exact: true })
     .selectOption({ label: fruit });
   await page
     .getByRole('dialog')
-    .getByLabel('Variedad', { exact: false })
+    .getByLabel('Variedad', { exact: true })
     .selectOption({ label: variety });
   await page
     .getByRole('dialog')
-    .getByLabel('Calibre', { exact: false })
+    .getByLabel('Calibre', { exact: true })
     .selectOption({ label: '70/75' });
+  await page.getByRole('button', { name: 'Continuar al empaque' }).click();
+  await page.getByLabel('Presentación de la caja').selectOption('blister');
   await page.getByLabel('Blíster por caja').fill('6');
-  await page.getByLabel('Notas').fill('Prueba aislada; conteo de fruta pendiente.');
+  await page.getByText('Más opciones', { exact: true }).click();
+  await page.getByLabel('Notas del empaque').fill('Prueba aislada; conteo de fruta pendiente.');
   await page.screenshot({ path: 'docs/capturas/formulario-movil.png', fullPage: true });
-  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  await page.getByRole('button', { name: 'Revisar producto' }).click();
+  await page.getByRole('button', { name: 'Guardar producto', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Producto guardado', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Volver al catálogo' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload();
   await page.getByRole('button', { name: `Editar ${variety} calibre 70/75` }).click();
@@ -104,27 +112,25 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
 });
 test('búsqueda vacía, limpiar filtros y navegación por teclado', async ({ page }) => {
   await page.goto('/catalogo');
-  await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
+  await expect(page.getByText('Catálogo actualizado')).toBeVisible();
   await page.getByRole('textbox', { name: 'Buscar en el catálogo' }).fill('inexistente-xyz');
   await expect(page.getByText('No encontramos coincidencias')).toBeVisible();
   await page.getByRole('button', { name: 'Limpiar filtros' }).click();
   await expect(
     page.getByRole('button', { name: 'Ver Manzana Gala calibre 80', exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Nueva configuración', exact: true }).focus();
+  await page.getByRole('button', { name: 'Agregar producto', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(
-    page.getByRole('button', { name: 'Nueva configuración', exact: true }),
-  ).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Agregar producto', exact: true })).toBeFocused();
 });
 test('error del servidor conserva el formulario y permite reintentar', async ({ page }) => {
   await page.goto('/catalogo');
-  await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
+  await expect(page.getByText('Catálogo actualizado')).toBeVisible();
   await page.getByRole('tab', { name: /Frutas/ }).click();
-  await page.getByRole('button', { name: 'Nueva fruta', exact: true }).click();
+  await page.getByRole('button', { name: 'Crear fruta', exact: true }).click();
   await page.getByLabel('Nombre de la fruta').fill(`Piña ${Date.now()}`);
   await page.route('**/api/catalog/fruits', (route) =>
     route.fulfill({
@@ -154,7 +160,7 @@ test('error de carga explícito y recuperación', async ({ page }) => {
   );
   await page.unroute('**/api/catalog');
   await page.getByRole('button', { name: 'Reintentar' }).click();
-  await expect(page.getByText('Guardado en PostgreSQL')).toBeVisible();
+  await expect(page.getByText('Catálogo actualizado')).toBeVisible();
 });
 test('PWA: manifiesto, iconos y página sin conexión', async ({ page, context, request }) => {
   const manifest = await (await request.get('/manifest.webmanifest')).json();

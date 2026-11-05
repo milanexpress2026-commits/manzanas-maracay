@@ -1,0 +1,187 @@
+MANZANAS MARACAY — ORDEN CORRECTIVA UX V3 / CATÁLOGO + VENTAS RÁPIDAS
+FECHA: 05/11/2026
+ENTREGABLE: HOTFIX DE USABILIDAD OPERATIVA REAL (NO DEMO). ESTE DOCUMENTO SUSTITUYE LAS VERSIONES ANTERIORES. NO DUPLICAR TAREAS.
+
+=== LECTURA OBLIGATORIA: NUEVOS HALLAZGOS FOTOGRAFIADOS POR EL PROPIETARIO ===
+
+Además de los defectos del catálogo ya documentados en la V2 incluida abajo, el propietario mostró fotografías REALES de /ventas/nueva en un portátil. Incluso con «Condición de venta: Contado», la página presenta un formulario largo: recordatorio interno, descripción sobre crédito, configuración de referencia comercial, elección de moneda, importe, método de pago inicial y múltiples bloques de texto. La información esencial queda dispersa por una pantalla extensa y es incómoda en móvil/tablet.
+
+El objetivo NO ES únicamente «ocultar el recordatorio». El objetivo es REDISEÑAR EL RECORRIDO de la operación diaria para un negocio pequeño cuyos usuarios no son técnicos. Debe poder completarse una venta habitual con pocos toques y sin entender términos financieros, esquemas de bases de datos, “referencia comercial” o estado interno del FIFO. Conservar las validaciones y la precisión en servidor; minimizar las decisiones en el frontend.
+
+INSPECCIÓN PREVIA: comprobar HEAD, PR #3, release efectivamente desplegada y cualquier hotfix intermedio ANTES de editar. No suponer que aún existe el mismo bug. En particular revisar apps/web/src/components/sales-screen.tsx, commercial-shared.tsx, catalog-form.tsx, catalog-screen.tsx, packages/domain/src/commerce.ts, apps/api/src/commerce.service.ts y pruebas. La producción usa PostgreSQL separado, NO hacer pruebas que registren ventas o abonos ficticios allí.
+
+=== PRIORIDAD 0: REDEFINIR LA PANTALLA «NUEVA VENTA» ===
+
+DISEÑO DE REFERENCIA, NO MAQUETACIÓN LITERAL:
+
+NUEVA VENTA
+  Cliente: [Buscar / seleccionar cliente] [ + Cliente ]
+  Tipo:   [ CONTADO ] [ CRÉDITO ]       (control segmentado grande y claro)
+  Productos:
+       [ Buscar Manzana Gala · cal. 100 ]
+       [ + Añadir producto ]
+       Cada línea: producto completo, presentación, cantidad [-] [n] [+], precio unitario editable, subtotal.
+       No obligar a navegar catálogos ni abrir acordeones técnicos.
+  SI CONTADO:
+       Total: USD X
+       Cobro: [Efectivo ▼] (métodos habituales, no escribir libremente)
+       Importe: USD X [completado al total; editable solo si tiene sentido]
+       [ REVISAR Y COBRAR ]
+  SI CRÉDITO:
+       Total: USD X
+       Abono hoy (opcional): [ 0,00 ]
+       [solo si abono > 0: moneda/método de pago]
+       Fecha acordada: [Sin fecha] [7 días] [15 días] [Calendario]
+       Recordar cobrar: [según acuerdo/opcional] [calendario]
+       Saldo pendiente visible en vivo
+       [ REVISAR Y REGISTRAR CRÉDITO ]
+  DETALLES OPCIONALES (desplegables): Fecha/hora editable, notas, precio de referencia, información de costos/márgenes para el dueño. No perder transparencia en la confirmación; datos importantes en resumen final.
+
+REGLAS DE INTERACCIÓN ESPECÍFICAS (OBLIGATORIAS):
+1. Contado es el valor predeterminado. Con contado NO mostrar ni enviar: fecha pactada, recordatorio de cobro, texto «Crédito permite retirar...», ni campos de abono opcional/fecha de deuda. El pago debe liquidar el total. Rellenar automáticamente el importe con total ACTUAL de las líneas; si el usuario agrega/quita producto, cambia cantidad o precio, recalcular el importe de contado mientras esté en modo «cobrar total». No sobrescribir edición manual intencionada sin avisar; no confirmar pagos incoherentes. La pantalla debe dejar claro «Total a cobrar» y «Método de cobro» (no «Pago inicial» en contado).
+2. Crédito: mostrar campos relativos a deuda solamente aquí. Si el abono es 0, NO pedir moneda ni método de pago; el servidor no crea asiento por cero. Si hay abono >0, mostrar moneda y método. Fecha pactada y fecha recordatorio son INDEPENDIENTES. Ofrecer accesos rápidos 7/15 días y calendario; permitir sin fecha. La deuda se calcula automáticamente. Una venta completamente pagada nunca genera recordatorio aunque se haya marcado crédito: informar al usuario y limpiar/rechazar fechas de cobranza sobrantes de forma coherente, con contrato/API y pruebas.
+3. Cambiar Contado→Crédito y Crédito→Contado debe reajustar el estado visual y limpiar los campos incompatibles, incluida la fecha de cobro, sin datos ocultos en el payload. NO modificar inventario por cambiar opciones antes de confirmar. Validar backend para rechazar fecha pactada o recordatorio en una venta contado, aun si un cliente manipula una solicitud HTTP. Registrar la fecha efectiva de ventas en zona horaria America/Caracas.
+4. Método de pago con SELECTOR TÁCTIL, nunca input de texto para lo frecuente. Propuestas visibles: «Efectivo USD», «Transferencia», «Pago móvil», «Punto de venta» y «Otro...», SOLO habilitando las modalidades compatibles con la moneda y confirmadas comercialmente. No presuponer que todas funcionan hoy. «Otro» abre un campo corto. Mismo estándar en «Registrar abono». Si VES no tiene BCV verificado, impedir cobrar VES y no saturar el formulario USD con un gran aviso repetitivo; mostrar explicación breve y clara únicamente cuando el usuario la necesite.
+5. Producto: buscador o selector con nombres humanos y su variedad/calibre/presentación visibles. Si solo hay una presentación válida, seleccionarla automáticamente; si solo hay un precio de lista válido, seleccionarlo automáticamente. En lugar de «Referencia comercial» mostrar «Precio» y opcionalmente «Tipo de precio: Promocional USD / Regular», sin obligar a elegir una referencia irrelevante para una venta de contado. NO seleccionar silenciosamente una tarifa errónea: preservar elección explícita cuando existan dos precios distintos y no se pueda inferir el correcto. Permitir precio pactado negociado por línea sin cambiar la lista general; mostrar importe final y, si corresponde, diferencia con precio base. El costo FIFO nunca se edita desde venta.
+6. El resumen debe ser fácil de encontrar, compacto y legible: subtotal/total a cobrar, abonado, pendiente, cantidad de cajas/blíster/medias con unidades CLARAS. El usuario no necesita ver el cálculo del costo por defecto. En escritorio resumen lateral claro; en tablet bien dimensionado; en Android 390px un resumen accesible cercano al CTA o sticky bottom sin superposición de teclado. Sin scroll horizontal ni CTA oculto. No producir saltos visuales al desplegar condicionales.
+7. Si no hay productos, cliente, precio confirmado o stock suficiente, mostrar UN mensaje útil junto a donde se resuelve el problema y un enlace contextual («Agregar producto», «Definir precio», «Registrar recepción», «Crear cliente»). No perder el borrador de venta al entrar y volver desde estos recorridos cuando sea viable, ni crear datos ficticios. Nunca confirmar con «guardado» hasta respuesta atómica API. Evitar duplicados por doble tap y reintento.
+8. Mantener la ruta de venta habitual corta. Objetivo de usabilidad: después del catálogo inicial, vender dos cajas a cliente ya registrado mediante el flujo Contado con un único formulario y una sola confirmación; SIN navegar por cinco menús ni rellenar campos técnicos. Permitir añadir múltiples productos con cantidades y precios negociados. El usuario debe poder corregir antes de confirmar.
+9. Hacer el formulario escalable sin perder capacidades avanzadas: un panel «Más opciones» solo para notas, fecha manual, desglose FIFO/margen y opciones no comunes. Los campos críticos legales/contables no se ocultan sin explicación donde sea imprescindible. No ocultar incertidumbre real de BCV, tributos o inventario.
+10. No eliminar las categorías de contado/crédito ni transformarlas en procesos alternativos de inventario. Es la misma API de ventas, los mismos lotes FIFO, el mismo ledger, las mismas protecciones idempotentes y comprobantes PDF. UX sencilla NO significa contabilidad simplificada ni falsa.
+
+=== PRIORIDAD 1: CATALOGO Y ALTA SIMPLE (EN LA V2 ADJUNTA) ===
+
+Preservar en su totalidad el alcance V2: botón principal «Agregar producto»; fruta nueva, variedad nueva y calibre nuevo SIN SALIR del flujo; calibres habituales como sugerencias no automáticas; no confundir «Manzana» con «Gala»; primera y SEGUNDA fruta; kiwi, uva, peras y granel con presentaciones válidas; diagnóstico seguro de «Manzana Gala» ya registrada; nunca borrar ni reescribir historial. No hacer que el usuario aprenda el esquema de tablas ni use cuatro pestañas. Al crear producto terminado proponer «Registrar recepción», preseleccionando nuevo SKU; evitar modales anidados frágiles.
+
+=== PRIORIDAD 2: UNA REVISIÓN COMPLETA DE SIMPLICIDAD EN LA APLICACIÓN ===
+
+Tras corregir catálogo y ventas, auditar operacionalmente todos los módulos activos desde los ojos de un empleado no técnico:
+- Recepciones: desde un producto configurado, sumar cajas, costo por caja y precio de venta en la misma pantalla, sin preguntar por blíster/piezas cuando no aplica ni inventar conteos. Permitir varias frutas en una sola recepción; indicar opciones desconocidas con claridad. Evitar duplicación entre configuración y entrada de inventario.
+- Inventario: diferenciar claramente «Cajas enteras», «Medias cajas» y «Blísteres»; no presentar equivalencias como mercancía física extra. Mostrar saldo por presentación, pero mantener árbol/ledger para trazabilidad avanzada.
+- Clientes: alta rápida y contacto WhatsApp opcional, sin exigir campos no necesarios para una venta comercial; no almacenar teléfono inventado.
+- Cobranza: lista de vencimientos y botón «Cobrar WhatsApp» directo al número corporativo existente; registrar abono seleccionando factura y método rápido, sin recapturar cliente. No mensajes automáticos. Recordatorios solo saldos pendientes.
+- Notas de entrega e impresión: las futuras notas B/N deben ser imprimibles en la HP Smart Tank 215 sin fondo de tinta, pero NO introducir “FACTURA FISCAL” ni declarar integración SENIAT sin autorización/verificación. Si no forma parte de este hotfix, anotarlo como pendiente sin retrasar UX crítica.
+- Diseño de pantallas: textos cortos, jerarquía clara, controles táctiles y etiquetas no técnicas; no esconder los errores reales, no acumular 12 campos opcionales en primera vista; animaciones discretas sin retrasar operaciones.
+Proponer mejoras pequeñas y verificables; NO iniciar refactorizaciones enormes o implementar fiscalidad durante este hotfix.
+
+=== PRUEBAS DE ACEPTACIÓN ADICIONALES QUE DEBEN FALLAR EN LA VERSIÓN ANTIGUA ===
+
+A. Venta CONTADO desde base de QA con un producto confirmado, precio USD y lote existente: NO se ve recordatorio ni fecha pactada ni ayuda sobre crédito, NO existe obligación de escribir método ni importe total; se puede vender rápidamente, revisar monto, confirmar, recibir comprobante comercial y stock baja una vez.
+B. Añadir/Quitar segunda línea o editar precio en contado actualiza importe a cobrar y resumen, sin sobrecobrar ni dejar una diferencia oculta; cantidad no puede exceder inventario confirmado.
+C. Crédito USD SIN ABONO: no se muestran moneda ni método, no se crea pago de cero, saldo y fecha recordatorio coinciden con lo seleccionado; completo posteriormente elimina alerta de cobranza.
+D. Crédito CON ABONO: método de pago táctil y saldo correcto, asignación a factura exacta; ambos comprobantes PDF están disponibles, sin envío de WhatsApp automático.
+E. Cambiar de crédito con fecha 15 días a contado y guardar: el servidor recibe fechas null; una petición HTTP manipulada con condition=cash y reminderDate/dueDate no nulos es rechazada y no crea documento ni push.
+F. Repetir las pruebas desde Android 390px, tablet 800/1024px (Chrome Android cuando sea viable) y portátil 1366/1440px. Captura de formulario Contado y Crédito; vídeo corto de venta normal y alta de producto; prueba a mano con táctil si hay dispositivo disponible. Medir scroll útil, teclado virtual, accesibilidad, autofocus y CTA visible. No llamar prueba física a una emulación.
+G. Recorrido de caja real en QA: crear Manzana + Gala + calibre 100, empaque permitido, precio USD, recepción de 2 cajas a costo registrado, cliente, venta contado de 1 caja y comparar venta, costo FIFO, saldo físico, PDF y reimpresión/descarga sin segunda salida de stock.
+H. Mantener todas las pruebas V2 que siguen después: alta de segunda fruta, variedad, calibre, contado, crédito, pagos y regresión de inventario. Extender suite e2e para que reproduzca los defectos observados, no solo pruebas API.
+I. Tener captura de inicio del flujo después de volver a abrir la app: no debe imponer “Nueva configuración” si el usuario busca “Agregar producto”.
+J. No ejecutar pruebas con escrituras sintéticas contra producción. En producción hacer smoke no destructivo y solicitar al dueño el recorrido de prueba comercial real, con un plan de validación de recibos y saldos.
+
+=== CONTROL DEL DESPLIEGUE ===
+
+Prioridad: entregar este hotfix probado en staging con datos sintéticos; comparar release de producción activa y recursos. Disponer de respaldo y restauración aislada. NO hacer merge, migrar datos del dueño, regularizar «Manzana Gala» ni cambiar infraestructura compartida sin autorización específica para la acción. Si ya existe autorización válida y específica de hotfix, seguirla sin inventarla; documentar versión exacta, cobertura y rollback. No reiniciar otros proyectos del VPS, no degradar bloqueo BCV ni autentificación. Entregar PR/commit en GitHub, capturas y vídeo, informe de antes/después, checklist de cinco minutos para los socios. No considerar «terminado» solamente por pasar tests antiguos.
+
+=== EL TEXTO V2 SIGUIENTE CONTINÚA VIGENTE, SALVO EN CASO DE CONFLICTO (PREVALECE ESTA V3) ===
+
+MANZANAS MARACAY — REVISIÓN 2: FLUJO SIMPLE DE ALTA DE PRODUCTOS
+ACTUALIZACIÓN PRIORITARIA DEL PROMPT DE CORRECCIONES (05/11/2026)
+
+CONTEXTO ADICIONAL DIRECTAMENTE OBSERVADO
+El propietario utilizó la aplicación de producción desde teléfono y portátil. En /catalogo ve 1 fruta, 1 variedad y 1 calibre, y un botón principal «Nueva configuración». Al pulsarlo, el selector de fruta únicamente muestra la fruta existente «Manzana Gala». Intentó agregar otra fruta desde esa ventana; no existe el control correspondiente. El propietario comprendió luego que hay pestañas separadas, pero considera inaceptable tener que conocer el esquema de datos del sistema y navegar entre cuatro secciones para dar de alta una sola fruta. Reitera que la aplicación debe ser comprensible en segundos para sus socios y para él. No presentar esto como un error del usuario: el problema es de arquitectura de información y ergonomía.
+
+INSTRUCCIÓN RECTORA — DISEÑAR ALREDEDOR DE LA TAREA DEL NEGOCIO, NO DE LAS TABLAS SQL
+La acción principal del catálogo NO debe limitarse a «Nueva configuración»; debe ser «Agregar producto» (o «Agregar fruta/producto» si se justifica). Debe conducir a un solo flujo asistido capaz de crear, seleccionar o reutilizar: (1) fruta, (2) variedad si aplica, (3) calibre si aplica, (4) tipo de empaque y presentaciones, (5) confirmación. NO requerir al operador ir manualmente a Frutas, Variedades, Calibres y Empaques. Las pestañas pueden permanecer para administración avanzada, pero no deben ser requisitos del alta cotidiana.
+
+EXPERIENCIA OBJETIVO
+Caso A. El negocio ya tiene «Manzana» y variedad «Gala»: tocar «Agregar producto» -> «Manzana» -> «Gala» -> calibre «100» (selección o + nuevo) -> caja con blíster -> blísteres por caja si están confirmados; guardar y mostrar una configuración lista para recibir mercancía.
+Caso B. El negocio necesita otra fruta aún inexistente, por ejemplo «Pera»: tocar el mismo «Agregar producto» -> botón «+ Crear fruta» visible junto al selector -> introducir «Pera» -> guardarla sin abandonar el flujo -> elegir o crear «Forelle» -> calibre disponible o + crear -> empaque; guardar. Debe ser imposible quedar atrapado en un selector que solo contiene la fruta anterior.
+Caso C. Desde cero: sin frutas ni variedades ni calibres, el recorrido debe explicar claramente qué introducir, por qué, y permitir completar un alta real sin visitar otra pestaña.
+Caso D. Una fruta sin variedad/calibre, como kiwi: ocultar campos irrelevantes o permitir «No aplica» explícito; definir caja 10 kg y media 5 kg, sin conteo de kiwis.
+Caso E. Si el negocio quiere «Manzana amarilla», debe quedar como variedad independiente de Gala. No fusionar por similitud visual.
+Caso F. Si ya existe «Manzana Gala» como fruta en la base real, inspeccionar dependencias y mostrar una opción segura y explícita de reorganizarla como «Manzana» + «Gala», sin borrado ni alteración silenciosa de lotes, costos, ventas o auditoría; no hacer cambios de datos productivos sin una operación revisada y autorizada.
+
+REGLAS DE DISEÑO CONCRETAS
+- Una sola acción principal persistente y evidente «Agregar producto» en catálogo y, opcionalmente, acceso contextual desde recepción cuando no aparece el producto. Que «Nueva fruta» exista también en pestaña Frutas, pero que NO sea la única vía.
+- Campos progresivos y lógica contextual: fruta -> variedad -> calibre -> empaque. Debe resultar claro «Fruta = Manzana», «Variedad = Gala», «Calibre = 100». Calibre representa clasificación comercial, nunca cantidad de piezas.
+- Selector con botones visibles «+ Crear fruta», «+ Crear variedad», «+ Crear calibre» y con búsqueda táctil cuando haya muchos registros. La nueva entidad guardada aparece y queda seleccionada inmediatamente; no cerrar ni reiniciar el alta principal, ni perder valores ya escritos. Evitar nested modals frágiles; usar subpaso/drawer accesible y restaurar foco.
+- Opciones sugeridas de fruta/variedades/calibres solo como propuestas revisables, no sembrar automáticamente costos, blíster, stock, precios ni presentaciones no confirmadas. Si se ofrecen «calibres habituales», el operador debe aprobar explícitamente el conjunto aplicable.
+- Las palabras «Configuración», «Línea comercial», «Modelo de empaque», «Preparación contada» son técnicas; usar etiquetas y ayuda en vocabulario de negocio. Si un concepto avanzado es imprescindible, esconderlo bajo «Opciones avanzadas» con descripción útil; no perder precisión contable.
+- Ofrecer resumen de confirmación sencillo: «Manzana · Gala · Calibre 100 · Caja con blíster · 5 blíster por caja (confirmado)», sin mostrar un 5 ficticio cuando esté pendiente.
+- Después de guardar, acción «Registrar entrada de mercancía» con la configuración ya seleccionada, SIN cargar inventario ficticio ni duplicar la configuración.
+- Botones, pestañas, avisos, errores, labels, tamaño y scroll optimizados para Android táctil, tablet y portátil. Errores accionables junto al campo; nunca «No se puede» sin explicar solución.
+- Si el flujo necesita más de tres pasos para crear un producto habitual o exige ir a otra pantalla, reevaluar el diseño. Las pantallas avanzadas se conservan pero no deben ser el camino principal.
+
+CRITERIOS DE ACEPTACIÓN ADICIONALES (BLOQUEANTES)
+1. Entregar vídeo de la prueba con usuario NUEVO y PostgreSQL de QA VACÍA: crear producto Manzana Gala calibre 100, con empaque confirmado, SIN cambiar de pestaña ni perder datos.
+2. Desde la misma acción, crear una SEGUNDA fruta Pera Forelle calibre 110 que antes no existía; probar en Android emulado de 390px y tablet 800/1024px y un navegador de escritorio. Tras recargar, se mantienen todas.
+3. Crear una variedad y calibre adicionales desde el mismo flujo, verificando que filtros dependientes no muestren variedades/calibres de fruta distinta.
+4. Un dueño no técnico debe reconocer espontáneamente la acción «Agregar producto». No llamar «Nueva configuración» al acceso principal. Probar rutas desde inicio/catálogo y, si corresponde, recepción.
+5. Con fruta «Manzana Gala» ya existente, no sobrescribir historial ni borrar la entidad automáticamente. Mostrar plan de saneamiento verificable solo tras revisar dependencias.
+6. Repetir TODAS las pruebas correctivas de pagos, recordatorios y seguridad del anexo original a continuación. Sin pruebas de uso sobre los flujos reales, NO declarar hotfix terminado.
+
+EL RESTO DEL SIGUIENTE PROMPT SE MANTIENE VIGENTE. SI UNA FRASE ANTERIOR PERMITE ALTA CONTEXTUAL SIN CAMBIAR LA ACCIÓN PRINCIPAL, PREVALECE ESTA REVISIÓN MÁS EXIGENTE.
+
+=======================================================================
+
+MANZANAS MARACAY — ORDEN DE CORRECCIÓN URGENTE PARA CODEX
+Auditoría UX/operativa de la producción Fase 4 — 05/11/2026
+
+PROPÓSITO
+Corregir problemas reales detectados por el propietario en su primer recorrido desde Android, antes de que trabaje con inventario/ventas reales. NO es una nueva DEMO ni un rediseño cosmético. Prioridad: completar de forma clara y rápida las operaciones reales sin comprometer los datos de producción. Trabajar a partir del estado real y reciente de GitHub y no asumir que los hallazgos siguen exactamente iguales al comenzar.
+
+REPOSITORIO Y CONTEXTO VERIFICADOS
+- https://github.com/milanexpress2026-commits/manzanas-maracay
+- Rama verificada: phase-4/produccion-separada; PR #3 abierto, head al auditar 37c4d9514dc391d3f565a3b31ec94745104e2e64. Código de producción reportado: 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0.
+- Los cambios de otras ramas y commits nuevos se deben inspeccionar antes de modificar; no sobrescribir trabajo más reciente.
+- Rutas relevantes verificadas: apps/web/src/components/catalog-form.tsx, catalog-screen.tsx, sales-screen.tsx, commercial-shared.tsx, packages/domain/src/commerce.ts, apps/api/src/commerce.service.ts, tests/e2e/catalog.spec.ts.
+- Producción pública con credenciales y PostgreSQL propia. No usar datos DEMO ni resetearla. Staging propio separado. PRESERVAR otros proyectos del VPS y el proxy compartido.
+
+HALLAZGOS CONCRETOS (REPRODUCIR PRIMERO)
+1) En /catalogo -> Empaques -> «Nueva configuración», el selector «Fruta» solo muestra frutas previamente guardadas. No hay «+ Agregar fruta» contextual. Los selectores de «Variedad» y «Calibre» tampoco ofrecen creación desde el propio formulario. El usuario agregó «Manzana Gala» como *fruta*, después quiso agregar otra y quedó bloqueado conceptualmente por este flujo. La UI actual obliga a recorrer varias pestañas manualmente. El código tiene handlers separados para altas, pero no una experiencia guiada.
+2) La base de producción fue inicializada vacía correctamente, pero la UI no facilita inicializar los calibres comunes del negocio ni crearlos desde Nueva configuración. Se muestra «Sin calibre» y la presentación de manzana corre el riesgo de guardarse sin su calibre real. No inventar fruta por calibre ni asumir cantidad de frutas.
+3) En /ventas/nueva, «Método del pago inicial» es Input de texto libre, obliga a escribir «Efectivo» u otro nombre en cada venta. En el diálogo de registrar abono de commercial-shared.tsx sucede lo mismo. En tablet debe haber selector táctil rápido.
+4) En /ventas/nueva, «Recordatorio interno, opcional» está presente aun cuando condition='cash'; sales-screen.tsx construye reminderDate: reminder || null sin condicionarlo, y el servidor usa saleSchema que acepta reminderDate independientemente de condition. Debe quedar restringido a crédito/pendiente desde UI, contrato y API; jamás programar cobranza de una venta pagada.
+5) El usuario ya creó la entrada «Manzana Gala» como fruta y falta un flujo de saneamiento de datos seguro. No borrarla, reinterpretarla o convertirla automáticamente si tiene empaques, precios, recepciones, lotes, ventas o trazabilidad. Verificar dependencias antes de ofrecer corrección.
+
+REQUISITOS DE CORRECCIÓN — CATALOGO
+A. UX guiada para creación de configuración desde un ÚNICO flujo. Mostrar tres campos dependientes: Fruta -> Variedad (si aplica) -> Calibre (si aplica). Cada selector debe ofrecer de forma evidente «+ Nueva fruta», «+ Nueva variedad», «+ Nuevo calibre»; creación contextual en modal/drawer accesible o subpaso, sin perder la configuración parcial ni cerrar accidentalmente el formulario principal. Al guardar una entidad, actualizar estado/lista e ID y seleccionarla automáticamente; manejar validación, duplicados, latencia, reintentos e idempotencia. No saltar de pestaña y obligar a reescribir.
+B. Identidad clara: «Manzana» es fruta; «Gala», «Roja», «Verde», «Pink Lady», «Amarilla» son variedades comerciales diferenciadas. «A granel» es línea comercial, no obliga a crear una nueva especie/variedad. Pera: Forelle/Packcam como variedades pendientes de confirmación de empaque. Uva: roja/morada; kiwi opcional sin variedad/calibre. Mandarina pendiente. Usar nombres comerciales editables y no cambiar históricos.
+C. Catálogo asistido: sugerir, NO aplicar reglas de empaque no confirmadas. Calibres habituales para manzana tradicional: 88,100,113,125,135,150,163,175,198; manzana a granel: 150,163,175,198,216,232; pera: 90,100,110,120,135. Mostrar propuestas/contexto y botón «Añadir calibres habituales» con vista previa, confirmación y creación idempotente, solo en las frutas correspondientes. Permitir cualquier calibre adicional validado. Ninguna sugerencia implica 4 o 5 blísteres; los conteos reales del negocio están por confirmar y tienen registros contradictorios. NO sembrar automáticamente presentaciones/costos/precios/stock ficticios.
+D. Para manzana tradicional y pera con calibre conocido, no inducir al usuario a «Sin calibre» cuando se esté configurando un SKU calibrado; si se necesita permitir un producto sin calibre en otro caso, explicar por qué. Diferenciar «Pendiente de confirmar blíster» de «Sin calibre».
+E. Soportar alta de SEGUNDA fruta, segunda variedad y segundo calibre desde el formulario de configuración, con retorno al formulario intacto. Probar selectores Android nativos, cierre de submodal, foco, teclado, scrolling y pantallas de 390/800/1024 px.
+F. Entrada existente «Manzana Gala»: crear herramienta/pantalla de revisión y corrección SOLO si es imprescindible: inspección de dependencias, vista previa del plan de regularización a fruta «Manzana» + variedad «Gala», garantías de unicidad, backup y transacción, preservación de lotes, costos, auditoría y documentos. Si ya hay movimientos que impiden una conversión segura, informar al dueño y no ejecutar automáticamente. Si está vacía, proponer corregir después de confirmación; nunca asumir datos reales. No eliminar silenciosamente; conservar evidencia del antes/después.
+G. Mantener compatibilidad con registros y migraciones; nunca reescribir migraciones ya aplicadas. Antes de tocar producción, respaldar y comprobar restauración aislada.
+
+REQUISITOS DE CORRECCIÓN — VENTAS Y COBRANZA
+H. Reemplazar campo texto «Método del pago inicial» por SELECTOR TÁCTIL con métodos coherentes con moneda y negocio. Presentar métodos frecuentes «Efectivo», «Transferencia», «Pago móvil», «Punto de venta» y «Otro», pero activar/desactivar opciones según moneda y métodos realmente usados (consultar propietario si hace falta). Métodos no confirmados son sugerencias, no presunciones de cobros. Si «Otro», permitir especificar un método validado. Persistir un valor claro en comprobantes, pagos y auditoría. Evitar pasar métodos ambiguos incompatibles con moneda. Hacer el mismo cambio en «Registrar abono», incluyendo reparto entre comprobantes. VES permanece bloqueado si no existe BCV oficial verificado; no usar conversión falsa.
+I. Cuando «Condición de venta = Contado», OCULTAR fecha de pago pactada y «Recordatorio interno»; al cambiar de crédito a contado limpiar ambos valores del borrador. El payload debe imponer dueDate=null y reminderDate=null en contado. Validar invariantes en packages/domain y nuevamente en API (rechazar solicitudes manipuladas con condition=cash y fechas indebidas o normalizarlas con política explícita y prueba; preferir rechazo claro). Al cambiar contado→crédito mostrar 7 días, 15 días, fecha personalizada y recordatorio separado; recordar no implica compromiso de pago.
+J. Impedir notificaciones de cobranza si el saldo ya es cero; cubrir contado, crédito cancelado mediante abono y cambios de condición. Una operación pagada no debe quedar vencida ni generar push. No afectar venta, saldo, FIFO, costo o ledger. El botón de WhatsApp usa el teléfono guardado y mensaje prellenado, sin autoenvío.
+K. En contado, ofrecer acción «Cobrar total» que complete el monto automáticamente y permita confirmar sin teclear cantidades redundantes; mantener revisión antes de guardar y prevenir duplicado de transacción. En crédito, permitir abono cero, parcial y total según reglas vigentes.
+
+PRUEBAS OBLIGATORIAS QUE LAS SUITES ANTERIORES NO CUBRÍAN
+1. PostgreSQL de prueba VACÍO y viewport Android 390 px: crear fruta «Manzana», dentro de Nueva configuración añadir «Gala» sin salir, añadir calibre 100 sin salir, fijar empaque realmente conocido, guardar y recargar; ambos IDs y la configuración correctos.
+2. Con solo «Manzana Gala» ya creada como fruta, desde Nueva configuración crear una SEGUNDA fruta y otra variedad; el selector se actualiza, la selección persiste y no se pierde formulario.
+3. Catálogo móvil después de reload: las opciones no desaparecen, segunda fruta/variedad/calibre seleccionables, no se mezclan calibres de pera con manzana, y duplicados se rechazan sin datos parciales.
+4. Calibres habituales sugeridos correctos por familia; confirmación explícita, sin blíster ni precios inventados, y reintento no crea duplicados.
+5. Venta CONTADO: sin campos de recordatorio, guardar con fecha nula, backend rechaza recordatorio manual inyectado, saldo cero y ninguna tarea push.
+6. Crédito: fecha 7/15 personalizada; recordatorio independiente, pago de abono a comprobante específico; pago completo elimina recordatorio pendiente.
+7. Método de pago select, uso táctil; efectivo, transferencia y otro en moneda correspondiente, validación y recibo correcto. Igual para registrar abonos.
+8. Cambio de contado a crédito y viceversa sin fecha oculta residual ni pago incoherente; revisar monto total, redondeos y recuperación ante pérdida de conexión.
+9. Regresión de FIFO: 10 cajas a USD25 + 10 a USD27 y venta 12 a USD40 = costo 304, total 480, ganancia bruta 176. Inventario no se duplica.
+10. Validar integración accesible con teclado y tablet real o documentar qué NO se probó físicamente. Medir no-overflow en 390, 800 y 1024 px, foco del dialog, Reduced Motion y ausencia de mensajes falsos de éxito.
+11. Regresión de seguridad, aislamientos DEMO/production, auth, idempotencia y 13 migraciones; ejecutar checks, unitarias, E2E y build. Registrar resultados reales y commit/branch.
+
+DESPLIEGUE Y ALCANCE
+- Trabajar en rama de hotfix propia basada en la producción exacta, o en el PR actual con cambios controlados si existe un procedimiento mejor; documentar la elección.
+- No modificar ni reiniciar otros proyectos de Contabo; evitar nombres Docker genéricos que colisionen. No tocar Caddy/DNS/firewall compartido sin aprobación específica, y usar los procedimientos seguros ya documentados.
+- No resetear base de producción ni borrar registros, facturas, costos o clientes. Inspeccionar si el dueño llegó a cargar un dato antes de proponer migración. No ejecutar corrección de «Manzana Gala» sin verificación de dependencias, respaldo y aceptación del dueño.
+- Probar en QA separado, entregar captura móvil, breve recorrido y logs de validaciones. Publicar hotfix solo si los controles de cambio y permisos existentes lo autorizan; demostrar salud y rollback. No afirmar un test no corrido o una aprobación no obtenida.
+- Mantener la versión oficial sin DEMO en la URL real; BCV VES sigue sin funcionar hasta tasa oficial verificable. Documentación fiscal SENIAT pendiente; ningún PDF comercial se hace pasar por factura fiscal.
+
+ENTREGA EXIGIDA
+1. Informe en español: causa raíz de cada problema + archivos corregidos + pruebas antes/después + riesgos pendientes.
+2. Cambios a GitHub con commit verificable y URL de PR; confirmar qué commit está desplegado en producción.
+3. Checklist de prueba manual desde la tablet del propietario: agregar otra fruta, variedad, calibre, configurar SKU, crear cliente, primera recepción, venta USD contado, crédito y abono, comprobar stock/comprobante sin datos duplicados.
+4. Si hay información insuficiente, dejar lo desconocido configurable y no inventar valores; no entregar como solucionado un flujo que no se probó en un navegador real.
+
+PRIORIDAD: CORREGIR PRIMERO LOS PROBLEMAS REPRODUCIBLES QUE BLOQUEAN EL USO DE LA TABLET; NO AÑADIR FUNCIONALIDADES ADORNADAS NI CAMBIAR LA ARQUITECTURA SIN NECESIDAD.

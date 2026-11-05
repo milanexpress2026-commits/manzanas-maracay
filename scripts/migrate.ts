@@ -44,7 +44,7 @@ export async function migrateDatabase(url: string) {
       grant select on warehouses to mm_app;
       grant select,insert on purchases,purchase_lines,inventory_movements,inventory_entries to mm_app;
       grant select,insert on inventory_cost_entries to mm_app;
-      grant select on inventory_cost_openings,bcv_rates to mm_app;
+      grant select on inventory_cost_openings,bcv_rates,usdt_rates to mm_app;
       grant usage,select on sequence inventory_cost_entries_entry_order_seq to mm_app;
       grant select,insert,update on clients,price_items to mm_app;
       grant select,insert on price_lists,sales,sale_lines,sale_allocations,sale_date_events,sale_cancellations,payments,payment_applications,payment_reversals to mm_app;

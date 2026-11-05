@@ -136,6 +136,7 @@ async function main() {
           'payment_applications',
           'app_users',
           'bcv_rates',
+          'usdt_rates',
         ];
         for (const table of tables)
           if (

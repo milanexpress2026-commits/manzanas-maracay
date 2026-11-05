@@ -420,14 +420,13 @@ test('PostgreSQL impide venta sin egreso y cambios tardíos de aplicaciones o do
     }
   });
 });
-test('VES sin tasa se bloquea; tasa histórica sintética de prueba conserva deuda USD y recibo', async ({
+test('VES BCV exige cotización vigente; reintento tras vencimiento conserva precio, deuda y recibo', async ({
   request,
 }) => {
   const rule = await commercialProduct(request),
     customer = await commercialCustomer(request);
   const rateId = randomUUID(),
-    historical = new Date(Date.now() - 315360000000 - parseInt(rateId.slice(0, 8), 16)),
-    receivedAt = historical.toISOString();
+    historical = new Date();
   await commercialReceipt(
     request,
     rule,
@@ -435,15 +434,21 @@ test('VES sin tasa se bloquea; tasa histórica sintética de prueba conserva deu
     '25',
     new Date(historical.getTime() - 86400000).toISOString(),
   );
+  const saleInput = commercialSaleInput(customer, rule, 1);
   const sale = await commercePost<SaleDetail>(request, '/api/sales', {
-    ...commercialSaleInput(customer, rule, 1),
+    ...saleInput,
+    lines: saleInput.lines.map((line) => ({ ...line, priceBasis: 'ves_regular' })),
     soldAt: new Date(historical.getTime() - 10000).toISOString(),
   });
+  const quoteTime = new Date(),
+    expiresAt = new Date(quoteTime.getTime() + 12_000),
+    receivedAt = quoteTime.toISOString();
   const data = {
     clientId: customer.id,
     currency: 'VES',
     amount: '1000',
-    method: 'Transferencia',
+    method: 'bolivares',
+    rateId,
     receivedAt,
     applications: [{ saleId: sale.id, amountUsd: '10' }],
   };
@@ -458,7 +463,7 @@ test('VES sin tasa se bloquea; tasa histórica sintética de prueba conserva deu
         rateId,
         createHash('sha256').update(`fixture-${rateId}`).digest('hex'),
         new Date(historical.getTime() - 1000),
-        new Date(historical.getTime() + 1000),
+        expiresAt,
         new Date(historical.getTime() - 500),
       ],
     );
@@ -470,9 +475,8 @@ test('VES sin tasa se bloquea; tasa histórica sintética de prueba conserva deu
   const current: SaleDetail = await (await request.get(`/api/sales/${sale.id}`)).json();
   expect(current.balanceUsd).toBe('30.00');
   expect(current.totalUsd).toBe('40.00');
-  // A later, disjoint validity interval must never revalue an existing debt or
-  // rewrite the rate/amount of the original receipt. Both rates remain past,
-  // synthetic records confined to the local test database.
+  // This isolated test advances to the next quote without rewriting either
+  // immutable cache entry, the agreed price, or an already committed receipt.
   const laterRateId = randomUUID();
   await database(async (db) => {
     await db.query(
@@ -481,13 +485,19 @@ test('VES sin tasa se bloquea; tasa histórica sintética de prueba conserva deu
       [
         laterRateId,
         createHash('sha256').update(`fixture-${laterRateId}`).digest('hex'),
-        new Date(historical.getTime() + 1000),
-        new Date(historical.getTime() + 2000),
-        new Date(historical.getTime() + 500),
+        expiresAt,
+        new Date(expiresAt.getTime() + 120_000),
+        new Date(expiresAt.getTime() - 100),
       ],
     );
   });
+  await new Promise((resolve) =>
+    setTimeout(resolve, Math.max(0, expiresAt.getTime() - Date.now()) + 100),
+  );
   expect(await commercePost<PaymentDetail>(request, '/api/payments', data, key)).toEqual(payment);
+  expect((await request.post('/api/payments', { headers: commerceHeaders(), data })).status()).toBe(
+    409,
+  );
   const historicalReceipt: PaymentDetail = await (
     await request.get(`/api/payments/${payment.id}`)
   ).json();
@@ -506,6 +516,23 @@ test('VES sin tasa se bloquea; tasa histórica sintética de prueba conserva deu
     paidUsd: '10.00',
     balanceUsd: '30.00',
   });
-  // No test rate is inserted into staging or published as a live quote. This past
-  // fixture cannot become a valid current rate and remains clearly labelled in test DB.
+  const later = await commercePost<PaymentDetail>(request, '/api/payments', {
+    ...data,
+    rateId: laterRateId,
+    receivedAt: new Date().toISOString(),
+    amount: '2000',
+  });
+  expect(later.amountUsd).toBe('10.00');
+  const afterLater: SaleDetail = await (await request.get(`/api/sales/${sale.id}`)).json();
+  expect(afterLater).toMatchObject({
+    totalUsd: '40.00',
+    balanceUsd: '20.00',
+    settlementBasis: 'bcv',
+  });
+  expect(afterLater.lines[0].agreedUnitUsd).toBe('40.0000');
+  expect(
+    (await (await request.get(`/api/payments/${payment.id}`)).json()).applications[0]
+      .balanceAfterUsd,
+  ).toBe('30.00');
+  // These quotes exist only in the guarded local test database, never in staging/production.
 });

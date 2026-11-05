@@ -92,6 +92,13 @@
       "when": 1793855922391,
       "tag": "0012_remembered_session",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793886300000,
+      "tag": "0013_agreed_settlement_rates",
+      "breakpoints": true
     }
   ]
 }

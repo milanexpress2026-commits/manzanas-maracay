@@ -11,7 +11,6 @@ import { Pool, type PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
-import { paymentVesToUsd } from '../../../packages/domain/src/index';
 import {
   businessDate,
   clientSchema,
@@ -23,6 +22,10 @@ import {
   commerceReversalSchema,
   updatePricesSchema,
   totalSaleLines,
+  saleCollectionDatesError,
+  settlementBasisForLines,
+  paymentSettlementBasis,
+  quotedVesToUsd,
   receivableStatus,
   collectionWhatsApp,
   type ClientSummary,
@@ -38,16 +41,19 @@ import {
   type ClientSnapshot,
   type Presentation,
   type PriceBasis,
+  type PaymentCurrency,
+  type SettlementBasis,
 } from '../../../packages/domain/src/commerce';
 import { InventoryService } from './inventory.service';
 import { BcvService } from './bcv.service';
 import { applyPresentationPrices } from './commerce-prices';
 import { commandIsDemo } from './production-state';
 import { authConfig } from './auth/config';
+import type { HistoricalOfficialRate, HistoricalUsdtRate } from './bcv-rate';
 
 const clientSelect = `select c.id,c.name,c.phone,c.tax_id as "taxId",c.address,c.notes,c.active,c.version,c.is_demo as "isDemo",
   coalesce((select sum(balance_usd) from receivables r where r.client_id=c.id),0)::numeric(18,2)::text as "balanceUsd" from clients c`;
-const saleSelect = `select s.id,s.number,s.client_id as "clientId",s.client_snapshot->>'name' as "clientName",s.condition,
+const saleSelect = `select s.id,s.number,s.client_id as "clientId",s.client_snapshot->>'name' as "clientName",s.condition,s.settlement_basis as "settlementBasis",
   case when cancel.id is null then 'confirmed' else 'cancelled' end as status,s.sold_at as "soldAt",s.due_date::text as "originalDueDate",
   case when dates.id is null then s.due_date::text else dates.due_date::text end as "dueDate",
   case when dates.id is null then s.reminder_date::text else dates.reminder_date::text end as "reminderDate",
@@ -69,8 +75,12 @@ const snapshot = (client: ClientSummary): ClientSnapshot => ({
   address: client.address,
 });
 type PaymentInput = z.infer<typeof paymentSchema>;
-type Rate = NonNullable<Awaited<ReturnType<BcvService['getCurrent']>>>;
-type PaymentConversion = { amountUsd: string; rate: Rate | null };
+type PaymentConversion = {
+  amountUsd: string;
+  basis: Exclude<SettlementBasis, 'legacy_bcv'>;
+  bcvRate: HistoricalOfficialRate | null;
+  usdtRate: HistoricalUsdtRate | null;
+};
 
 @Injectable()
 export class CommerceService implements OnModuleDestroy {
@@ -334,7 +344,7 @@ export class CommerceService implements OnModuleDestroy {
     if (!row) throw new NotFoundException('Este recibo no existe.');
     const info = (
       await client.query(
-        'select client_snapshot,bcv_rate_id,coalesce((select display_name from app_users u where u.id::text=p.actor),p.actor) as operator_name from payments p where id=$1',
+        'select client_snapshot,bcv_rate_id,usdt_rate_id,coalesce((select display_name from app_users u where u.id::text=p.actor),p.actor) as operator_name from payments p where id=$1',
         [id],
       )
     ).rows[0];
@@ -349,6 +359,18 @@ export class CommerceService implements OnModuleDestroy {
     if (bcvRate) {
       bcvRate.validFrom = new Date(bcvRate.validFrom).toISOString();
       bcvRate.validUntil = new Date(bcvRate.validUntil).toISOString();
+    }
+    const usdtRate = info.usdt_rate_id
+      ? (
+          await client.query(
+            'select id,rate::text,source_url as "sourceUrl",valid_from as "validFrom",valid_until as "validUntil" from usdt_rates where id=$1',
+            [info.usdt_rate_id],
+          )
+        ).rows[0]
+      : null;
+    if (usdtRate) {
+      usdtRate.validFrom = new Date(usdtRate.validFrom).toISOString();
+      usdtRate.validUntil = new Date(usdtRate.validUntil).toISOString();
     }
     const applications = (
       await client.query(
@@ -369,6 +391,7 @@ export class CommerceService implements OnModuleDestroy {
       client: info.client_snapshot,
       operatorName: info.operator_name,
       bcvRate,
+      usdtRate,
       applications,
       reversal,
     };
@@ -381,29 +404,56 @@ export class CommerceService implements OnModuleDestroy {
     if (new Date(value).getTime() > Date.now())
       throw new BadRequestException('No se puede registrar una operación con fecha futura.');
   }
-  private async conversion(input: {
-    currency: 'USD' | 'VES';
-    amount: string;
-    receivedAt: string;
-  }): Promise<PaymentConversion> {
+  private async conversion(
+    input: {
+      currency: PaymentCurrency;
+      amount: string;
+      receivedAt: string;
+      rateId?: string;
+    },
+    basis: Exclude<SettlementBasis, 'legacy_bcv'>,
+  ): Promise<PaymentConversion> {
     this.validateTimestamp(input.receivedAt);
-    if (input.currency === 'USD')
-      return { amountUsd: new Decimal(input.amount).toFixed(2), rate: null };
+    if (input.currency !== 'VES')
+      return {
+        amountUsd: new Decimal(input.amount).toFixed(2),
+        basis,
+        bcvRate: null,
+        usdtRate: null,
+      };
     const at = new Date(input.receivedAt),
-      rate = await this.bcv.getCurrent(at);
+      rate =
+        basis === 'divisa'
+          ? await this.bcv.getUsdtById(input.rateId!, at)
+          : await this.bcv.getById(input.rateId!, at);
     if (!rate)
       throw new ServiceUnavailableException(
-        'No hay una tasa BCV oficial vigente y verificada para este cobro. Puedes continuar con operaciones en USD.',
+        basis === 'divisa'
+          ? 'La tasa USDT de compra seleccionada no está vigente y verificada. Actualiza la tasa o registra el cobro en USD/USDT.'
+          : 'La tasa BCV oficial seleccionada no está vigente y verificada. Actualiza la tasa o registra el cobro en USD/USDT.',
       );
-    const amountUsd = paymentVesToUsd(input.amount, rate, at);
+    try {
+      quotedVesToUsd(input.amount, rate, basis, new Date());
+    } catch {
+      throw new ConflictException(
+        'La tasa cotizada venció antes de confirmar. Actualiza la tasa y revisa el cobro.',
+      );
+    }
+    const amountUsd = quotedVesToUsd(input.amount, rate, basis, at);
     if (new Decimal(amountUsd).lte(0))
       throw new BadRequestException(
         'El monto no alcanza un centavo USD; no se registró ningún abono.',
       );
-    return { amountUsd, rate };
+    return {
+      amountUsd,
+      basis,
+      bcvRate: rate.source === 'BCV' ? rate : null,
+      usdtRate: rate.source === 'BINANCE_P2P_BUY' ? rate : null,
+    };
   }
   async createSale(body: unknown, key: string | undefined, actor: string): Promise<SaleDetail> {
     const data = saleSchema.parse(body);
+    const settlementBasis = settlementBasisForLines(data.lines);
     this.validateTimestamp(data.soldAt);
     if (data.dueDate && data.dueDate < businessDate(new Date(data.soldAt)))
       throw new BadRequestException('La fecha pactada no puede ser anterior a la venta.');
@@ -413,7 +463,9 @@ export class CommerceService implements OnModuleDestroy {
       // The command receipt is checked before consulting rates, so a committed retry
       // remains recoverable even when the official rate later becomes unavailable.
       // BcvService reads the local verified cache only; it performs no network request.
-      const conversion = data.initialPayment ? await this.conversion(data.initialPayment) : null;
+      const conversion = data.initialPayment
+        ? await this.conversion(data.initialPayment, settlementBasis)
+        : null;
       const customer = await this.client(client, data.clientId, true);
       if (!customer.active)
         throw new ConflictException('Este cliente está inactivo. Actívalo antes de vender.');
@@ -491,6 +543,12 @@ export class CommerceService implements OnModuleDestroy {
         throw new BadRequestException(
           'El abono supera el total. Revisa el monto; no se asignará excedente automáticamente.',
         );
+      const datesError = saleCollectionDatesError(
+        data,
+        totals.totalUsd,
+        conversion?.amountUsd ?? '0',
+      );
+      if (datesError) throw new BadRequestException(datesError);
       const id = randomUUID();
       const allocations = await this.inventory.consumeSale(
         client,
@@ -523,7 +581,7 @@ export class CommerceService implements OnModuleDestroy {
         await client.query("select 'V-'||lpad(nextval('mm_sale_number_seq')::text,8,'0') as number")
       ).rows[0].number;
       await client.query(
-        `insert into sales(id,number,client_id,condition,status,sold_at,due_date,reminder_date,client_snapshot,notes,actor,is_demo,total_usd,cost_usd) values($1,$2,$3,$4,'confirmed',$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13)`,
+        `insert into sales(id,number,client_id,condition,status,sold_at,due_date,reminder_date,client_snapshot,notes,actor,is_demo,total_usd,cost_usd,settlement_basis) values($1,$2,$3,$4,'confirmed',$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13,$14)`,
         [
           id,
           number,
@@ -538,6 +596,7 @@ export class CommerceService implements OnModuleDestroy {
           isDemo,
           totals.totalUsd,
           costUsd,
+          settlementBasis,
         ],
       );
       for (const line of lines) {
@@ -602,9 +661,19 @@ export class CommerceService implements OnModuleDestroy {
     key: string,
     customer: ClientSummary,
   ): Promise<string> {
+    const rate = conversion.bcvRate ?? conversion.usdtRate;
+    if (rate) {
+      try {
+        quotedVesToUsd(data.amount, rate, conversion.basis, new Date());
+      } catch {
+        throw new ConflictException(
+          'La tasa cotizada venció antes de confirmar. Actualiza la tasa y revisa el cobro.',
+        );
+      }
+    }
     if (
-      conversion.rate &&
-      paymentVesToUsd(data.amount, conversion.rate, new Date(data.receivedAt)) !==
+      rate &&
+      quotedVesToUsd(data.amount, rate, conversion.basis, new Date(data.receivedAt)) !==
         conversion.amountUsd
     )
       throw new ConflictException('La tasa del cobro dejó de ser válida.');
@@ -620,7 +689,7 @@ export class CommerceService implements OnModuleDestroy {
     // triggers take that same lock. These immutable documents need no UPDATE grant.
     const sales = (
       await client.query(
-        'select id,client_id,is_demo,sold_at from sales where id=any($1::uuid[]) order by id',
+        'select id,client_id,is_demo,sold_at,settlement_basis from sales where id=any($1::uuid[]) order by id',
         [data.applications.map((a) => a.saleId)],
       )
     ).rows;
@@ -632,6 +701,16 @@ export class CommerceService implements OnModuleDestroy {
     if (sales.some((s) => new Date(s.sold_at) > new Date(data.receivedAt)))
       throw new BadRequestException(
         'El abono no puede ser anterior a los comprobantes seleccionados.',
+      );
+    if (
+      data.currency === 'VES' &&
+      this.paymentBasis(
+        sales.map((sale) => sale.settlement_basis),
+        data.currency,
+      ) !== conversion.basis
+    )
+      throw new ConflictException(
+        'El acuerdo de cobro no coincide con los comprobantes seleccionados.',
       );
     const balances = (
       await client.query(
@@ -648,20 +727,21 @@ export class CommerceService implements OnModuleDestroy {
     }
     const id = randomUUID();
     await client.query(
-      'insert into payments(id,client_id,currency,amount,amount_usd,bcv_rate_id,received_at,idempotency_key,method,actor,client_snapshot,is_demo) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)',
+      'insert into payments(id,client_id,currency,amount,amount_usd,bcv_rate_id,received_at,idempotency_key,method,actor,client_snapshot,is_demo,usdt_rate_id) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13)',
       [
         id,
         customer.id,
         data.currency,
         data.amount,
         conversion.amountUsd,
-        conversion.rate?.id ?? null,
+        conversion.bcvRate?.id ?? null,
         data.receivedAt,
         key,
         data.method,
         actor,
         JSON.stringify(snapshot(customer)),
         customer.isDemo,
+        conversion.usdtRate?.id ?? null,
       ],
     );
     for (const application of data.applications) {
@@ -688,6 +768,9 @@ export class CommerceService implements OnModuleDestroy {
         amount: data.amount,
         amountUsd: conversion.amountUsd,
         applications: data.applications,
+        method: data.method,
+        settlementBasis: data.currency === 'VES' ? conversion.basis : null,
+        rateId: rate?.id ?? null,
       },
       actor,
       key,
@@ -701,13 +784,38 @@ export class CommerceService implements OnModuleDestroy {
   ): Promise<PaymentDetail> {
     const data = paymentSchema.parse(body);
     return this.inventory.runCommand('payment', data, key, actor, async (client) => {
-      const conversion = await this.conversion(data);
       const customer = await this.client(client, data.clientId, true);
       if (commandIsDemo(customer.isDemo) !== customer.isDemo)
         throw new ConflictException('Este entorno acepta únicamente cobros DEMO.');
+      const sales = (
+        await client.query<{ settlement_basis: SettlementBasis }>(
+          'select settlement_basis from sales where id=any($1::uuid[]) and client_id=$2 and is_demo=$3 order by id',
+          [
+            data.applications.map((application) => application.saleId),
+            customer.id,
+            customer.isDemo,
+          ],
+        )
+      ).rows;
+      if (sales.length !== data.applications.length)
+        throw new BadRequestException('Selecciona comprobantes del mismo cliente y entorno.');
+      const conversion = await this.conversion(
+        data,
+        this.paymentBasis(
+          sales.map((sale) => sale.settlement_basis),
+          data.currency,
+        ),
+      );
       const id = await this.insertPayment(client, data, conversion, actor, key!, customer);
       return this.paymentDetail(client, id);
     });
+  }
+  private paymentBasis(bases: SettlementBasis[], currency: PaymentCurrency) {
+    try {
+      return paymentSettlementBasis(bases, currency);
+    } catch (error) {
+      throw new BadRequestException((error as Error).message);
+    }
   }
   async changeDates(
     id: string,
@@ -719,6 +827,8 @@ export class CommerceService implements OnModuleDestroy {
     const data = changeSaleDatesSchema.parse(body);
     return this.inventory.runCommand(`sale-dates:${id}`, data, key, actor, async (client) => {
       const before = await this.saleDetail(client, id);
+      if (before.condition !== 'credit')
+        throw new ConflictException('Solo las ventas a crédito admiten fechas de cobranza.');
       if (before.status === 'cancelled' || new Decimal(before.balanceUsd).lte(0))
         throw new ConflictException('Solo se reprograman comprobantes con saldo pendiente.');
       await client.query(

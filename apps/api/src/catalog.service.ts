@@ -14,6 +14,7 @@ import {
   fruitSchema,
   varietySchema,
   caliberSchema,
+  caliberBatchSchema,
   configurationSchema,
   updatePackingSchema,
   updateVarietySchema,
@@ -149,17 +150,19 @@ export class CatalogService implements OnModuleDestroy {
     if (!key || !z.uuid().safeParse(key).success)
       throw new BadRequestException('Falta una clave válida para guardar sin duplicados.');
     const parsed =
-      kind === 'update-variety'
-        ? updateVarietySchema.parse(body)
-        : kind === 'fruits'
-          ? fruitSchema.parse(body)
-          : kind === 'varieties'
-            ? varietySchema.parse(body)
-            : kind === 'calibers'
-              ? caliberSchema.parse(body)
-              : kind === 'configurations'
-                ? configurationSchema.parse(body)
-                : updatePackingSchema.parse(body);
+      kind === 'calibers-batch'
+        ? caliberBatchSchema.parse(body)
+        : kind === 'update-variety'
+          ? updateVarietySchema.parse(body)
+          : kind === 'fruits'
+            ? fruitSchema.parse(body)
+            : kind === 'varieties'
+              ? varietySchema.parse(body)
+              : kind === 'calibers'
+                ? caliberSchema.parse(body)
+                : kind === 'configurations'
+                  ? configurationSchema.parse(body)
+                  : updatePackingSchema.parse(body);
     if (id && !z.uuid().safeParse(id).success)
       throw new BadRequestException('Identificador inválido.');
     if (
@@ -186,7 +189,53 @@ export class CatalogService implements OnModuleDestroy {
       }
       let result: Record<string, unknown>,
         before: unknown = null;
-      if (kind === 'update-variety') {
+      if (kind === 'calibers-batch') {
+        const data = caliberBatchSchema.parse(parsed);
+        const [fruit] = await tx
+          .select()
+          .from(schema.fruits)
+          .where(eq(schema.fruits.id, data.fruitId));
+        if (!fruit) throw new NotFoundException('Selecciona una fruta existente.');
+        // Serialize each fruit's batch, then insert in a stable order. The unique index
+        // also protects this path against concurrent single-caliber creation.
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtextextended(${'calibers:' + data.fruitId},0))`,
+        );
+        const labels = [
+          ...new Map(data.labels.map((label) => [label.toLowerCase(), label])).values(),
+        ].sort();
+        const calibers: { id: string; fruitId: string; label: string }[] = [];
+        let createdCount = 0;
+        for (const label of labels) {
+          const [created] = await tx
+            .insert(schema.calibers)
+            .values({ fruitId: data.fruitId, label })
+            .onConflictDoNothing()
+            .returning();
+          if (created) {
+            calibers.push(created);
+            createdCount++;
+          } else {
+            const [existing] = await tx
+              .select()
+              .from(schema.calibers)
+              .where(
+                and(
+                  eq(schema.calibers.fruitId, data.fruitId),
+                  sql`lower(btrim(${schema.calibers.label}))=lower(btrim(${label}))`,
+                ),
+              );
+            if (!existing) throw new ConflictException('Cambió el catálogo. Vuelve a intentar.');
+            calibers.push(existing);
+          }
+        }
+        result = {
+          id: data.fruitId,
+          calibers: calibers.map(({ id, fruitId, label }) => ({ id, fruitId, label })),
+          createdCount,
+          reusedCount: calibers.length - createdCount,
+        };
+      } else if (kind === 'update-variety') {
         const data = updateVarietySchema.parse(parsed);
         const [existing] = await tx
           .select()

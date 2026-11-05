@@ -209,7 +209,9 @@ export function CatalogForm({
                 </Field>
               </div>
               <Field>
-                <FieldLabel htmlFor="commercial-line">Línea comercial</FieldLabel>
+                <FieldLabel htmlFor="commercial-line">
+                  Nombre para distinguir este empaque
+                </FieldLabel>
                 <Input
                   id="commercial-line"
                   value={line}
@@ -220,7 +222,7 @@ export function CatalogForm({
                   placeholder="Por ejemplo: con blíster o a granel…"
                 />
                 <FieldDescription>
-                  Es una presentación comercial del producto, no una variedad botánica.
+                  Por ejemplo, Estándar o Granel. No cambia la fruta ni la variedad.
                 </FieldDescription>
               </Field>
               <Field>
@@ -231,7 +233,7 @@ export function CatalogForm({
                   onChange={(e) => changeModel(e.target.value as PackingModel)}
                 >
                   <option value="blister">Caja con blíster</option>
-                  <option value="halves">Caja divisible en dos mitades comerciales</option>
+                  <option value="halves">Caja y media caja, sin blíster</option>
                   <option value="whole">Solo caja completa</option>
                 </NativeSelect>
               </Field>
@@ -255,14 +257,16 @@ export function CatalogForm({
                     </FieldDescription>
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="half-preparation">Preparación de media caja</FieldLabel>
+                    <FieldLabel htmlFor="half-preparation">
+                      ¿Cómo preparan la media caja?
+                    </FieldLabel>
                     <NativeSelect
                       id="half-preparation"
                       value={half}
                       onChange={(e) => setHalf(e.target.value as HalfPreparation)}
                     >
                       <option value="pending">Pendiente de confirmar</option>
-                      <option value="counted">Conteo físico al fraccionar</option>
+                      <option value="counted">Contando las frutas al abrir la caja</option>
                       <option value="none">No se preparan medias cajas</option>
                     </NativeSelect>
                   </Field>
@@ -316,7 +320,7 @@ export function CatalogForm({
                   checked={confirmed}
                   onChange={(e) => setConfirmed(e.target.checked)}
                 />
-                <span>El propietario confirmó esta configuración comercial</span>
+                <span>Confirmo que este empaque y sus presentaciones son correctos</span>
               </label>
               <Field>
                 <FieldLabel htmlFor="notes">Notas</FieldLabel>

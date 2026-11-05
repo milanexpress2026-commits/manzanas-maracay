@@ -11,11 +11,13 @@ import { normalizedMoney, presentationNames } from '@/lib/commercial-ui';
 export function CatalogPrices({
   configuration,
   onSaved,
+  initialOpen = false,
 }: {
   configuration: Configuration;
+  initialOpen?: boolean;
   onSaved: () => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [prices, setPrices] = useState(() =>
     configuration.allowedPresentations.map((presentation) => ({
       presentation,
@@ -107,7 +109,7 @@ export function CatalogPrices({
                   <div className="contents" key={price.presentation}>
                     <p className="price-presentation">{presentationNames[price.presentation]}</p>
                     <Field>
-                      <FieldLabel htmlFor={`promo-${index}`}>Promocional USD efectivo</FieldLabel>
+                      <FieldLabel htmlFor={`promo-${index}`}>Promocional divisa</FieldLabel>
                       <Input
                         id={`promo-${index}`}
                         required={Boolean(price.promoUsd.trim() || price.regularUsd.trim())}
@@ -123,7 +125,7 @@ export function CatalogPrices({
                       />
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor={`regular-${index}`}>Normal USD para VES</FieldLabel>
+                      <FieldLabel htmlFor={`regular-${index}`}>Regular · Bs. BCV</FieldLabel>
                       <Input
                         id={`regular-${index}`}
                         required={Boolean(price.promoUsd.trim() || price.regularUsd.trim())}

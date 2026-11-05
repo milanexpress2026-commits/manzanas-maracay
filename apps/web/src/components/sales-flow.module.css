@@ -1,0 +1,454 @@
+.salePage {
+  --sale-gap: 20px;
+}
+.salePage :global(.back-link) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-bottom: 12px;
+}
+.salePage :global(.page-heading) {
+  margin-bottom: 20px;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: 24px;
+}
+.main,
+.layout > *,
+.line,
+.lineFields > *,
+.customer > * {
+  min-width: 0;
+}
+.main {
+  display: grid;
+  gap: var(--sale-gap);
+}
+.surface {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+.salePage h2,
+.payment h2 {
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 750;
+  margin: 0 0 16px;
+}
+.salePage h3 {
+  font-size: 15px;
+  font-weight: 750;
+  margin: 0;
+}
+.salePage [data-slot='field'],
+.payment [data-slot='field'] {
+  gap: 6px;
+  min-width: 0;
+}
+.salePage input:not([type='radio']),
+.salePage select,
+.payment input,
+.payment select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 15px;
+}
+.salePage [data-slot='native-select-wrapper'],
+.payment [data-slot='native-select-wrapper'] {
+  width: 100%;
+  min-width: 0;
+}
+.salePage [data-slot='button'],
+.payment [data-slot='button'] {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.customer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.customer > [data-slot='button'] {
+  margin-bottom: 0;
+}
+.condition {
+  margin: 16px 0 0;
+  padding: 0;
+  gap: 0;
+}
+.condition legend {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.segments {
+  display: flex;
+  gap: 8px;
+}
+.segments label {
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.segments label:has(:checked) {
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+}
+.segments input {
+  accent-color: var(--leaf);
+  width: 16px;
+  height: 16px;
+}
+.segments label:has(:focus-visible) {
+  outline: 2px solid var(--leaf);
+  outline-offset: 3px;
+}
+.productsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.productsHeader h2 {
+  margin-bottom: 0;
+}
+.productsHeader span,
+.muted {
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.line {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.line:first-of-type {
+  padding-top: 8px;
+}
+.line:last-of-type {
+  margin-bottom: 12px;
+}
+.lineHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.lineHeader > [data-slot='button'] {
+  flex: 0 0 44px;
+  width: 44px;
+}
+.lineFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 0.75fr);
+  gap: 12px;
+}
+.productField {
+  grid-column: 1 / -1;
+}
+.agreement {
+  margin-top: 20px;
+}
+.quantity {
+  display: grid;
+  grid-template-columns: 44px minmax(40px, 1fr) 44px;
+  gap: 4px;
+}
+.quantity [data-slot='button'] {
+  padding: 0;
+}
+.quantity input {
+  text-align: center;
+  padding-inline: 2px;
+  appearance: textfield;
+}
+.quantity input::-webkit-outer-spin-button,
+.quantity input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.lineAmount {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.lineAmount strong {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.lineHelp {
+  margin: 8px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.lineHelp a,
+.error a,
+.optional a {
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.error {
+  font-size: 13px;
+  color: var(--primary);
+  margin: 8px 0 0;
+}
+.optional {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.optional summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 650;
+}
+.optional summary::-webkit-details-marker {
+  display: none;
+}
+.optional summary svg {
+  width: 16px;
+  height: 16px;
+}
+.optional[open] > summary {
+  margin-bottom: 12px;
+}
+.optional [data-slot='field-group'] {
+  gap: 16px;
+}
+.payment {
+  display: grid;
+  gap: 16px;
+}
+.summary {
+  position: sticky;
+  top: 24px;
+  background: var(--secondary);
+  gap: 12px;
+}
+.summary h2 {
+  margin: 0;
+}
+.summary dl {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.summary dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+.summary dt {
+  font-size: 13px;
+}
+.summary dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.summary .total {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  padding-bottom: 12px;
+}
+.total dd {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+.total dt {
+  align-self: center;
+  font-size: 14px;
+  font-weight: 650;
+}
+.summary > [data-slot='button'] {
+  width: 100%;
+}
+.summary .muted {
+  margin: 0;
+}
+.paymentControls {
+  display: grid;
+  gap: 12px;
+}
+.amountAuto {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+  margin: 0;
+}
+.amountAuto strong {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.dates {
+  display: grid;
+  gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.shortcuts [data-slot='button'] {
+  flex: 1 0 auto;
+  padding: 8px;
+}
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--green);
+}
+.quoteMeta {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.quoteSource {
+  display: inline-block;
+  padding-block: 8px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.review {
+  display: grid;
+  gap: 16px;
+}
+.review dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.review dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.review dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 700;
+}
+.review small {
+  display: block;
+  color: var(--muted-foreground);
+}
+.review ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.review li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.review li > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.reviewTotal {
+  font-size: 20px;
+}
+.restored {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+@media (max-width: 1190px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 290px;
+    gap: 16px;
+  }
+  .surface {
+    padding: 16px;
+  }
+}
+@media (max-width: 950px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .summary {
+    position: static;
+  }
+  .paymentControls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .dates {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 540px) {
+  .salePage {
+    --sale-gap: 16px;
+  }
+  .surface {
+    padding: 16px;
+  }
+  .customer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .customer > [data-slot='button'] {
+    justify-self: start;
+  }
+  .segments label {
+    flex: 1;
+    padding: 10px 16px;
+  }
+  .lineFields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .quantity {
+    grid-template-columns: 44px minmax(28px, 1fr) 44px;
+    gap: 0;
+  }
+  .paymentControls,
+  .dates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .summary .total {
+    display: grid;
+    gap: 4px;
+  }
+  .total dd {
+    text-align: left;
+  }
+}
