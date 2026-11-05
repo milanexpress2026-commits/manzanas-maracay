@@ -1,0 +1,91 @@
+MANZANAS MARACAY — INSTRUCCIÓN CORRECTIVA PRIORITARIA V4
+Fecha: 05/11/2026
+Destinatario: Codex, trabajando en el repositorio público del propietario.
+Repositorio: https://github.com/milanexpress2026-commits/manzanas-maracay
+Base obligatoria: inspeccionar el estado real de https://github.com/milanexpress2026-commits/manzanas-maracay/pull/4 (rama hotfix/ux-ventas-catalogo-v3) y la producción Fase 4.
+
+OBJETIVO DE NEGOCIO / CRITERIO DE ÉXITO
+El operador debe poder registrar una nueva fruta, un empaque, una recepción y una venta de contado sin saber cómo funciona la base de datos ni saltar por cuatro pestañas. El catálogo de productos habituales debe venir PREPARADO como borradores comerciales revisables; los socios solo verifican lo que venden, ajustan el blíster por caja cuando proceda y ponen precios/costos reales. Los cobros han de permitir seleccionar opciones reconocibles, no escribirlas a mano, y mostrar cotizaciones verificadas cuando estén disponibles. El cambio debe proteger compras, inventario, históricos y cobros.
+
+1. PRIMERO: RECONCILIAR Y CONSERVAR LA ENTREGA DEL PR #4
+- Al 05/11/2026 se comprobó en GitHub: PR #4, rama hotfix/ux-ventas-catalogo-v3, HEAD 3378f7b46f7da27f75e9ff43faa6b2247072840d, código de staging hotfix-8612e8230bb5; producción sigue en fase4-2a81817fe2c1, commit 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0. RECONFIRMAR estados y hashes en el momento de ejecutar.
+- PR #4 reporta 188 unitarias, 74 E2E, 13 ensayos QA de modo producción, 14 migraciones y recolector BCV + Binance P2P BUY verificados en staging. NO reescribir su trabajo ni afirmar que falta toda la integración. Auditar los cambios y complementar lo pendiente.
+- Revisar especialmente apps/web/src/components/product-form.tsx, product-catalog-field.tsx, payment-method-selector.tsx, sales-screen.tsx, commercial-shared.tsx; apps/web/src/lib/product-draft.ts; apps/api/src/catalog.service.ts, bcv.service.ts, commerce.service.ts; packages/domain/src/commerce.ts y rate-sources.ts; scripts/refresh-rates.ts; docs/hotfix-ux-v3.md y docs/domain-rules.md.
+- NO usar la URL pública como entorno de pruebas, ni simular ventas sobre producción. Mantener la versión anterior operativa hasta una promoción verificable. Trabajar en la rama hotfix actual o una rama hija con PR claro y sin reescribir migraciones aplicadas.
+
+2. CATÁLOGO PREPARADO PARA MANZANAS MARACAY, NO UNA BASE VACÍA QUE LOS SOCIOS TENGAN QUE CONSTRUIR
+- Diseñar una acción destacada «Preparar catálogo de Manzanas Maracay» en el primer acceso de un negocio sin catálogo, y conservar «Agregar producto» como flujo cotidiano. Debe mostrar una previsualización de lo que se va a crear, permitir desmarcar y editar, pedir confirmación explícita y funcionar de forma idempotente: un segundo clic no crea duplicados.
+- NO es un sembrado de inventario, ventas, clientes, proveedores, precios ni costos. Solamente maestros comerciales y configuraciones BORRADOR. Los datos verdaderos se cargan al recibir mercancía. Ninguna cantidad blíster pendiente puede quedar falsamente confirmada.
+- Modelo lógico correcto: FRUTA → VARIEDAD (si aplica) → CALIBRE (si aplica) → LÍNEA/PRESENTACIONES → CONFIGURACIÓN DE EMPAQUE. NO registrar «Manzana Gala» como otra fruta si debe ser fruta «Manzana» con variedad «Gala». Manzana granel es una línea comercial de manzana, no variedad obligatoria.
+- Precargar/poner a disposición como borradores comerciales, con nombres editables y equivalencias explícitas:
+  a) FRUTA MANZANA: variedades «Gala», «Roja normal», «Verde», «Pink Lady», «Amarilla» (amarilla independiente, no confundir con Gala). «Lady» no se fusiona automáticamente con Pink Lady.
+     Calibres tradicionales comunicados: 88, 100, 113, 125, 135, 150, 163, 175, 198; aplicarlos como opciones habituales, sin crear todas las combinaciones variedad×calibre si no se venden. Presentaciones para caja tradicional blisteada: caja, media caja, blíster; NUNCA pieza suelta.
+  b) MANZANA A GRANEL: calibres 150, 163, 175, 198, 216, 232; caja y media caja comerciales; SIN blíster y SIN contar manzanas individuales.
+  c) PERA: variedades «Forelle» y «Packcam» (respetar el nombre comunicado); calibres 90, 100, 110, 120, 135; caja/media/blíster, pero método de media y cantidad de blíster requieren confirmación de los socios.
+  d) KIWI: no exigir variedad ni calibre; caja de 10 kg, media caja de 5 kg, sin pesar ni contar cada pieza durante la venta.
+  e) UVA: variedades roja y morada, solo caja completa; no exigir peso, gajos, blísteres ni ofrecer medias.
+  f) MANDARINA: disponible como fruta con empaque pendiente, pero no inventar variedades, calibres ni presentaciones.
+- Los calibres de cada familia aparecen EN UN PASO como chips/selección múltiple «Habituales» y campo «+ Calibre no habitual» para 90, 110 u otro raro. Mantener selección elegida para el siguiente producto. Mostrar solo lo que corresponda a la fruta/línea actual.
+- NO crear cientos de fichas completas vacías. Preferir maestros compartidos de calibres + plantillas que ayuden a activar una combinación concreta con 1–2 toques al recibir/crear un producto. La configuración de cada variante tiene snapshot por lote y estado real de confirmación.
+
+3. BLÍSTERES: APLICAR EL CONOCIMIENTO YA PROPORCIONADO SIN INVENTAR NI CONTRADECIR
+- Existen audios del 04/11/2026: para Gala, manzana roja y verde se mencionó 4 blíster/caja en calibres 88 o menores y 5 desde calibre 100; otra transcripción menciona 88/90 o menos como cuatro, por lo que los calibres intermedios (como 90) no se deben fijar por inferencia.
+- Para Pink Lady calibre 110 o menor se mencionaron 4 blíster/caja; para pera 110 o menor se mencionaron 4 y 120/135 cinco, PERO en el análisis comercial posterior se dejó pendiente validar estas tablas y la preparación de medias cajas con los socios. Existen antiguos ejemplos contradictorios Gala 80=5 y Gala 180=4. NO tomar aquellos fixtures ni esta regla de ejemplo como confirmación automática de un lote real.
+- Mostrar «Cantidad sugerida según audio: 4/5; verificar» SOLO donde haya correspondencia inequívoca; permitir corrección rápida y dejar sin confirmar si existe conflicto. No habilitar venta en blíster cuando se desconoce el dato aplicable. Dar una revisión por lote para confirmar cantidad sin ir a otra pestaña.
+- Un calibre NO es la cantidad de piezas dentro de una caja. Nunca descontar fruta individual por deducción del número de calibre.
+- Para productos granel/kiwi/uva no mostrar controles de blíster. Una caja abierta no es inventario adicional a su contenido; preservar conservación física y costo FIFO.
+
+4. REHACER ALTA COMERCIAL COMO UN SOLO RECORRIDO REAL DE OPERADOR
+- Pantalla principal: «Agregar producto». Secuencia breve: (i) fruta/variedad/calibre con crear opciones inline, (ii) presentación/empaque con valores pertinentes y datos sin confirmar señalados, (iii) revisión/guardar; acción «Registrar recepción de este producto» que navegue con la selección ya cargada.
+- Permitir agregar segunda fruta y siguiente variedad/calibre sin abandonar la operación ni recargar el formulario. Si el nombre ya existe, elegirlo; no duplicarlo. No obligar a abrir «Frutas», «Variedades», «Calibres», «Empaques» por separado, aunque esas pestañas administrativas puedan seguir disponibles.
+- Para múltiples calibres de una variedad, proporcionar alta rápida en lote y selección concreta para la recepción. No repetir empaques idénticos uno por uno cuando se puede usar una plantilla editable por variante, pero NO hacer que una modificación global reescriba snapshots históricos.
+- Evitar modal enorme que desborde pantalla; aplicar diseño táctil en Android/ tablet 390, 800 y 1024 px, teclado visible, scroll interno correcto, acciones guardar/cancelar siempre accesibles, transición ligera.
+- Diagnosticar por ID el registro real «Manzana Gala» ya creado por el propietario EN MODO LECTURA. Proponer normalización segura a Manzana → Gala; si no hay lotes/ventas dependientes puede planearse migración idempotente transaccional y reversible; si sí hay, NO renombrar o borrar datos silenciosamente: preservar históricos y preparar un nuevo catálogo correcto, con desactivación/alias solo tras confirmación. NO hacer ninguna modificación privada no autorizada.
+
+5. PAGOS: CUATRO OPCIONES ENTENDIBLES, SIN TECLADO PARA ELEGIR EL MÉTODO
+- En la pantalla de venta y de abono mostrar menú compacto con etiquetas comerciales claras:
+  1 «Efectivo USD» (recibo USD)
+  2 «Bolívares a tasa BCV» (recibo VES, requiere acuerdo de precio regular/BCV)
+  3 «USDT» (recibo USDT, importe 1:1 en USD de deuda según acuerdo)
+  4 «Bolívares a tasa USDT compra» (recibo VES, requiere acuerdo divisa/precio promocional previamente pactado)
+- La cuarta opción refleja el lenguaje del negocio «dólares al cambio a tasa USDT» como equivalente en bolívares; NO asumir que hay una cuarta moneda llamada 'dólar USDT'. Si el propietario decide que ese término significa otra operación, mantener este texto configurable sin inventar contabilidad.
+- La regla del acuerdo de precio debe quedar fijada AL HACER LA VENTA: precio promocional/divisa o precio regular/BCV, independientemente de contado/crédito. Un método de pago no modifica silenciosamente la lista comercial o el monto pactado. Las opciones incompatibles deben aparecer explicadas o deshabilitadas claramente y proponer el flujo correcto ANTES de confirmar; evitar cambios sorpresivos de precios.
+- La implementación PR #4 ya guarda settlementBasis, soporta USD/USDT/VES y según documentación usa fuente BCV oficial y Binance P2P BUY; reutilizarla. Requerimos etiquetas claras y selección guiada, no duplicar ledgers ni reinventar cotizaciones.
+- En contado, al elegir método, rellenar automáticamente el total en USD/USDT o el equivalente VES con tasa identificada. No pedir «monto pagado» redundante salvo modo «editar importe» justificado. En crédito, abono opcional visible solo cuando se desea registrar; sin abono no pedir método, moneda ni crear pago cero.
+- Bolívares: mostrar tasa, fuente oficial/comercial correspondiente, fecha valor/actualización y estado; tasa BCV NO es cotización USDT, y Binance P2P NO es tasa oficial ni cotización garantizada. Si está vencida o no verificable, no aceptar pago en VES; ofrecer USD/USDT sin cambiar el acuerdo de venta ni reescribir deuda. El recolector nunca debe desactivar TLS ni aceptar tasas del navegador.
+- Persistir fecha, moneda realmente recibida, método, monto, identificador y snapshot de cotización, valor USD aplicado, factura(s) seleccionadas, actor y operación idempotente. No reinterpretar ventas anteriores al PR #4.
+
+6. MOSTRAR SOLO LO NECESARIO, SEGÚN EL CONTEXTO
+- Contado: cliente, productos/presentación/cantidad, precio pactado, método, total, revisión y confirmación. SIN recordatorios, fecha de vencimiento, instrucciones de abonos o texto de «deja monto en cero». Nota opcional bajo «Más opciones».
+- Crédito: saldo, abono si lo hay, fecha pactada rápida 7/15/personalizada y recordatorio para la tablet con opción explícita. Nunca recordar una factura pagada.
+- Regla SERVIDOR/Dominio: venta cash siempre dueDate=null y reminderDate=null; rechazar payload incompatible o limpiarlo de forma controlada y probada. Al cambiar crédito→contado limpiar datos ocultos y comprobar que no sobreviven al submit.
+- Resumen claro y fijo: total, abonado y saldo. Nada se confirma por animación antes de API; 1 venta = 1 commit y 1 descuento FIFO. Reimprimir PDF no repite movimientos.
+- Reducir avisos «BCV no disponible» cuando se eligió USD/USDT: una advertencia contextual en el selector VES, no un bloque gigante en cada pantalla que no usa bolívares.
+
+7. TASAS BCV/USDT: DE STAGING A PRODUCCIÓN, CON EVIDENCIA
+- El informe de PR #4 afirma staging con BCV verificado a 894.88760000 Bs/USD el 05/11/2026 y USDT compra 1009.79 Bs/USDT observado a las 16:25 UTC. SON EVIDENCIAS HISTÓRICAS DE STAGING, NO VALORES PARA PRECARGAR NI GARANTÍA DE VALIDEZ FUTURA.
+- Validar que el recolector de `scripts/refresh-rates.ts` esté programado con identidad y salida segura, y que `/api/rates/current` muestre estado real; si falta, explicar causa real. Verificar fuente/fecha vigencia, TLS, exactitud y cache, y posibles fines de semana/feriados, sin asumir que una tasa hoy vale mañana.
+- Antes de activar VES en producción, comprobar en entorno aislado 1) tasa verificada con fuente/hash y fecha, 2) circuito de precio divisa→VES tasa USDT compra, 3) regular/BCV→VES BCV, 4) pagos posteriores bajo acuerdo fijado, 5) reversas/idempotencia, 6) cambio de día/caducidad. Registrar evidencias sin credenciales. Tener rollback coherente con migración 0013.
+- Si una tasa está indisponible, mostrar estado y permitir continuar operación USD/USDT; NUNCA fijar tasa de hoy manualmente como valor permanente o de prueba en producción.
+
+8. QA CON PERSONAS REALES, NO SOLO TESTS ABSTRACTOS
+- Pruebas Playwright funcionales E2E y con tablet real (cuando el dispositivo esté accesible) para:
+  A. Desde base/catálogo vacío: preparar maestros sin inventario, activar Manzana→Gala→100→blíster conocido confirmado, agregar otra fruta Pera→Forelle→110, después Uva roja solo caja, Kiwi 10 kg/media 5 kg, Manzana Amarilla distinta de Gala.
+  B. Crear calibre excepcional «90» y «216» y usarlo; no duplicar registros ni perder selección al volver.
+  C. Registrar primera recepción de 2 cajas, costos USD 25, precio promo 40/regular 48; registrar venta contado 1 caja USD efectivo, total automático, sin calendario, inventario 1 caja y recibo único.
+  D. Crédito de otra caja sin abono, fecha 7 días, recordatorio; USD 10 + USD 30 a factura elegida; saldo cero, aviso desaparece.
+  E. Cambiar crédito con recordatorio a contado y confirmar ausencia total de fecha de cobranza en API y BD.
+  F. Selector de los cuatro métodos; VES BCV y VES USDT con fuentes distintas y exactitud histórica; bloqueos por vencimiento, reintentos seguros y ausencia de mezcla de tasas.
+  G. Navegar 390/800/1024/1440 px, Android táctil si disponible, entrada con teclado, select native, modales y scroll, accesibilidad WCAG, reducción de movimiento.
+  H. Conservar costos distintos por lotes: 10*25+2*27=304 de costo al vender 12 cajas; ingreso 480, utilidad bruta 176. Nunca inventar piezas ni cambiar historial al editar catálogo.
+- Ejecutar npm ci/check/typecheck/build y suites de unit/E2E/migración frescas y upgrades. Reportar número exacto y SHA comprobado. Si el cambio se limita a UI, verificar igualmente endpoints de integridad y filtros de cobranzas. No hay 'aprobado' hasta que un recorrido desde catálogo vacío termine en primera venta sin obstáculos.
+
+9. PUBLICACIÓN RESPONSABLE Y REPORTE SIN DEMOS
+- Cambios primero en PR y QA/staging, con evidencia (capturas, recorrido breve, tasa real verificada y tabla de catálogo preparada). NO marcar producción como actualizada hasta comprobar que el dominio público sirva el SHA nuevo, que la tablet descargue el código nuevo y que el login/stock funcionen.
+- Para promover a producción, presentar al propietario un resumen corto del SHA/cambio, backup/restauración verificada y riesgos. Obtener aprobación explícita para cambio de tráfico y migraciones que afecten la instancia real; no cambiar Caddy/DNS/red compartida sin autorización concreta.
+- Promoción solo con backup recuperable, preservación de base productiva, esquema compatible y plan de reversión que no ejecute código antiguo sobre esquema incompatible. No borrar ni reestructurar registros reales sin permiso.
+- Mantener intactas las otras aplicaciones del Contabo: antes/después comparar servicios/rutas, volumen/alias, HTTP/health. No hacer pruebas destructivas en vivo.
+- Los PDF siguen siendo comprobantes comerciales, NO facturas fiscales homologadas. La integración de impresión HP Smart Tank 215 es otra tarea independiente, no fingir que está lista.
+- Entregar: i) estado exacto del PR #4 y rama nueva; ii) qué ya estaba implementado/qué se añadió; iii) capturas y vídeo del flujo completo; iv) resultados reales de suites; v) checklist de 5 minutos para propietarios; vi) si producción continúa en SHA viejo, INDICARLO CLARAMENTE, con instrucciones concretas para aprobación y actualización.
+
+REGLA SUPREMA: la aplicación tiene que ahorrarle tiempo al dueño y a sus socios. La precisión de PostgreSQL/FIFO queda por detrás; las tareas repetidas se convierten en un flujo breve, contextual y usable. NO SOLICITAR NUEVAMENTE CALIBRES O VARIEDADES YA COMUNICADOS; solo pedir confirmación puntual de información realmente contradictoria o pendiente, por ejemplo cantidades de blíster de una combinación específica.

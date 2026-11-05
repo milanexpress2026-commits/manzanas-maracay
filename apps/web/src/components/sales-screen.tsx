@@ -51,12 +51,11 @@ import {
   caracasDate,
   addCaracasDays,
 } from '@/lib/commercial-ui';
+import { PaymentMethodSelector } from './payment-method-selector';
 import {
-  PaymentMethodSelector,
-  defaultPaymentMethod,
-  type PaymentCurrency,
-} from './payment-method-selector';
-import {
+  paymentChoiceDetails,
+  paymentChoiceUnavailable,
+  type PaymentChoice,
   emptySaleLine,
   salePresentations,
   salePrices,
@@ -148,8 +147,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const [lines, setLines] = useState<SaleDraftLine[]>([emptySaleLine(1)]);
   const [nextKey, setNextKey] = useState(2);
   const [paid, setPaid] = useState('0');
-  const [currency, setCurrency] = useState<PaymentCurrency>('USD');
-  const [method, setMethod] = useState(defaultPaymentMethod('USD'));
+  const [addPayment, setAddPayment] = useState(false);
+  const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>('usd_cash');
+  const { currency, method } = paymentChoiceDetails(paymentChoice);
   const [restored, setRestored] = useState(false);
   const [reviewQuote, setReviewQuote] = useState<RateValue | null>(null);
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
@@ -172,8 +172,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       setLines(draft.lines);
       setNextKey(draft.nextKey);
       setPaid(draft.paid);
-      setCurrency(draft.currency);
-      setMethod(draft.method);
+      setAddPayment(draft.addPayment);
+      setPaymentChoice(draft.paymentChoice);
       setRestored(true);
       setBasis(draft.lines.find((line) => line.priceBasis)?.priceBasis ?? '');
     } else {
@@ -189,13 +189,18 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     ) ?? [];
   const ready = !!catalog.data && !!clients.data && !catalog.error && !clients.error;
   const total = lines.reduce((sum, line) => sum.plus(saleLineTotal(line)), new Decimal(0));
-  const activeRate = basis === 'usd_cash_promo' ? rate.data?.usdt?.rate : rate.data?.rate;
-  const quoteCurrent = useQuoteCurrent(activeRate);
-  const rateAvailable =
-    quoteCurrent &&
-    (basis === 'usd_cash_promo'
-      ? rate.data?.usdt?.status === 'available'
-      : rate.data?.status === 'available');
+  const settlement = basis ? (basis === 'usd_cash_promo' ? 'divisa' : 'bcv') : null;
+  const bcvCurrent = useQuoteCurrent(rate.data?.rate);
+  const usdtCurrent = useQuoteCurrent(rate.data?.usdt?.rate);
+  const quotes = {
+    bcv: bcvCurrent && rate.data?.status === 'available',
+    usdt: usdtCurrent && rate.data?.usdt?.status === 'available',
+  };
+  const paymentIssue = paymentChoiceUnavailable(paymentChoice, settlement, quotes);
+  const quoteBasis =
+    paymentChoice === 'ves_bcv' ? 'bcv' : paymentChoice === 'ves_usdt' ? 'divisa' : settlement;
+  const activeRate = quoteBasis === 'divisa' ? rate.data?.usdt?.rate : rate.data?.rate;
+  const rateAvailable = !paymentIssue && (quoteBasis === 'divisa' ? quotes.usdt : quotes.bcv);
   const received =
     condition === 'cash'
       ? currency === 'VES'
@@ -252,8 +257,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       lines,
       nextKey,
       paid,
-      currency,
-      method,
+      addPayment,
+      paymentChoice,
     });
   }
   function changeCondition(value: 'cash' | 'credit') {
@@ -261,8 +266,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     setDue('');
     setReminder('');
     setPaid('0');
-    setCurrency('USD');
-    setMethod(defaultPaymentMethod('USD'));
+    setAddPayment(false);
+    setPaymentChoice('usd_cash');
     command.setError('');
   }
   function changeBasis(value: PriceBasis | '') {
@@ -380,6 +385,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         command.setError(issue);
         return;
       }
+    }
+    if ((condition === 'cash' || positivePayment) && paymentIssue) {
+      command.setError(paymentIssue);
+      return;
     }
     if (
       currency === 'VES' &&
@@ -848,6 +857,22 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               {quantityText ? <p className={styles.muted}>{quantityText}</p> : null}
               <fieldset disabled={command.busy} className={styles.payment}>
                 {condition === 'credit' ? (
+                  <label className={styles.paymentToggle}>
+                    <input
+                      type="checkbox"
+                      checked={addPayment}
+                      onChange={(event) => {
+                        setAddPayment(event.target.checked);
+                        if (!event.target.checked) {
+                          setPaid('0');
+                          setPaymentChoice('usd_cash');
+                        }
+                      }}
+                    />
+                    Registrar un abono ahora
+                  </label>
+                ) : null}
+                {condition === 'credit' && addPayment ? (
                   <Field>
                     <FieldLabel htmlFor="sale-paid">Abono hoy (opcional) · {currency}</FieldLabel>
                     <Input
@@ -860,42 +885,23 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     <FieldDescription>Deja 0 si el cliente pagará después.</FieldDescription>
                   </Field>
                 ) : null}
-                {condition === 'cash' || positivePayment ? (
-                  <div className={styles.paymentControls}>
-                    <PaymentMethodSelector
-                      id="sale-method"
-                      currency={currency}
-                      value={method}
-                      onChange={setMethod}
-                    />
-                    <Field>
-                      <FieldLabel htmlFor="sale-currency">Moneda del cobro</FieldLabel>
-                      <NativeSelect
-                        id="sale-currency"
-                        value={currency}
-                        onChange={(event) => {
-                          const value = event.target.value as PaymentCurrency;
-                          setCurrency(value);
-                          setMethod(defaultPaymentMethod(value));
-                          if (condition === 'credit' && (value === 'VES' || currency === 'VES'))
-                            setPaid('0');
-                        }}
-                      >
-                        <option value="USD">USD</option>
-                        <option value="USDT">USDT · 1:1 USD</option>
-                        <option value="VES" disabled={!basis || !rateAvailable || !activeRate}>
-                          Bolívares
-                        </option>
-                      </NativeSelect>
-                    </Field>
-                  </div>
+                {condition === 'cash' || addPayment ? (
+                  <PaymentMethodSelector
+                    id="sale-method"
+                    value={paymentChoice}
+                    basis={settlement}
+                    quotes={quotes}
+                    onChange={(choice) => {
+                      const next = paymentChoiceDetails(choice);
+                      if (condition === 'credit' && (next.currency === 'VES' || currency === 'VES'))
+                        setPaid('0');
+                      setPaymentChoice(choice);
+                    }}
+                  />
                 ) : null}
-                {currency === 'VES' && (condition === 'cash' || positivePayment) ? (
+                {currency === 'VES' && (condition === 'cash' || addPayment) ? (
                   <>
-                    <RateNotice
-                      rate={rate.data}
-                      basis={basis === 'usd_cash_promo' ? 'divisa' : 'bcv'}
-                    />
+                    <RateNotice rate={rate.data} basis={quoteBasis ?? undefined} />
                     <Button type="button" variant="outline" onClick={() => void rate.reload()}>
                       Actualizar tasa
                     </Button>
@@ -1005,10 +1011,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                   USD y USDT conservan el importe pactado, 1:1. Bolívares requiere la tasa
                   correspondiente y un método habilitado.
                 </p>
-                <RateNotice
-                  rate={rate.data}
-                  basis={basis === 'usd_cash_promo' ? 'divisa' : 'bcv'}
-                />
+                <RateNotice rate={rate.data} basis={quoteBasis ?? undefined} />
+                <Button type="button" variant="outline" onClick={() => void rate.reload()}>
+                  Actualizar tasas
+                </Button>
               </details>
             </aside>
           </form>
@@ -1113,10 +1119,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                 </dl>
                 {reviewQuote ? (
                   <p>
-                    <RateSnapshot
-                      quote={reviewQuote}
-                      basis={basis === 'usd_cash_promo' ? 'divisa' : 'bcv'}
-                    />
+                    <RateSnapshot quote={reviewQuote} basis={quoteBasis ?? 'bcv'} />
                   </p>
                 ) : null}
                 <p className={styles.muted}>

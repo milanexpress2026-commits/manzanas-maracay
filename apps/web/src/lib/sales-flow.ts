@@ -1,6 +1,51 @@
 import Decimal from 'decimal.js';
-import type { Configuration, Presentation, PriceBasis } from '@mm/domain';
+import type { Configuration, Presentation, PriceBasis, SettlementBasis } from '@mm/domain';
 import { normalizedMoney } from './commercial-ui';
+
+export const paymentChoices = [
+  { id: 'usd_cash', label: 'Efectivo USD', currency: 'USD', method: 'usd_cash', basis: null },
+  {
+    id: 'ves_bcv',
+    label: 'Bolívares a tasa BCV',
+    currency: 'VES',
+    method: 'bolivares',
+    basis: 'bcv',
+  },
+  { id: 'usdt_transfer', label: 'USDT', currency: 'USDT', method: 'usdt_transfer', basis: null },
+  {
+    id: 'ves_usdt',
+    label: 'Bolívares a tasa USDT compra',
+    currency: 'VES',
+    method: 'bolivares',
+    basis: 'divisa',
+  },
+] as const;
+export type PaymentChoice = (typeof paymentChoices)[number]['id'];
+export const paymentChoiceDetails = (choice: PaymentChoice) =>
+  paymentChoices.find((item) => item.id === choice)!;
+export function paymentChoiceUnavailable(
+  choice: PaymentChoice,
+  basis: SettlementBasis | null,
+  quotes: { bcv: boolean; usdt: boolean },
+  mixed = false,
+): string | null {
+  const option = paymentChoiceDetails(choice);
+  if (option.currency !== 'VES') return null;
+  if (mixed) return 'Separa los comprobantes por acuerdo para cobrar en bolívares.';
+  if (!basis) return 'Selecciona primero el acuerdo de la venta o un comprobante pendiente.';
+  const normalized = basis === 'legacy_bcv' ? 'bcv' : basis;
+  if (option.basis !== normalized)
+    return option.basis === 'bcv'
+      ? 'Requiere un acuerdo regular/BCV; conserva el precio pactado y elige otro cobro.'
+      : 'Requiere un acuerdo promocional/divisa; conserva el precio pactado y elige otro cobro.';
+  if (!(option.basis === 'bcv' ? quotes.bcv : quotes.usdt))
+    return (
+      'Cotización ' +
+      (option.basis === 'bcv' ? 'BCV' : 'USDT compra') +
+      ' no disponible o vencida. Actualiza la tasa o elige USD/USDT.'
+    );
+  return null;
+}
 
 export type SaleDraftLine = {
   key: number;
@@ -80,8 +125,8 @@ export type SaleFormDraft = {
   lines: SaleDraftLine[];
   nextKey: number;
   paid: string;
-  currency: 'USD' | 'VES' | 'USDT';
-  method: string;
+  addPayment: boolean;
+  paymentChoice: PaymentChoice;
 };
 // Client-navigation continuity only: no cookies, Web Storage, database or server-global data.
 let navigationDraft: { scope: string; expiresAt: number; draft: SaleFormDraft } | null = null;

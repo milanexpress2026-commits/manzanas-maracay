@@ -7,6 +7,9 @@ import {
   keepSaleDraft,
   takeSaleDraft,
   clearSaleDraft,
+  paymentChoices,
+  paymentChoiceDetails,
+  paymentChoiceUnavailable,
   type SaleFormDraft,
 } from '../../apps/web/src/lib/sales-flow';
 
@@ -34,6 +37,53 @@ afterEach(() => {
   clearSaleDraft();
   vi.unstubAllGlobals();
   vi.useRealTimers();
+});
+
+describe('cuatro opciones de cobro conservan moneda y acuerdo', () => {
+  it('ambas opciones de bolívares usan VES y el método histórico, sin inventar otra moneda', () => {
+    expect(paymentChoices.map(({ id, currency, method }) => ({ id, currency, method }))).toEqual([
+      { id: 'usd_cash', currency: 'USD', method: 'usd_cash' },
+      { id: 'ves_bcv', currency: 'VES', method: 'bolivares' },
+      { id: 'usdt_transfer', currency: 'USDT', method: 'usdt_transfer' },
+      { id: 'ves_usdt', currency: 'VES', method: 'bolivares' },
+    ]);
+    expect(paymentChoiceDetails('ves_usdt').basis).toBe('divisa');
+  });
+  it('una cotización de otra fuente nunca habilita el cobro VES del acuerdo', () => {
+    expect(paymentChoiceUnavailable('ves_usdt', 'divisa', { bcv: true, usdt: false })).toContain(
+      'USDT compra no disponible',
+    );
+    expect(paymentChoiceUnavailable('ves_bcv', 'bcv', { bcv: false, usdt: true })).toContain(
+      'BCV no disponible',
+    );
+    expect(paymentChoiceUnavailable('ves_usdt', 'divisa', { bcv: false, usdt: true })).toBeNull();
+    expect(
+      paymentChoiceUnavailable('ves_bcv', 'legacy_bcv', { bcv: true, usdt: false }),
+    ).toBeNull();
+  });
+  it('bloquea un método incompatible sin transformar el acuerdo ni el método elegido', () => {
+    const quotes = { bcv: true, usdt: true };
+    expect(paymentChoiceUnavailable('ves_bcv', 'divisa', quotes)).toContain(
+      'Requiere un acuerdo regular/BCV',
+    );
+    expect(paymentChoiceUnavailable('ves_usdt', 'bcv', quotes)).toContain(
+      'Requiere un acuerdo promocional/divisa',
+    );
+    expect(paymentChoiceUnavailable('ves_usdt', 'legacy_bcv', quotes)).not.toBeNull();
+  });
+  it('permite USD/USDT sin cotización o con acuerdos mezclados, pero exige separar VES', () => {
+    const quotes = { bcv: false, usdt: false };
+    for (const method of ['usd_cash', 'usdt_transfer'] as const) {
+      expect(paymentChoiceUnavailable(method, null, quotes)).toBeNull();
+      expect(paymentChoiceUnavailable(method, null, quotes, true)).toBeNull();
+    }
+    for (const method of ['ves_bcv', 'ves_usdt'] as const) {
+      expect(paymentChoiceUnavailable(method, null, { bcv: true, usdt: true })).not.toBeNull();
+      expect(paymentChoiceUnavailable(method, null, { bcv: true, usdt: true }, true)).toContain(
+        'Separa los comprobantes',
+      );
+    }
+  });
 });
 
 describe('venta rápida: decisiones explícitas y dinero exacto', () => {
@@ -84,8 +134,8 @@ describe('borrador temporal de navegación', () => {
     lines: [emptySaleLine(1)],
     nextKey: 2,
     paid: '0',
-    currency: 'USD',
-    method: 'usd_cash',
+    addPayment: false,
+    paymentChoice: 'usd_cash',
   };
   it('no lee ni conserva datos durante render en servidor', () => {
     keepSaleDraft('actor', draft);

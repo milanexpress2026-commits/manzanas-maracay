@@ -271,19 +271,53 @@ test('producción rechaza DEMO y empaque pendiente o presentaciones no autorizad
     },
   });
   expect(invalid.status()).toBe(400);
-  const confirm = await request.patch(`/api/catalog/configurations/${rule.id}`, {
-    headers: headers(),
-    data: {
-      version: rule.version,
-      packingModel: 'whole',
-      halfPreparation: 'none',
-      allowedPresentations: ['box'],
-      blistersPerBox: null,
-      confirmationStatus: 'confirmed',
-    },
+  // V4 confirms the reviewed catalog version and its receipt together. The same
+  // database production triggers remain active; no synthetic production bypass.
+  const reviewedInput = {
+    ...input,
+    lines: [
+      {
+        ...input.lines[0],
+        packingConfirmation: {
+          expectedVersion: rule.version,
+          confirmed: true,
+          packingModel: 'whole',
+          halfPreparation: 'none',
+          allowedPresentations: ['box'],
+          blistersPerBox: null,
+          boxWeightKg: null,
+        },
+      },
+    ],
+  };
+  const key = randomUUID();
+  const received = await post<ReceiptResult>(request, '/api/receipts', reviewedInput, key);
+  expect(await post(request, '/api/receipts', reviewedInput, key)).toEqual(received);
+  await database('application', async (db) => {
+    expect(
+      (
+        await db.query('select confirmation_status,version from packing_rules where id=$1', [
+          rule.id,
+        ])
+      ).rows[0],
+    ).toEqual({ confirmation_status: 'confirmed', version: rule.version + 1 });
+    expect(
+      (
+        await db.query(
+          'select confirmation_status_snapshot,packing_rule_version,is_demo from lots where id=$1',
+          [received.lots[0].id],
+        )
+      ).rows[0],
+    ).toEqual({
+      confirmation_status_snapshot: 'confirmed',
+      packing_rule_version: rule.version + 1,
+      is_demo: false,
+    });
+    expect(
+      (await db.query('select count(*)::int n from purchases where reference=$1', [reference]))
+        .rows[0].n,
+    ).toBe(1);
   });
-  expect(confirm.status()).toBe(200);
-  const received = await post<ReceiptResult>(request, '/api/receipts', input);
   const client = await customer(request);
   const invalidSale = {
     ...saleInput(client, rule, 1),

@@ -153,6 +153,11 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
 }) => {
   test.setTimeout(150000);
   await loginPage(page);
+  await page.route('**/api/rates/current', (route) =>
+    route.fulfill({
+      json: { status: 'unavailable', rate: null, usdt: { status: 'unavailable', rate: null } },
+    }),
+  );
   const suffix = randomUUID().slice(0, 8);
   const client = await post(page, '/api/clients', { name: 'DEMO cliente UI ' + suffix });
   const fruit = await post(page, '/api/catalog/fruits', { name: 'DEMO fruta UI ' + suffix });
@@ -195,7 +200,8 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   await page.getByLabel('Cantidad', { exact: true }).fill('2');
   await page.getByLabel('Precio acordado').selectOption('usd_cash_promo');
   await expect(page.getByLabel('Precio unitario (USD)')).toHaveValue(/^40(?:\.0+)?$/);
-  await page.getByLabel('Abono hoy (opcional) · USD', { exact: true }).fill('00,00');
+  await expect(page.getByRole('checkbox', { name: 'Registrar un abono ahora' })).not.toBeChecked();
+  await expect(page.locator('#sale-paid')).toHaveCount(0);
   const keys: string[] = [];
   let saved: SaleDetail | undefined;
   await page.route('**/api/sales', async (route) => {
@@ -240,7 +246,12 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   );
   await page.getByRole('button', { name: 'Registrar abono', exact: true }).click();
   await page.getByLabel('Monto recibido').fill('30');
-  await expect(page.getByRole('option', { name: 'Bolívares · tasa del acuerdo' })).toBeDisabled();
+  await expect(
+    page.getByRole('option', { name: 'Bolívares a tasa BCV', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole('option', { name: 'Bolívares a tasa USDT compra', exact: true }),
+  ).toBeDisabled();
   const paymentKeys: string[] = [];
   let recordedPaymentId = '';
   await page.route('**/api/payments', async (route) => {

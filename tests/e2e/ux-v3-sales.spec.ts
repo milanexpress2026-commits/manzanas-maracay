@@ -193,7 +193,7 @@ test('crédito cero y abono completo conservan acuerdo, fechas independientes y 
     payments: [],
   });
   await page.getByRole('button', { name: 'Registrar abono', exact: true }).click();
-  await page.getByLabel('Moneda recibida').selectOption('USDT');
+  await page.getByLabel('Método de pago').selectOption('usdt_transfer');
   await expect(page.getByLabel('Método de pago')).toHaveValue('usdt_transfer');
   await page.getByRole('button', { name: 'Cobrar saldo completo', exact: true }).click();
   await page.getByRole('button', { name: 'Revisar abono', exact: true }).click();
@@ -228,6 +228,7 @@ test('crédito con abono inicial registra saldo real y no recupera fechas borrad
   await page.getByRole('radio', { name: 'Crédito', exact: true }).check();
   await page.getByRole('button', { name: '7 días', exact: true }).click();
   await page.locator('#sale-reminder').fill(await page.locator('#sale-due').inputValue());
+  await page.getByRole('checkbox', { name: 'Registrar un abono ahora' }).check();
   await page.locator('#sale-paid').fill('40');
   await expect(page.locator('#sale-due, #sale-reminder')).toHaveCount(0);
   await page.locator('#sale-paid').fill('10');
@@ -322,7 +323,7 @@ test('revisión conserva cotización, vencimiento exige refrescar y API rechaza 
   const product = products[0];
   await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
   await page.getByLabel('Precio acordado').selectOption('usd_cash_promo');
-  await page.getByLabel('Moneda del cobro').selectOption('VES');
+  await page.getByLabel('Método de cobro').selectOption('ves_usdt');
   await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('VES 2.000,00');

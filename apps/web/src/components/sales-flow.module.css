@@ -209,6 +209,8 @@
   color: var(--green);
   text-decoration: underline;
   text-underline-offset: 3px;
+  justify-content: space-between;
+  gap: 8px;
 }
 .error {
   font-size: 13px;
@@ -293,10 +295,6 @@
 .summary .muted {
   margin: 0;
 }
-.paymentControls {
-  display: grid;
-  gap: 12px;
-}
 .amountAuto {
   display: flex;
   justify-content: space-between;
@@ -339,6 +337,8 @@
   padding-block: 8px;
   text-decoration: underline;
   text-underline-offset: 3px;
+  justify-content: space-between;
+  gap: 8px;
 }
 .review {
   display: grid;
@@ -407,10 +407,6 @@
   .summary {
     position: static;
   }
-  .paymentControls {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
   .dates {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -440,7 +436,6 @@
     grid-template-columns: 44px minmax(28px, 1fr) 44px;
     gap: 0;
   }
-  .paymentControls,
   .dates {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -451,4 +446,50 @@
   .total dd {
     text-align: left;
   }
+}
+
+.paymentMethod {
+  min-width: 0;
+  grid-column: 1 / -1;
+}
+.paymentMethod [data-slot='native-select-wrapper'] {
+  width: 100%;
+}
+.methodHelp {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+.methodHelp summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  justify-content: space-between;
+  gap: 8px;
+}
+.methodHelp ul {
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.methodIssue {
+  color: #a32532;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.paymentToggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.salePage .paymentToggle input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  accent-color: #123c2c;
 }

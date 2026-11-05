@@ -19,17 +19,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { NativeSelect } from './ui/native-select';
 import { Field, FieldGroup, FieldLabel, FieldDescription } from './ui/field';
 import { Alert, AlertDescription } from './ui/alert';
 import { FormError, SaveButton, LoadError, LoadingRows } from './operations-ui';
 import { useCommand, useRemote, displayMoney, displayDate } from '@/lib/inventory-api';
 import { caracasDateTime, caracasInstant, normalizedMoney } from '@/lib/commercial-ui';
+import { PaymentMethodSelector } from './payment-method-selector';
 import {
-  PaymentMethodSelector,
-  defaultPaymentMethod,
-  type PaymentCurrency,
-} from './payment-method-selector';
+  paymentChoiceDetails,
+  paymentChoiceUnavailable,
+  type PaymentChoice,
+} from '@/lib/sales-flow';
 import styles from './sales-flow.module.css';
 export type RateValue = {
   id: string;
@@ -63,12 +63,26 @@ export function useQuoteCurrent(quote: RateValue | null | undefined) {
 
 export function RateSnapshot({ quote, basis }: { quote: RateValue; basis: 'divisa' | 'bcv' }) {
   const time = quote.verifiedAt ? new Date(quote.verifiedAt) : null;
+  const current = useQuoteCurrent(quote);
+  const validFrom = new Date(quote.validFrom),
+    validUntil = new Date(quote.validUntil);
   return (
     <span>
       <strong>
         {basis === 'divisa' ? 'Binance P2P · compra · referencia general' : 'BCV oficial'}:{' '}
         {quote.rate} Bs. por {basis === 'divisa' ? 'USDT' : 'USD'}.
       </strong>
+      <small className={styles.quoteMeta}>
+        {current ? 'Vigente' : 'Fuera de vigencia'}
+        {basis === 'bcv' && Number.isFinite(validFrom.valueOf())
+          ? ' · Fecha valor: ' +
+            new Intl.DateTimeFormat('es-VE', {
+              timeZone: 'America/Caracas',
+              dateStyle: 'short',
+            }).format(validFrom)
+          : ''}
+        .
+      </small>
       {time && Number.isFinite(time.valueOf()) ? (
         <small className={styles.quoteMeta}>
           Verificada{' '}
@@ -77,6 +91,17 @@ export function RateSnapshot({ quote, basis }: { quote: RateValue; basis: 'divis
             dateStyle: 'short',
             timeStyle: 'short',
           }).format(time)}{' '}
+          · Venezuela.
+        </small>
+      ) : null}
+      {Number.isFinite(validUntil.valueOf()) ? (
+        <small className={styles.quoteMeta}>
+          Vigencia en el sistema hasta{' '}
+          {new Intl.DateTimeFormat('es-VE', {
+            timeZone: 'America/Caracas',
+            dateStyle: 'short',
+            timeStyle: 'short',
+          }).format(validUntil)}{' '}
           · Venezuela.
         </small>
       ) : null}
@@ -375,11 +400,11 @@ export function PaymentDialog({
 }) {
   const account = useRemote<ClientAccount>('/api/clients/' + clientId),
     rate = useRemote<RateStatus>('/api/rates/current');
-  const [currency, setCurrency] = useState<PaymentCurrency>('USD'),
+  const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>('usd_cash'),
     [amount, setAmount] = useState(''),
-    [method, setMethod] = useState(defaultPaymentMethod('USD')),
     [date, setDate] = useState(''),
     [applications, setApplications] = useState<Record<string, string>>({});
+  const { currency, method } = paymentChoiceDetails(paymentChoice);
   const [dateEdited, setDateEdited] = useState(false);
   const [reviewQuote, setReviewQuote] = useState<RateValue | null>(null);
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
@@ -410,9 +435,27 @@ export function PaymentDialog({
         'Estos comprobantes tienen acuerdos de precio diferentes. Registra sus abonos por separado.';
     }
   }
-  const quoted = settlement === 'divisa' ? rate.data?.usdt : rate.data;
-  const quoteCurrent = useQuoteCurrent(quoted?.rate);
-  const activeRate = quoted?.status === 'available' && quoteCurrent ? quoted.rate : null;
+  const bcvCurrent = useQuoteCurrent(rate.data?.rate);
+  const usdtCurrent = useQuoteCurrent(rate.data?.usdt?.rate);
+  const quotes = {
+    bcv: bcvCurrent && rate.data?.status === 'available',
+    usdt: usdtCurrent && rate.data?.usdt?.status === 'available',
+  };
+  const paymentIssue = paymentChoiceUnavailable(
+    paymentChoice,
+    settlement,
+    quotes,
+    !!agreementError,
+  );
+  const quoteBasis =
+    paymentChoice === 'ves_bcv' ? 'bcv' : paymentChoice === 'ves_usdt' ? 'divisa' : settlement;
+  const quoted = quoteBasis === 'divisa' ? rate.data?.usdt : rate.data;
+  const activeRate =
+    !paymentIssue &&
+    quoted?.status === 'available' &&
+    (quoteBasis === 'divisa' ? quotes.usdt : quotes.bcv)
+      ? quoted.rate
+      : null;
   const sum = Object.values(applications).reduce((a, v) => {
     try {
       return a.plus(normalizedMoney(v) || '0');
@@ -463,6 +506,10 @@ export function PaymentDialog({
         const result = await command.run<PaymentDetail>('/api/payments', review);
         await onSaved(result);
       } catch {}
+      return;
+    }
+    if (paymentIssue) {
+      command.setError(paymentIssue);
       return;
     }
     if (currency === 'VES' && agreementError) {
@@ -548,7 +595,7 @@ export function PaymentDialog({
                     </p>
                     {reviewQuote ? (
                       <p>
-                        <RateSnapshot quote={reviewQuote} basis={settlement ?? 'bcv'} />
+                        <RateSnapshot quote={reviewQuote} basis={quoteBasis ?? 'bcv'} />
                       </p>
                     ) : null}
                     <ul>
@@ -566,31 +613,19 @@ export function PaymentDialog({
                 ) : (
                   <>
                     <div className="commercial-form-grid">
-                      <Field>
-                        <FieldLabel htmlFor="payment-currency">Moneda recibida</FieldLabel>
-                        <NativeSelect
-                          id="payment-currency"
-                          value={currency}
-                          onChange={(e) => {
-                            const next = e.target.value as PaymentCurrency;
-                            setCurrency(next);
-                            if (next === 'VES' || currency === 'VES') {
-                              setAmount('');
-                              setApplications({});
-                            }
-                            setMethod(defaultPaymentMethod(next));
-                          }}
-                        >
-                          <option value="USD">USD</option>
-                          <option value="USDT">USDT · 1:1 USD</option>
-                          <option
-                            value="VES"
-                            disabled={!settlement || !activeRate || !!agreementError}
-                          >
-                            Bolívares · tasa del acuerdo
-                          </option>
-                        </NativeSelect>
-                      </Field>
+                      <PaymentMethodSelector
+                        id="payment-method"
+                        value={paymentChoice}
+                        basis={settlement}
+                        quotes={quotes}
+                        mixed={!!agreementError}
+                        label="Método de pago"
+                        onChange={(choice) => {
+                          const next = paymentChoiceDetails(choice);
+                          if (next.currency === 'VES' || currency === 'VES') setAmount('');
+                          setPaymentChoice(choice);
+                        }}
+                      />
                       <Field>
                         <FieldLabel htmlFor="payment-amount">
                           Monto recibido · {currency}
@@ -623,13 +658,6 @@ export function PaymentDialog({
                           </Button>
                         ) : null}
                       </Field>
-                      <PaymentMethodSelector
-                        id="payment-method"
-                        currency={currency}
-                        value={method}
-                        onChange={setMethod}
-                        label="Método de pago"
-                      />
                       <details className={styles.optional}>
                         <summary>
                           Fecha del cobro
@@ -654,7 +682,7 @@ export function PaymentDialog({
                     </div>
                     {currency === 'VES' ? (
                       <>
-                        <RateNotice rate={rate.data} basis={settlement ?? undefined} />
+                        <RateNotice rate={rate.data} basis={quoteBasis ?? undefined} />
                         <Button type="button" variant="outline" onClick={() => void rate.reload()}>
                           Actualizar tasa
                         </Button>
@@ -676,6 +704,9 @@ export function PaymentDialog({
                             Selecciona un comprobante para consultar la tasa correspondiente.
                           </p>
                         )}
+                        <Button type="button" variant="outline" onClick={() => void rate.reload()}>
+                          Actualizar tasas
+                        </Button>
                       </details>
                     )}
                     <div>

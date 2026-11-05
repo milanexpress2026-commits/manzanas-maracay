@@ -7,6 +7,7 @@ export * from './sale-availability';
 export * from './auth';
 export * from './operations';
 export * from './production';
+export * from './catalog-preparation';
 
 export const nameSchema = z
   .string()
@@ -29,7 +30,7 @@ export const caliberBatchSchema = z
   .strict();
 export type PackingModel = 'blister' | 'halves' | 'whole';
 export type HalfPreparation = 'counted' | 'commercial' | 'pending' | 'none';
-const packingFields = {
+export const packingFields = {
   blistersPerBox: z.number().int().min(1).max(100).nullable().default(null),
   packingModel: z.enum(['blister', 'halves', 'whole']).default('blister'),
   halfPreparation: z.enum(['counted', 'commercial', 'pending', 'none']).default('counted'),
@@ -47,7 +48,7 @@ const packingFields = {
   confirmationStatus: z.enum(['confirmed', 'pending']).default('pending'),
   notes: z.string().trim().max(500).default(''),
 };
-function validPacking(value: {
+export function validPacking(value: {
   packingModel: PackingModel;
   halfPreparation: HalfPreparation;
   allowedPresentations: Presentation[];

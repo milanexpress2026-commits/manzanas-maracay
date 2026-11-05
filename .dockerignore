@@ -15,4 +15,7 @@ work
 *.tar
 *.gz
 **/*.pem
+# Public Sectigo intermediate, verified by DER SHA-256 in refresh-rates.ts.
+# This exact exception includes no private key or environment credential.
+!scripts/certs/sectigo-public-server-dv-r36.pem
 **/*.key

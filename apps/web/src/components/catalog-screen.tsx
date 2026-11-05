@@ -23,6 +23,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import type { Catalog, Configuration } from '@mm/domain';
+import type { CatalogFamily } from '@/lib/product-draft';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,9 @@ import {
 } from '@/components/ui/dialog';
 import { fetchCatalog } from '@/lib/catalog-api';
 import { CatalogForm, type FormKind } from './catalog-form';
+import { CatalogPreparation } from './catalog-preparation';
+import { CatalogTemplates } from './catalog-templates';
+import preparationStyles from './catalog-preparation.module.css';
 import { AppShell, type AppSession } from './app-shell';
 import { CatalogPrices } from './catalog-prices';
 import { packingLabel, productLabel, presentationNames } from '@/lib/commercial-ui';
@@ -78,6 +82,8 @@ export function CatalogScreen({ session }: { session: AppSession }) {
   const [returnToSale, setReturnToSale] = useState(false);
   const [priceTarget, setPriceTarget] = useState('');
   const triggerRef = useRef<HTMLElement | null>(null);
+  const caliberMemory = useRef<Partial<Record<CatalogFamily, string[]>>>({});
+  const [preparing, setPreparing] = useState(false);
   async function reload() {
     setLoading(true);
     setError('');
@@ -234,6 +240,42 @@ export function CatalogScreen({ session }: { session: AppSession }) {
               </Button>
             </AlertDescription>
           </Alert>
+        ) : null}
+        {preparing ? (
+          <CatalogPreparation onDone={reload} onCancel={() => setPreparing(false)} />
+        ) : !loading && !error ? (
+          <section className={preparationStyles.entry} aria-label="Preparar productos habituales">
+            <h2>
+              {catalog.fruits.length
+                ? 'Productos habituales, listos para revisar'
+                : 'Empieza con el catálogo del negocio'}
+            </h2>
+            <p>
+              Revisa las frutas y opciones ya comunicadas, desmarca lo que no vendas y prepara los
+              borradores. Las cajas, costos y precios se registran después.
+            </p>
+            <Button
+              variant={catalog.fruits.length ? 'outline' : 'default'}
+              disabled={offline}
+              onClick={() => setPreparing(true)}
+            >
+              Preparar catálogo de Manzanas Maracay
+            </Button>
+          </section>
+        ) : null}
+        {!preparing && catalog.fruits.length > 0 ? (
+          <CatalogTemplates
+            catalog={catalog}
+            onReload={reload}
+            returnToSale={returnToSale}
+            onSaved={async (id) => {
+              setSelectedId(id);
+              setTab('configurations');
+              setSearch('');
+              setFruitFilter('all');
+              await reload();
+            }}
+          />
         ) : null}
         <div className="workspace-grid">
           <section className="catalog-panel" aria-label="Registros del catálogo">
@@ -656,6 +698,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
               onCancel={closeForm}
               onBusyChange={setFormBusy}
               returnToSale={returnToSale}
+              caliberMemory={caliberMemory}
               onSaved={async (id) => {
                 setSelectedId(id);
                 setTab('configurations');
