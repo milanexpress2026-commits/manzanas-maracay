@@ -49,6 +49,19 @@ describe('credenciales y cookies de la vista previa', () => {
     expect(await verifyPassword(`${password}!`, hash)).toBe(false);
     expect(await hashPassword(password)).not.toBe(hash);
   }, 15000);
+  it('deriva y verifica una contraseña sintética de nueve caracteres y rechaza siete', async () => {
+    const password = `QA!${randomBytes(3).toString('hex')}`;
+    expect(password).toHaveLength(9);
+    const invitation = invitationSchema.parse({
+      username: 'qa-longitud',
+      displayName: 'Prueba local de longitud',
+      password,
+    });
+    const hash = await hashPassword(invitation.password);
+    expect(await verifyPassword(password, hash)).toBe(true);
+    expect(await verifyPassword(`${password}?`, hash)).toBe(false);
+    await expect(hashPassword('QA!1234')).rejects.toThrow('al menos 8 caracteres');
+  }, 15000);
   it('rechaza contraseñas débiles y nombres con caracteres de control', () => {
     expect(
       invitationSchema.safeParse({ username: 'prueba', displayName: 'Prueba', password: 'corta' })

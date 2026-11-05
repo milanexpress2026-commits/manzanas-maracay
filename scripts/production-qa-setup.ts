@@ -154,7 +154,8 @@ async function main() {
         const auth = {
           username: 'qa-propietarios',
           displayName: 'Propietarios de ensayo aislado',
-          password: randomBytes(24).toString('base64url'),
+          // Synthetic nine-character fixture covers provisioning/login at the owner's chosen length.
+          password: `QA!${randomBytes(3).toString('hex')}`,
         };
         await provisionUser(pool, auth);
         await fs.writeFile(path.join(directory, 'auth.json'), JSON.stringify(auth), {

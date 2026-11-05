@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 256;
+export const passwordCreationSchema = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`)
+  .max(PASSWORD_MAX_LENGTH);
+
 export const usernameSchema = z
   .string()
   .trim()
@@ -10,7 +17,7 @@ export const usernameSchema = z
 export const loginSchema = z
   .object({
     username: usernameSchema,
-    password: z.string().min(1).max(256),
+    password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
     rememberSession: z.boolean().default(false),
   })
   .strict();
@@ -18,7 +25,7 @@ export const invitationSchema = z
   .object({
     username: usernameSchema,
     displayName: z.string().trim().min(2).max(100),
-    password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.').max(256),
+    password: passwordCreationSchema,
   })
   .strict();
 export type SessionUser = { id: string; username: string; displayName: string };
