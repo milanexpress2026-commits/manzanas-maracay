@@ -3,6 +3,7 @@ import Decimal from 'decimal.js';
 import { presentationSchema, type Presentation } from './commerce';
 export * from './inventory';
 export * from './commerce';
+export * from './sale-availability';
 export * from './auth';
 export * from './operations';
 export * from './production';
@@ -19,6 +20,12 @@ export const updateVarietySchema = z
   .strict();
 export const caliberSchema = z
   .object({ label: z.string().trim().min(1).max(30), fruitId: z.uuid() })
+  .strict();
+export const caliberBatchSchema = z
+  .object({
+    fruitId: z.uuid(),
+    labels: z.array(z.string().trim().min(1).max(30)).min(1).max(20),
+  })
   .strict();
 export type PackingModel = 'blister' | 'halves' | 'whole';
 export type HalfPreparation = 'counted' | 'commercial' | 'pending' | 'none';

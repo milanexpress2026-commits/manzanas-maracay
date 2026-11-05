@@ -12,6 +12,7 @@ function allowedRoute(method: string, endpoint: string) {
         'auth/me',
         'suppliers',
         'inventory',
+        'inventory/sale-availability',
         'clients',
         'prices',
         'sales',
@@ -27,7 +28,7 @@ function allowedRoute(method: string, endpoint: string) {
     );
   if (method === 'POST')
     return (
-      /^(auth\/(login|logout)|catalog\/(fruits|varieties|calibers|configurations)|suppliers|receipts|clients|prices|sales|payments|push\/(subscribe|unsubscribe))$/.test(
+      /^(auth\/(login|logout)|catalog\/(fruits|varieties|calibers|calibers\/batch|configurations)|suppliers|receipts|clients|prices|sales|payments|push\/(subscribe|unsubscribe))$/.test(
         endpoint,
       ) ||
       new RegExp(

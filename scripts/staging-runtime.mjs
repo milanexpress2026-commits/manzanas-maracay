@@ -50,7 +50,7 @@ if (mode === 'api') {
     }
   }
 }
-if (['migrate', 'invite'].includes(mode))
+if (['migrate', 'migrate-only', 'invite'].includes(mode))
   process.env.MIGRATION_DATABASE_URL = `postgresql://mm_owner:${encodeURIComponent(secret('MM_PG_PASSWORD'))}@postgres:5432/manzanas_maracay_staging`;
 const commands = {
   api: [['apps/api/dist/apps/api/src/main.js']],
@@ -59,6 +59,7 @@ const commands = {
     ['--import', 'tsx', 'scripts/migrate.ts'],
     ['--import', 'tsx', 'scripts/seed.ts'],
   ],
+  'migrate-only': [['--import', 'tsx', 'scripts/migrate.ts']],
   invite: [['--import', 'tsx', 'scripts/create-user.ts', '--file', '/run/secrets/invitation']],
 };
 if (!commands[mode]) throw new Error('Modo de staging no admitido.');

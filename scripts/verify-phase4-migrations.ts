@@ -181,6 +181,29 @@ async function main() {
       path.join(oldMigrations, `${entry.tag}.sql`),
       oldFile(`packages/database/migrations/${entry.tag}.sql`),
     );
+  // An intermediate upgrade verifies the actual 0012 -> 0013 boundary as well
+  // as the original phase-3 fixture. No applied SQL or original journal is edited.
+  const currentMigrations = path.join(root, 'packages/database/migrations');
+  const currentJournal = JSON.parse(
+    await fs.readFile(path.join(currentMigrations, 'meta/_journal.json'), 'utf8'),
+  ) as { entries: { idx: number; tag: string }[] };
+  const phase4Journal = {
+    ...currentJournal,
+    entries: currentJournal.entries.filter((entry) => entry.idx <= 12),
+  };
+  assert.equal(phase4Journal.entries.length, 13);
+  assert.equal(currentJournal.entries.length, 14, 'La prueba está fijada al hotfix aditivo 0013.');
+  const phase4Migrations = path.join(scratch, 'phase4-13-migrations');
+  await fs.mkdir(path.join(phase4Migrations, 'meta'), { recursive: true });
+  await fs.writeFile(
+    path.join(phase4Migrations, 'meta/_journal.json'),
+    JSON.stringify(phase4Journal),
+  );
+  for (const entry of phase4Journal.entries)
+    await fs.copyFile(
+      path.join(currentMigrations, `${entry.tag}.sql`),
+      path.join(phase4Migrations, `${entry.tag}.sql`),
+    );
   const adminUrl = new URL(base);
   adminUrl.pathname = '/postgres';
   const admin = new Client({ connectionString: adminUrl.toString(), statement_timeout: 30000 });
@@ -218,6 +241,7 @@ async function main() {
         expected,
       );
       assert.equal(Number((await fresh.query('select count(*) from lots')).rows[0].count), 0);
+      assert.equal(Number((await fresh.query('select count(*) from usdt_rates')).rows[0].count), 0);
       assert.equal(
         (
           await fresh.query(
@@ -384,10 +408,74 @@ async function main() {
     } finally {
       await db.end();
     }
+    const phase4Pool = new Pool({ connectionString: upgradeUrl, max: 1 });
+    let phase4Before: Snapshot;
+    let phase4Binding: unknown;
+    try {
+      await migrate(drizzle(phase4Pool), { migrationsFolder: phase4Migrations });
+      const phase4Read = await phase4Pool.connect();
+      try {
+        phase4Before = await snapshot(phase4Read as unknown as Client);
+        assert.equal(phase4Before.hashes.length, 13);
+        phase4Binding = (
+          await phase4Read.query('select to_jsonb(e) as value from runtime_environment e')
+        ).rows;
+      } finally {
+        phase4Read.release();
+      }
+    } finally {
+      await phase4Pool.end();
+    }
     await migrateDatabase(upgradeUrl);
     const updated = new Client({ connectionString: upgradeUrl });
     await updated.connect();
     try {
+      const phase4After = await snapshot(updated, phase4Before!.columns);
+      assert.deepEqual(
+        phase4After.rows,
+        phase4Before!.rows,
+        '0013 modificó una fila comercial o de acceso previa de fase 4.',
+      );
+      assert.deepEqual(
+        phase4After.hashes.slice(0, 13),
+        phase4Before!.hashes,
+        '0013 cambió alguno de los trece hashes históricos.',
+      );
+      assert.deepEqual(
+        (await updated.query('select to_jsonb(e) as value from runtime_environment e')).rows,
+        phase4Binding,
+        'Cambió el vínculo inmutable del entorno.',
+      );
+      assert.equal(
+        (
+          await updated.query(
+            "select count(*)::int as count from sales where settlement_basis<>'legacy_bcv'",
+          )
+        ).rows[0].count,
+        0,
+      );
+      assert.equal(
+        (
+          await updated.query(
+            'select count(*)::int as count from payments where usdt_rate_id is not null',
+          )
+        ).rows[0].count,
+        0,
+      );
+      assert.equal(
+        (await updated.query('select count(*)::int as count from usdt_rates')).rows[0].count,
+        0,
+      );
+      report.phase4Upgrade = {
+        fromMigrationCount: 13,
+        toMigrationCount: phase4After.hashes.length,
+        preservedTables: tables.length,
+        preservedPriorMigrationHashes: 13,
+        runtimeBindingPreserved: true,
+        oldSalesRemainLegacyBcv: true,
+        historicalPaymentsNotReclassified: true,
+        noSyntheticRates: true,
+      };
       const after = await snapshot(updated, before!.columns);
       assert.deepEqual(
         after.rows,

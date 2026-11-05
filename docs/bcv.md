@@ -1,4 +1,8 @@
-# Tasa oficial BCV en fase 3
+# Archivo histórico: tasa oficial BCV en fase 3
+
+Este documento conserva la investigación, implementación y pruebas de **fase 3**, realizadas el 4 y 5 de noviembre de 2026. Sus referencias a actualización automática sin configurar, bloqueo VES y activación futura describen aquella entrega; no constituyen el estado vigente del hotfix.
+
+Para las reglas actuales de BCV y USDT, la verificación de QA y la release efectivamente comprobada, consultar el [informe del hotfix UX v3](hotfix-ux-v3.md) y las [reglas de dominio](domain-rules.md). Un recolector implementado o una prueba local satisfactoria no acreditan su activación en staging ni en producción. El informe del hotfix registra esos resultados cuando existe evidencia.
 
 ## Resultado de la investigación
 

@@ -59,7 +59,7 @@ export function ReceiptPrices({
             <p className="price-presentation">{presentationNames[price.presentation]}</p>
             <Field>
               <FieldLabel htmlFor={'receipt-promo-' + line.key + '-' + index}>
-                Promocional USD efectivo
+                Promocional divisa
               </FieldLabel>
               <Input
                 id={'receipt-promo-' + line.key + '-' + index}
@@ -82,7 +82,7 @@ export function ReceiptPrices({
             </Field>
             <Field>
               <FieldLabel htmlFor={'receipt-regular-' + line.key + '-' + index}>
-                Normal USD para VES
+                Regular · Bs. BCV
               </FieldLabel>
               <Input
                 id={'receipt-regular-' + line.key + '-' + index}

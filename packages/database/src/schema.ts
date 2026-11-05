@@ -515,6 +515,29 @@ export const bcvRates = pgTable(
   ],
 );
 export const saleNumberSequence = pgSequence('mm_sale_number_seq');
+export const usdtRates = pgTable(
+  'usdt_rates',
+  {
+    id: id(),
+    rate: numeric('rate', { precision: 20, scale: 8 }).notNull(),
+    source: text('source').notNull().default('BINANCE_P2P_BUY'),
+    sourceUrl: text('source_url').notNull(),
+    sourceHash: text('source_hash').notNull(),
+    validFrom: time('valid_from').notNull(),
+    validUntil: time('valid_until').notNull(),
+    fetchedAt: time('fetched_at').notNull(),
+    verifiedAt: time('verified_at').notNull(),
+    verifiedBy: text('verified_by').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('usdt_validity_idx').on(t.validUntil, t.verifiedAt),
+    check(
+      'usdt_quote_valid',
+      sql`${t.source}='BINANCE_P2P_BUY' and ${t.rate}>0 and ${t.validUntil}>${t.validFrom} and ${t.validUntil}<=${t.validFrom}+interval '15 minutes' and ${t.verifiedAt}>=${t.fetchedAt} and ${t.sourceHash} ~ '^[a-f0-9]{64}$' and ${t.sourceUrl}='https://www.binance.com/bapi/c2c/v1/public/c2c/agent/quote-price?fiat=VES&asset=USDT&tradeType=BUY'`,
+    ),
+  ],
+);
 export const paymentNumberSequence = pgSequence('mm_payment_number_seq');
 export const sales = pgTable(
   'sales',
@@ -525,6 +548,7 @@ export const sales = pgTable(
       .notNull()
       .references(() => clients.id),
     condition: text('condition').notNull(),
+    settlementBasis: text('settlement_basis').notNull().default('legacy_bcv'),
     status: text('status').notNull().default('draft'),
     currency: text('currency').notNull().default('USD'),
     soldAt: time('sold_at').notNull(),
@@ -549,6 +573,7 @@ export const sales = pgTable(
     index('sales_client_date_idx').on(t.clientId, t.soldAt),
     index('sales_due_idx').on(t.dueDate),
     check('sales_condition_valid', sql`${t.condition} in ('cash','credit')`),
+    check('sales_settlement_valid', sql`${t.settlementBasis} in ('divisa','bcv','legacy_bcv')`),
     check('sales_status_valid', sql`${t.status} in ('draft','confirmed','cancelled')`),
     check('sales_currency_usd', sql`${t.currency}='USD'`),
     check('sales_amounts_valid', sql`${t.totalUsd}>=0 and ${t.costUsd}>=0`),
@@ -611,6 +636,7 @@ export const payments = pgTable(
     amount: money('amount').notNull(),
     amountUsd: money('amount_usd').notNull(),
     bcvRateId: uuid('bcv_rate_id').references(() => bcvRates.id),
+    usdtRateId: uuid('usdt_rate_id').references(() => usdtRates.id),
     receivedAt: time('received_at').notNull(),
     idempotencyKey: uuid('idempotency_key').notNull(),
     createdAt: createdAt(),
@@ -621,10 +647,11 @@ export const payments = pgTable(
     unique('payments_id_client_uq').on(t.id, t.clientId),
     index('payments_client_idx').on(t.clientId),
     index('payments_rate_idx').on(t.bcvRateId),
+    index('payments_usdt_rate_idx').on(t.usdtRateId),
     check('payment_positive', sql`${t.amount}>0 and ${t.amountUsd}>0`),
     check(
       'payment_currency_rate',
-      sql`(${t.currency}='USD' and ${t.bcvRateId} is null and ${t.amount}=${t.amountUsd}) or (${t.currency}='VES' and ${t.bcvRateId} is not null)`,
+      sql`(${t.currency} in ('USD','USDT') and ${t.bcvRateId} is null and ${t.usdtRateId} is null and ${t.amount}=${t.amountUsd}) or (${t.currency}='VES' and ((${t.bcvRateId} is not null and ${t.usdtRateId} is null) or (${t.bcvRateId} is null and ${t.usdtRateId} is not null)))`,
     ),
   ],
 );

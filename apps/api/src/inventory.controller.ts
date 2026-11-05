@@ -37,6 +37,9 @@ export class InventoryController {
   @Get('inventory') overview(@Query() query: unknown) {
     return this.inventory.overview(query);
   }
+  @Get('inventory/sale-availability') saleAvailability() {
+    return this.inventory.saleAvailability();
+  }
   @Get('inventory/lots/:id') detail(@Param('id') id: string) {
     return this.inventory.detail(id);
   }

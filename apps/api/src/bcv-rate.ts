@@ -7,6 +7,30 @@ export type HistoricalOfficialRate = VerifiedRate & {
   sourceHash: string;
   fetchedAt: Date;
 };
+export type HistoricalUsdtRate = Omit<HistoricalOfficialRate, 'source'> & {
+  source: 'BINANCE_P2P_BUY';
+};
+
+export function selectUsdtRate(
+  rows: readonly OfficialRateCacheRow[],
+  at: Date,
+): HistoricalUsdtRate | null {
+  if (rows.length !== 1 || !Number.isFinite(at.getTime())) return null;
+  const row = rows[0]!;
+  if (
+    row.source !== 'BINANCE_P2P_BUY' ||
+    row.source_url !==
+      'https://www.binance.com/bapi/c2c/v1/public/c2c/agent/quote-price?fiat=VES&asset=USDT&tradeType=BUY'
+  )
+    return null;
+  const checked = selectOfficialRate(
+    [{ ...row, source: 'BCV', source_url: 'https://www.bcv.org.ve/' }],
+    at,
+  );
+  if (!checked || row.valid_until.getTime() - row.valid_from.getTime() > 15 * 60 * 1000)
+    return null;
+  return { ...checked, source: 'BINANCE_P2P_BUY', sourceUrl: row.source_url };
+}
 
 export type OfficialRateCacheRow = {
   id: string;

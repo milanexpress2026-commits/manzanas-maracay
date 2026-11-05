@@ -24,6 +24,7 @@ const payment: PaymentDetail = {
   isDemo: true,
   reversed: false,
   bcvRate: null,
+  usdtRate: null,
   reversal: null,
   applications: [
     {
@@ -41,6 +42,7 @@ const sale: SaleDetail = {
   clientName: client.name,
   client,
   condition: 'credit',
+  settlementBasis: 'divisa',
   status: 'confirmed',
   soldAt: '2026-11-04T12:00:00Z',
   dueDate: '2026-11-11',
@@ -83,6 +85,30 @@ async function main() {
   await fs.writeFile(path.join(output, 'venta-demo.pdf'), await salePdf(sale));
   await fs.writeFile(path.join(output, 'abono-demo.pdf'), await paymentPdf(payment));
   await fs.writeFile(
+    path.join(output, 'abono-usdt-demo.pdf'),
+    await paymentPdf({
+      ...payment,
+      currency: 'USDT',
+      method: 'usdt_transfer',
+    }),
+  );
+  await fs.writeFile(
+    path.join(output, 'abono-ves-divisa-demo.pdf'),
+    await paymentPdf({
+      ...payment,
+      currency: 'VES',
+      amount: '8000.00',
+      method: 'bolivares',
+      usdtRate: {
+        id: '00000000-0000-4000-8000-000000000007',
+        rate: '100.00000000',
+        sourceUrl: 'https://p2p.binance.com/',
+        validFrom: '2026-11-04T13:59:00Z',
+        validUntil: '2026-11-04T14:05:00Z',
+      },
+    }),
+  );
+  await fs.writeFile(
     path.join(output, 'venta-larga-demo.pdf'),
     await salePdf({
       ...sale,
@@ -100,7 +126,7 @@ async function main() {
     }),
   );
   console.log(
-    'Generados tres PDF sintéticos para QA visual en .local/pdf-qa; no se modificó ninguna base.',
+    'Generados cinco PDF sintéticos para QA visual en .local/pdf-qa; no se modificó ninguna base.',
   );
 }
 main().catch(() => {

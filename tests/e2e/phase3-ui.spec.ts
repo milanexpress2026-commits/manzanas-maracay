@@ -188,14 +188,14 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ventas/nueva');
   await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
-  await page.getByLabel('Condición de venta').selectOption('credit');
+  await page.getByRole('radio', { name: 'Crédito', exact: true }).check();
   await page.getByLabel('Producto', { exact: true }).selectOption(config.id);
   await expect(page.getByLabel('Presentación', { exact: true })).toBeDisabled();
   await expect(page.getByLabel('Presentación', { exact: true })).toHaveValue('box');
   await page.getByLabel('Cantidad', { exact: true }).fill('2');
-  await page.getByLabel('Referencia comercial').selectOption('usd_cash_promo');
-  await expect(page.getByLabel('Precio unitario pactado (USD)')).toHaveValue(/^40(?:\.0+)?$/);
-  await page.getByLabel('Monto pagado', { exact: true }).fill('00,00');
+  await page.getByLabel('Precio acordado').selectOption('usd_cash_promo');
+  await expect(page.getByLabel('Precio unitario (USD)')).toHaveValue(/^40(?:\.0+)?$/);
+  await page.getByLabel('Abono hoy (opcional) · USD', { exact: true }).fill('00,00');
   const keys: string[] = [];
   let saved: SaleDetail | undefined;
   await page.route('**/api/sales', async (route) => {
@@ -214,7 +214,7 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
     }
     return route.continue();
   });
-  await page.getByRole('button', { name: 'Revisar venta', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar y registrar crédito', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar venta', exact: true })
@@ -232,9 +232,15 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   expect(Number(saved?.costUsd)).toBe(50);
   const saleId = page.url().split('/').at(-1)!;
   await expect(page.getByRole('button', { name: 'Cobrar por WhatsApp' })).toBeDisabled();
+  // This UI scenario explicitly exercises unavailable quotes, independent of provider/network state.
+  await page.route('**/api/rates/current', (route) =>
+    route.fulfill({
+      json: { status: 'unavailable', rate: null, usdt: { status: 'unavailable', rate: null } },
+    }),
+  );
   await page.getByRole('button', { name: 'Registrar abono', exact: true }).click();
   await page.getByLabel('Monto recibido').fill('30');
-  await expect(page.getByRole('option', { name: 'VES — requiere BCV verificado' })).toBeDisabled();
+  await expect(page.getByRole('option', { name: 'Bolívares · tasa del acuerdo' })).toBeDisabled();
   const paymentKeys: string[] = [];
   let recordedPaymentId = '';
   await page.route('**/api/payments', async (route) => {
@@ -302,11 +308,11 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
   await page.getByRole('button', { name: 'Ver ' + fruit.name, exact: true }).click();
   await page.getByRole('button', { name: 'Editar precios', exact: true }).click();
   const priceDialog = page.getByRole('dialog');
-  await priceDialog.getByLabel('Promocional USD efectivo', { exact: true }).first().fill('40');
-  await priceDialog.getByLabel('Normal USD para VES', { exact: true }).first().fill('45');
-  await expect(
-    priceDialog.getByLabel('Promocional USD efectivo', { exact: true }).nth(1),
-  ).toHaveValue('');
+  await priceDialog.getByLabel('Promocional divisa', { exact: true }).first().fill('40');
+  await priceDialog.getByLabel('Regular · Bs. BCV', { exact: true }).first().fill('45');
+  await expect(priceDialog.getByLabel('Promocional divisa', { exact: true }).nth(1)).toHaveValue(
+    '',
+  );
   await priceDialog.getByRole('button', { name: 'Actualizar precios', exact: true }).click();
   await expect(priceDialog).toHaveCount(0);
   const catalog = await (await page.request.get('/api/catalog')).json();
@@ -332,7 +338,7 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
   await page.getByLabel('Cajas cerradas recibidas').fill('1');
   await page.getByLabel('Costo por caja (USD)').fill('25');
   await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
-  await page.getByLabel('Promocional USD efectivo', { exact: true }).first().fill('42');
+  await page.getByLabel('Promocional divisa', { exact: true }).first().fill('42');
   const receiptKeys: string[] = [];
   let receivedLotId = '';
   await page.route('**/api/receipts', async (route) => {

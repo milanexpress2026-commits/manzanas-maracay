@@ -2,7 +2,11 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import Decimal from 'decimal.js';
-import type { SaleDetail, PaymentDetail } from '../../../packages/domain/src/commerce';
+import {
+  paymentMethodLabel,
+  type SaleDetail,
+  type PaymentDetail,
+} from '../../../packages/domain/src/commerce';
 
 const green = rgb(0.07, 0.235, 0.173),
   cream = rgb(0.97, 0.965, 0.94),
@@ -225,7 +229,15 @@ export async function salePdf(sale: SaleDetail): Promise<Buffer> {
   if (sale.client.phone) pdf.text(`Teléfono: ${sale.client.phone}`);
   if (sale.client.address) pdf.text(`Dirección: ${sale.client.address}`);
   pdf.text(
-    `Condición: ${sale.condition === 'cash' ? 'Contado' : 'Crédito'}${sale.dueDate ? ` · Fecha pactada: ${sale.dueDate}` : ' · Sin fecha pactada'}`,
+    `Condición: ${sale.condition === 'cash' ? 'Contado' : 'Crédito'}${sale.dueDate ? ` · Fecha pactada: ${sale.dueDate}` : sale.condition === 'credit' ? ' · Sin fecha pactada' : ''}`,
+  );
+  pdf.text(
+    sale.settlementBasis === 'divisa'
+      ? 'Precio pactado en divisa. USD/USDT 1:1; bolívares a tasa USDT de compra verificada al cobrar.'
+      : sale.settlementBasis === 'legacy_bcv'
+        ? 'Acuerdo histórico conservado: cobro en bolívares según BCV.'
+        : 'Precio pactado para bolívares BCV. Se conserva el precio acordado al registrar abonos.',
+    { size: 9 },
   );
   if (sale.status === 'cancelled')
     pdf.text(`ANULADO: ${sale.cancellation?.reason ?? ''}`, { bold: true });
@@ -272,7 +284,7 @@ export async function paymentPdf(payment: PaymentDetail): Promise<Buffer> {
   pdf.text(`Fecha: ${date(payment.receivedAt)} · Hora de Venezuela`);
   pdf.text(`Cliente: ${payment.client.name}`, { bold: true, size: 12 });
   if (payment.client.phone) pdf.text(`Teléfono: ${payment.client.phone}`);
-  pdf.text(`Forma de pago: ${payment.method}`);
+  pdf.text(`Forma de pago: ${paymentMethodLabel(payment.method)}`);
   pdf.text(`Operador: ${payment.operatorName ?? payment.actor}`);
   if (payment.reversed) pdf.text(`REVERSADO: ${payment.reversal?.reason ?? ''}`, { bold: true });
   pdf.section('Monto recibido');
@@ -281,6 +293,14 @@ export async function paymentPdf(payment: PaymentDetail): Promise<Buffer> {
     pdf.text(`BCV histórico: ${payment.bcvRate.rate} VES por USD`);
     pdf.text(`Fuente oficial: ${payment.bcvRate.sourceUrl}`, { size: 9 });
   }
+  if (payment.usdtRate) {
+    pdf.text(`USDT de compra histórico: ${payment.usdtRate.rate} VES por USDT`);
+    pdf.text(`Fuente comercial: ${payment.usdtRate.sourceUrl}`, { size: 9 });
+    pdf.text('Conversión aplicada al acuerdo en divisa; no corresponde a la tasa BCV.', {
+      size: 9,
+    });
+  }
+  if (payment.currency === 'USDT') pdf.text('USDT recibido aplicado 1:1 a la deuda USD.');
   pdf.total('Equivalente aplicado', payment.amountUsd, true);
   pdf.section('Aplicación por comprobante');
   pdf.tableRow(['Comprobante', 'Aplicado USD', 'Saldo al registrar USD'], [257, 133, 133], true);

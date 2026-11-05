@@ -7,6 +7,86 @@ export const presentationSchema = z.enum(['box', 'half_box', 'blister']);
 export const priceBasisSchema = z.enum(['usd_cash_promo', 'ves_regular']);
 export type Presentation = z.infer<typeof presentationSchema>;
 export type PriceBasis = z.infer<typeof priceBasisSchema>;
+export type SettlementBasis = 'divisa' | 'bcv' | 'legacy_bcv';
+export type PaymentCurrency = 'USD' | 'USDT' | 'VES';
+export const paymentMethodOptions = [
+  { id: 'usd_cash', label: 'Efectivo USD', currency: 'USD' },
+  { id: 'usdt_transfer', label: 'Transferencia USDT', currency: 'USDT' },
+  { id: 'bolivares', label: 'Bolívares', currency: 'VES' },
+] as const;
+export function paymentMethodLabel(method: string): string {
+  return paymentMethodOptions.find((option) => option.id === method)?.label ?? method;
+}
+export function paymentMethodIsCompatible(currency: PaymentCurrency, method: string): boolean {
+  if (paymentMethodOptions.some((option) => option.currency === currency && option.id === method))
+    return true;
+  // Keep exact historical input strings to preserve committed idempotency hashes.
+  return (
+    currency === 'USD' &&
+    ['efectivo', 'usd efectivo', 'efectivo usd'].includes(method.toLocaleLowerCase('es'))
+  );
+}
+export function settlementBasisForLines(
+  lines: readonly { priceBasis: PriceBasis }[],
+): Exclude<SettlementBasis, 'legacy_bcv'> {
+  const bases = new Set(
+    lines.map((line) =>
+      line.priceBasis === 'usd_cash_promo' ? ('divisa' as const) : ('bcv' as const),
+    ),
+  );
+  if (bases.size !== 1)
+    throw new Error(
+      'Usa un solo acuerdo de precio por venta: divisa o bolívares BCV. Registra acuerdos distintos por separado.',
+    );
+  return [...bases][0]!;
+}
+export function paymentSettlementBasis(
+  bases: readonly SettlementBasis[],
+  currency: PaymentCurrency = 'VES',
+): Exclude<SettlementBasis, 'legacy_bcv'> {
+  const normalized = new Set(
+    bases.map((basis) => (basis === 'divisa' ? ('divisa' as const) : ('bcv' as const))),
+  );
+  if (normalized.size === 0 || (currency === 'VES' && normalized.size !== 1))
+    throw new Error(
+      'Estos comprobantes tienen acuerdos de cobro diferentes. Registra sus abonos por separado.',
+    );
+  return [...normalized][0]!;
+}
+export function quotedVesToUsd(
+  amount: string,
+  rate: {
+    rate: string;
+    source: 'BCV' | 'BINANCE_P2P_BUY';
+    verifiedAt: Date;
+    validFrom: Date;
+    validUntil: Date;
+  },
+  basis: Exclude<SettlementBasis, 'legacy_bcv'>,
+  at: Date,
+): string {
+  const value = new Decimal(rate.rate),
+    received = new Decimal(amount);
+  if (
+    rate.source !== (basis === 'divisa' ? 'BINANCE_P2P_BUY' : 'BCV') ||
+    !value.isFinite() ||
+    value.lte(0) ||
+    !received.isFinite() ||
+    received.lte(0) ||
+    !Number.isFinite(at.getTime()) ||
+    [rate.verifiedAt, rate.validFrom, rate.validUntil].some(
+      (time) => !Number.isFinite(time.getTime()),
+    ) ||
+    rate.verifiedAt > at ||
+    rate.validUntil <= rate.validFrom ||
+    at < rate.validFrom ||
+    at >= rate.validUntil
+  )
+    throw new Error(
+      'La tasa seleccionada no está vigente o no corresponde al acuerdo de esta venta.',
+    );
+  return received.div(value).toFixed(2, Decimal.ROUND_HALF_UP);
+}
 export const commercialPriceSchema = text
   .regex(/^\d{1,11}(\.\d{1,4})?$/, 'Escribe un precio USD con hasta cuatro decimales.')
   .transform((v) => new Decimal(v).toFixed(4));
@@ -64,12 +144,33 @@ export const updatePricesSchema = z
   .strict();
 export const initialPaymentSchema = z
   .object({
-    currency: z.enum(['USD', 'VES']),
+    currency: z.enum(['USD', 'USDT', 'VES']),
     amount: paymentAmountSchema,
     method: text.min(2).max(80),
     receivedAt: z.iso.datetime({ offset: true }),
+    rateId: z.uuid().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (!paymentMethodIsCompatible(value.currency, value.method))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['method'],
+        message: 'Selecciona un método confirmado y compatible con la moneda.',
+      });
+    if (value.currency === 'VES' && !value.rateId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['rateId'],
+        message: 'Actualiza y selecciona la tasa verificada antes de cobrar bolívares.',
+      });
+    if (value.currency !== 'VES' && value.rateId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['rateId'],
+        message: 'Los cobros USD y USDT se aplican 1:1 y no usan una tasa de bolívares.',
+      });
+  });
 export const saleSchema = z
   .object({
     clientId: z.uuid(),
@@ -98,9 +199,43 @@ export const saleSchema = z
   .refine(
     (v) => v.lines.reduce((n, line) => n + line.quantity, 0) <= 1000,
     'Divide las ventas de más de 1.000 presentaciones.',
-  );
+  )
+  .superRefine((value, ctx) => {
+    try {
+      settlementBasisForLines(value.lines);
+    } catch (error) {
+      ctx.addIssue({ code: 'custom', path: ['lines'], message: (error as Error).message });
+    }
+    // The API repeats this check after converting any non-USD payment using
+    // its verified server rate. The request must never supply that conversion.
+    const totalUsd = totalSaleLines(
+      value.lines.map((line) => ({ ...line, referenceUnitUsd: line.agreedUnitUsd })),
+    ).totalUsd;
+    const paidUsd =
+      value.initialPayment && value.initialPayment.currency !== 'VES'
+        ? value.initialPayment.amount
+        : '0';
+    const error = saleCollectionDatesError(value, totalUsd, paidUsd);
+    if (!error) return;
+    for (const field of ['dueDate', 'reminderDate'] as const)
+      if (value[field] !== null) ctx.addIssue({ code: 'custom', path: [field], message: error });
+  });
+
+/** Dates are an instruction to collect outstanding credit, never a paid sale. */
+export function saleCollectionDatesError(
+  sale: { condition: 'cash' | 'credit'; dueDate: string | null; reminderDate: string | null },
+  totalUsd: string,
+  paidUsd: string,
+): string | null {
+  if (sale.dueDate === null && sale.reminderDate === null) return null;
+  if (sale.condition === 'cash')
+    return 'Contado no admite fecha pactada ni recordatorio. Retira esas fechas para cobrar.';
+  if (new Decimal(paidUsd).gte(totalUsd))
+    return 'Esta venta queda pagada. Retira la fecha pactada y el recordatorio de cobranza.';
+  return null;
+}
 export const paymentSchema = initialPaymentSchema
-  .extend({
+  .safeExtend({
     clientId: z.uuid(),
     applications: z
       .array(z.object({ saleId: z.uuid(), amountUsd: paymentAmountSchema }).strict())
@@ -233,6 +368,7 @@ export type SaleSummary = {
   clientId: string;
   clientName: string;
   condition: 'cash' | 'credit';
+  settlementBasis: SettlementBasis;
   status: 'confirmed' | 'cancelled';
   soldAt: string;
   dueDate: string | null;
@@ -252,7 +388,7 @@ export type PaymentSummary = {
   number: string;
   clientId: string;
   clientName: string;
-  currency: 'USD' | 'VES';
+  currency: PaymentCurrency;
   amount: string;
   amountUsd: string;
   method: string;
@@ -271,6 +407,13 @@ export type PaymentDetail = PaymentSummary & {
   operatorName?: string;
   client: ClientSnapshot;
   bcvRate: {
+    id: string;
+    rate: string;
+    sourceUrl: string;
+    validFrom: string;
+    validUntil: string;
+  } | null;
+  usdtRate: {
     id: string;
     rate: string;
     sourceUrl: string;

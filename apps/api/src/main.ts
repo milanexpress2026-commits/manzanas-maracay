@@ -28,6 +28,7 @@ import { CommerceModule } from './commerce.module';
 import { PushModule } from './push.module';
 import { initializeRuntimeEnvironment } from './production-state';
 import { OperationsModule } from './operations.module';
+import { databaseConnectionTimeout, databaseDiagnosticCode } from './database-failure';
 @Catch()
 class ApiErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
@@ -42,6 +43,13 @@ class ApiErrors implements ExceptionFilter {
     } else {
       const e = error as { code?: string; cause?: { code?: string }; type?: string };
       const code = e.code ?? e.cause?.code;
+      const connectionTimeout = databaseConnectionTimeout(error);
+      if (connectionTimeout) {
+        status = 503;
+        message =
+          'La conexión con la base de datos tardó demasiado. Vuelve a intentar la consulta.';
+        console.warn('API database unavailable', connectionTimeout);
+      }
       if (code === '23505') {
         status = 409;
         message = 'Este registro ya existe. Revisa la lista antes de crear otro.';
@@ -67,7 +75,7 @@ class ApiErrors implements ExceptionFilter {
         status = 400;
         message = 'Formato JSON inválido.';
       }
-      if (status === 500) console.error('API operation failed', code ?? 'unknown');
+      if (status === 500) console.error('API operation failed', databaseDiagnosticCode(code));
     }
     host.switchToHttp().getResponse().status(status).json({ message, statusCode: status });
   }
@@ -109,6 +117,13 @@ class CatalogController {
     @Headers('idempotency-key') key?: string,
   ) {
     return this.catalog.mutate('calibers', body, key, undefined, request.user.id);
+  }
+  @Post('calibers/batch') calibersBatch(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key?: string,
+  ) {
+    return this.catalog.mutate('calibers-batch', body, key, undefined, request.user.id);
   }
   @Patch('varieties/:id') renameVariety(
     @Req() request: AuthenticatedRequest,

@@ -10,7 +10,7 @@ import {
   productLabel,
   packingLabel,
 } from '@/lib/commercial-ui';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Plus, Trash2, Truck, CheckCircle2, ArrowRight, Info } from 'lucide-react';
 import { receiptSchema, type Catalog, type Supplier, type ReceiptResult } from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
@@ -43,7 +43,15 @@ const blankLine = (key: number): LineDraft => ({
   priceAction: 'keep',
   prices: [],
 });
-export function ReceiptScreen({ session }: { session: AppSession }) {
+export function ReceiptScreen({
+  session,
+  initialConfigurationId = '',
+  returnToSale = false,
+}: {
+  session: AppSession;
+  initialConfigurationId?: string;
+  returnToSale?: boolean;
+}) {
   const catalog = useRemote<Catalog>('/api/catalog'),
     suppliers = useRemote<Supplier[]>('/api/suppliers');
   const [supplierId, setSupplierId] = useState(''),
@@ -55,12 +63,43 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
   const [review, setReview] = useState<ReturnType<typeof receiptSchema.parse> | null>(null),
     [saved, setSaved] = useState<ReceiptResult | null>(null);
   const command = useCommand();
+  const preselectionApplied = useRef(false);
   useEffect(() => setDate(caracasDateTime()), []);
   const activeSuppliers = suppliers.data?.filter((s) => s.active) ?? [];
   const receivingConfigurations =
     catalog.data?.configurations.filter(
       (c) => session.environment !== 'production' || c.confirmationStatus === 'confirmed',
     ) ?? [];
+  const requestedProduct = catalog.data?.configurations.find(
+    (row) => row.id === initialConfigurationId,
+  );
+  const requestedProductAllowed =
+    requestedProduct &&
+    (session.environment !== 'production' || requestedProduct.confirmationStatus === 'confirmed');
+  useEffect(() => {
+    if (!initialConfigurationId || !catalog.data || preselectionApplied.current) return;
+    preselectionApplied.current = true;
+    if (!requestedProductAllowed || !requestedProduct) return;
+    setLines((current) =>
+      current.length === 1 && !current[0].configurationId && !current[0].cost && !current[0].notes
+        ? [
+            {
+              ...current[0],
+              configurationId: requestedProduct.id,
+              prices: requestedProduct.allowedPresentations.map((presentation) => ({
+                presentation,
+                promoUsd:
+                  requestedProduct.prices.find((price) => price.presentation === presentation)
+                    ?.promoUsd ?? '',
+                regularUsd:
+                  requestedProduct.prices.find((price) => price.presentation === presentation)
+                    ?.regularUsd ?? '',
+              })),
+            },
+          ]
+        : current,
+    );
+  }, [catalog.data, initialConfigurationId, requestedProduct, requestedProductAllowed]);
   const ready = !!catalog.data && !!suppliers.data && !catalog.error && !suppliers.error;
   const canReceive = ready && activeSuppliers.length > 0 && receivingConfigurations.length > 0;
   const totalBoxes = lines.reduce(
@@ -147,6 +186,24 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
             </Link>
           </Button>
         </div>
+        {returnToSale ? (
+          <p className="commercial-help">
+            <Link href="/ventas/nueva">Volver a la venta guardada</Link>
+          </p>
+        ) : null}
+        {initialConfigurationId && catalog.data && !requestedProductAllowed ? (
+          <Alert>
+            <Info aria-hidden="true" />
+            <AlertDescription>
+              {requestedProduct
+                ? 'Este producto tiene el empaque pendiente. Confírmalo antes de recibir mercancía.'
+                : 'No se encontró el producto del enlace. Elige uno del catálogo para continuar.'}{' '}
+              <Link href={`/catalogo${returnToSale ? '?returnTo=/ventas/nueva' : ''}`}>
+                Revisar catálogo
+              </Link>
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {catalog.error ? (
           <LoadError error={catalog.error} retry={() => void catalog.reload()} />
         ) : null}
@@ -173,6 +230,11 @@ export function ReceiptScreen({ session }: { session: AppSession }) {
               ))}
             </ul>
             <div className="inline-actions">
+              {returnToSale ? (
+                <Button asChild>
+                  <Link href="/ventas/nueva">Continuar la venta</Link>
+                </Button>
+              ) : null}
               <Button onClick={reset}>Registrar otra recepción</Button>
               <Button variant="outline" asChild>
                 <Link href="/inventario">Consultar inventario</Link>

@@ -1,6 +1,6 @@
 # Reglas permanentes del negocio
 
-Fuente primaria vigente: [brief de fase 4](referencias/brief-fase-4.txt), cuya ejecución y preparación de producción separada fueron autorizadas por el propietario el 4 de noviembre de 2026. El [brief de fase 3](referencias/brief-fase-3.txt) y las entregas anteriores conservan historia. La autorización de desarrollo no sustituye la aprobación concreta de cambios en infraestructura compartida ni la verificación de las condiciones de publicación. No se autoriza emisión fiscal SENIAT.
+Fuente vigente para esta corrección: [brief del hotfix UX v3](referencias/brief-hotfix-ux-v3.txt) y aclaración posterior del propietario del 5 de noviembre de 2026 sobre precio pactado, USD/USDT y cobros en bolívares. El [brief de fase 4](referencias/brief-fase-4.txt), el [brief de fase 3](referencias/brief-fase-3.txt) y sus entregas conservan historia; las reglas nuevas no reinterpretan documentos existentes. El hotfix está autorizado para desarrollo y pruebas en QA/staging, sin actualizar producción ni reorganizar datos del dueño. No se autoriza emisión fiscal SENIAT.
 
 ## Productos y configuraciones
 
@@ -20,7 +20,9 @@ Una recepción contiene varias líneas revisables antes de confirmar: proveedor,
 
 Cada lote conserva costo, empaque, versión de configuración, modalidad, presentaciones, peso definido y fecha de ingreso. Cambiar catálogo o costo de otra recepción no reescribe estos snapshots. Proveedores se desactivan, no se borran silenciosamente. Un almacén inicial, sin sistema multisucursal todavía.
 
-Dos listas independientes por presentación, ambas expresadas en USD: promocional efectivo USD y normal para equivalencia VES. El operador elige Conservar/Actualizar precios; costo de compra no cambia lista automáticamente. Media y blíster no tienen que valer proporcionalmente a la caja. Solo costo de mercancía; no flete, descarga ni gastos accesorios. Margen mostrado es ganancia bruta estimada.
+Dos listas independientes por presentación, ambas expresadas en USD: promocional para acuerdo en divisa y común para acuerdo inicial en bolívares BCV. La elección se pacta al crear la venta y es independiente de contado/crédito. Con dos precios distintos no se elige una lista por inferirla de la condición de pago. Se permite negociar el precio de cada línea sin modificar la lista ni su referencia histórica. El operador elige Conservar/Actualizar precios al recibir; costo de compra no cambia lista automáticamente. Media y blíster no tienen que valer proporcionalmente a la caja. Solo costo de mercancía; no flete, descarga ni gastos accesorios. Margen mostrado es ganancia bruta estimada.
+
+Una venta nueva conserva un único acuerdo: `divisa` para líneas promocionales o `bcv` para líneas comunes. Acuerdos distintos se registran en ventas separadas. Las ventas anteriores al hotfix conservan `legacy_bcv`, que mantiene su comportamiento anterior sin cambiar precios, importes, pagos ni costos; no se permite usar esa categoría al crear una venta nueva.
 
 ## Inventario físico y costos
 
@@ -47,7 +49,7 @@ PostgreSQL impide cantidades negativas, padres incompatibles/ciclos, doble conte
 
 Clientes con teléfono internacional normalizado opcional. Múltiples líneas, cantidad entera por presentación autorizada, precio de referencia obtenido del servidor y pactado editable. Caja+media se expresan como dos líneas, no 1,5 cajas cerradas. Cinco cajas a 38 totalizan 190 sin modificar lista.
 
-Contado/crédito sin aprobaciones ni límites comerciales. Crédito puede tener pago inicial cero (ausencia de abono, no asiento cero), fecha pactada o ninguna. Confirmar descuenta stock una sola vez. Moneda de referencia/deuda USD; mostrar bruto estimado sin otros gastos.
+Contado/crédito sin aprobaciones ni límites comerciales. Contado liquida el total y rechaza fecha pactada o recordatorio incluso en una solicitud manipulada. Crédito puede tener pago inicial cero (ausencia de abono, no asiento cero), parcial o total, fecha pactada o ninguna. Una venta completamente pagada no admite fechas nuevas de cobranza. Cambiar opciones en el formulario no mueve inventario; confirmar descuenta stock una sola vez. Moneda de referencia/deuda USD; mostrar bruto estimado sin otros gastos.
 
 PDF con logo y numeración única comercial, fecha Caracas, cliente, productos, cantidades, precio pactado, total, abonos y saldo. Etiqueta COMPROBANTE DE VENTA, sin afirmar validez fiscal. El PDF del cliente no expone costos de compra internos.
 
@@ -55,13 +57,21 @@ Anular o corregir genera eventos compensatorios; nunca borra ventas confirmadas.
 
 ## Abonos, fechas y BCV
 
-Saldo USD derivado de venta confirmada menos aplicaciones de abonos activos. Desde un comprobante se preselecciona; desde cliente se elige explícitamente. Reparto entre varias facturas tiene suma revisable exacta. No aplicar exceso ni asignarlo a otra deuda automáticamente. Bloqueos y restricciones impiden sobrepago concurrente. USD y VES son las únicas monedas habilitables; no USDT.
+Saldo USD derivado de venta confirmada menos aplicaciones de abonos activos. Desde un comprobante se preselecciona; desde cliente se elige explícitamente. Reparto entre varias facturas tiene suma revisable exacta. No aplicar exceso ni asignarlo a otra deuda automáticamente. Bloqueos y restricciones impiden sobrepago concurrente. USD y USDT se aplican 1:1 a esa deuda, sin cambio del precio pactado. Un abono en USD/USDT puede repartirse entre acuerdos distintos; un abono VES requiere una misma fuente de conversión y se divide en operaciones separadas si mezcla divisa con BCV. `bcv` y `legacy_bcv` comparten fuente BCV.
+
+Métodos habilitados por ahora: Efectivo USD (`usd_cash`), Transferencia USDT (`usdt_transfer`) y Bolívares (`bolivares`). El último es una modalidad genérica confirmada, sin atribuir un banco, pago móvil ni punto de venta que el dueño no haya confirmado. El servidor valida moneda/método; los nombres históricos de efectivo USD se conservan para compatibilidad, sin reescribir recibos. No se habilita texto libre como vía para aceptar medios no confirmados.
 
 Cada abono positivo confirmado conserva importe/moneda original, equivalente USD, fecha, método, actor, aplicaciones y saldo restante, con recibo PDF comercial. No se envía automáticamente a WhatsApp. Pagada queda saldo cero y fuera de pendientes.
 
-Fecha pactada y recordatorio interno son distintos; 7/15 días o calendario personalizado. Cambios dejan eventos; no se sobrescribe vencimiento original. Reloj y agrupación comerciales America/Caracas en servidor, no zona del navegador.
+Fecha pactada y recordatorio interno son distintos; 7/15 días o calendario personalizado. Solo se reprograma crédito con saldo pendiente. Cambios dejan eventos; no se sobrescribe vencimiento original. Al pagar completo se excluye la venta de pendientes, vencidos y avisos; sus fechas históricas no se borran. Reversar un abono de contado no convierte la venta en crédito ni habilita fechas de cobranza. Reloj y agrupación comerciales America/Caracas en servidor, no zona del navegador.
 
-Una conversión VES necesita registro BCV oficial positivo, verificado y vigente al momento del cobro, leído por servidor. Intervalo [validFrom,validUntil); fuente HTTPS oficial, hash y fechas históricas. Nunca número del navegador, tasa paralela, futura/vencida ni fixture como tasa real. Si no puede verificarse origen/vigencia, tasa no disponible y VES bloqueado; USD sigue funcionando. Deuda histórica USD no varía con BCV posterior. No hay API oficial supuesta ni TLS desactivado. Procedimiento manual de verificación requiere decisión específica antes de activarlo.
+El acuerdo inicial determina la conversión VES: una venta pactada en divisa usa la cotización USDT de compra; una venta pactada desde el inicio en bolívares BCV usa la tasa oficial BCV. Pagar más adelante en otra moneda no selecciona otra lista ni modifica el precio original. El saldo histórico permanece USD; cada recibo conserva importe original, equivalente y la tasa histórica aplicada.
+
+La fuente BCV es su [página oficial](https://www.bcv.org.ve/), sección USD y fecha valor publicada. La ventana operativa de esta aplicación dura 24 horas desde las 00:00 de esa fecha en Caracas, con intervalo `[validFrom, validUntil)`. Una fecha futura todavía no es vigente. No se extiende una cotización vencida por fin de semana ni se usa una última tasa disponible como sustituto. Esa ventana es una política de verificación del sistema, no una afirmación sobre obligaciones fiscales.
+
+La fuente comercial USDT es la [cotización pública de compra de Binance para USDT/VES](https://www.binance.com/bapi/c2c/v1/public/c2c/agent/quote-price?fiat=VES&asset=USDT&tradeType=BUY), consulta `BUY` general sin filtrar un método bancario. Se conserva una observación durante diez minutos; no se presenta como oferta de un comerciante específico, tasa oficial BCV ni operación de intercambio ejecutada. No se contacta a vendedores ni se realiza una transferencia mediante esta integración.
+
+Ambas fuentes requieren HTTPS estricto, origen exacto, respuesta reciente verificable, valor positivo, huella y fechas históricas. El recolector separado consulta las fuentes fuera de transacciones comerciales y guarda observaciones inmutables con su rol exclusivo; el rol de la API solo lee la caché. El navegador envía el identificador de la cotización revisada, nunca su valor. Al confirmar VES se verifica el mismo registro tanto para la fecha efectiva del cobro como para el instante actual; una cotización vencida exige actualizar y revisar el importe. Un reintento de una operación ya confirmada recupera su resultado antes de consultar tasas y no cobra otra vez. Si la fuente aplicable no puede verificarse, ese cobro VES queda bloqueado; USD/USDT 1:1 continúan. Una tasa sintética solo existe en las bases aisladas de QA, nunca se publica como tasa real.
 
 ## Cobranza y comunicaciones
 

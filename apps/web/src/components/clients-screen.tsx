@@ -3,7 +3,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Decimal from 'decimal.js';
 import { ContactRound, Plus, Search, Pencil, ArrowLeft, Download, HandCoins } from 'lucide-react';
-import type { ClientSummary, ClientAccount, PaymentDetail } from '@mm/domain';
+import {
+  paymentMethodLabel,
+  type ClientSummary,
+  type ClientAccount,
+  type PaymentDetail,
+} from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -47,13 +52,13 @@ export function ClientsScreen({ session }: { session: AppSession }) {
             <div className="commercial-metrics">
               <article>
                 <ContactRound aria-hidden="true" />
-                <span>Clientes registrados</span>
+                <span>Clientes mostrados</span>
                 <strong>{clients.data.length}</strong>
                 <small>{clients.data.filter((c) => c.active).length} activos</small>
               </article>
               <article>
                 <HandCoins aria-hidden="true" />
-                <span>Saldo total</span>
+                <span>Saldo mostrado</span>
                 <strong>{displayMoney(total.toFixed(2))}</strong>
                 <small>Derivado de comprobantes y abonos</small>
               </article>
@@ -79,7 +84,12 @@ export function ClientsScreen({ session }: { session: AppSession }) {
             </div>
             <section className="operations-panel" aria-label="Clientes registrados">
               {rows.length ? (
-                <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabla de datos: desplázate para ver todas las columnas">
+                <div
+                  className="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Tabla de datos: desplázate para ver todas las columnas"
+                >
                   <table className="commercial-table">
                     <caption className="sr-only">Clientes y sus saldos</caption>
                     <thead>
@@ -236,7 +246,9 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
                 <div className="commercial-empty">
                   <p>Este cliente todavía no tiene ventas.</p>
                   <Button asChild variant="outline">
-                    <Link href="/ventas/nueva">Registrar venta</Link>
+                    <Link href={'/ventas/nueva?cliente=' + account.data.client.id}>
+                      Registrar venta
+                    </Link>
                   </Button>
                 </div>
               )}
@@ -254,7 +266,7 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
                           {p.number} · {p.currency} {p.amount}
                         </strong>
                         <small>
-                          {displayDate(p.receivedAt)} · {p.method}
+                          {displayDate(p.receivedAt)} · {paymentMethodLabel(p.method)}
                           {p.reversed ? ' · Revertido' : ''}
                         </small>
                       </div>

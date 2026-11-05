@@ -1,0 +1,31 @@
+# Opt-in collector, isolated from HTTP API credentials and all production services.
+services:
+  rate-refresh:
+    image: manzanas-maracay-tools:${MM_RELEASE:?Identifica la versión}
+    profiles: [rates]
+    restart: 'no'
+    init: true
+    entrypoint: [node, --import, tsx, scripts/refresh-rates.ts]
+    environment:
+      MM_APP_ENV: staging
+      MM_RATES_PASSWORD_FILE: /run/secrets/rates_password
+    secrets: [rates_password]
+    networks: [database, rates_egress]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:size=32m,mode=1777']
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 60
+    logging:
+      driver: json-file
+      options: {max-size: '1m', max-file: '2'}
+networks:
+  rates_egress:
+    internal: false
+    labels:
+      org.manzanas-maracay.scope: staging-rates-egress
+secrets:
+  rates_password:
+    file: '${MM_SECRETS_DIR:?Directorio privado externo}/rates_password'

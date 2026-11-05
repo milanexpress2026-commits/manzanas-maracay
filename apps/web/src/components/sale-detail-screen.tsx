@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import {
   changeSaleDatesSchema,
+  paymentMethodLabel,
   commerceReversalSchema,
   type SaleDetail,
   type PaymentDetail,
@@ -120,6 +121,16 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                       <dd>{sale.condition === 'cash' ? 'Contado' : 'Crédito'}</dd>
                     </div>
                     <div>
+                      <dt>Precio acordado</dt>
+                      <dd>
+                        {sale.settlementBasis === 'divisa'
+                          ? 'Promocional divisa'
+                          : sale.settlementBasis === 'legacy_bcv'
+                            ? 'Acuerdo histórico · BCV'
+                            : 'Regular · Bs. BCV'}
+                      </dd>
+                    </div>
+                    <div>
                       <dt>Operador</dt>
                       <dd>{sale.actor}</dd>
                     </div>
@@ -136,7 +147,12 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                       <dd>{sale.originalDueDate ?? 'Sin fecha pactada'}</dd>
                     </div>
                   </dl>
-                  <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabla de datos: desplázate para ver todas las columnas">
+                  <div
+                    className="table-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Tabla de datos: desplázate para ver todas las columnas"
+                  >
                     <table className="commercial-table">
                       <caption className="sr-only">Líneas del comprobante confirmado</caption>
                       <thead>
@@ -156,8 +172,8 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                               <small>
                                 {presentationNames[line.presentation]} ·{' '}
                                 {line.priceBasis === 'usd_cash_promo'
-                                  ? 'Promocional USD efectivo'
-                                  : 'Normal USD para VES'}
+                                  ? 'Promocional divisa'
+                                  : 'Regular · Bs. BCV'}
                               </small>
                             </td>
                             <td>{line.quantity}</td>
@@ -224,7 +240,7 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                               {p.number} · {displayMoney(p.appliedUsd)} aplicado
                             </strong>
                             <small>
-                              Recibido: {p.currency} {p.amount} · {p.method} ·{' '}
+                              Recibido: {p.currency} {p.amount} · {paymentMethodLabel(p.method)} ·{' '}
                               {displayDate(p.receivedAt)}
                               {p.reversed ? ' · Revertido' : ''}
                             </small>
@@ -342,10 +358,12 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                       </p>
                     ) : null}
                     <FormError message={whatsError} />
-                    <Button variant="outline" onClick={() => setDates(true)}>
-                      <CalendarDays aria-hidden="true" />
-                      Cambiar fechas
-                    </Button>
+                    {sale.condition === 'credit' && new Decimal(sale.balanceUsd).gt(0) ? (
+                      <Button variant="outline" onClick={() => setDates(true)}>
+                        <CalendarDays aria-hidden="true" />
+                        Cambiar fechas
+                      </Button>
+                    ) : null}
                     <Button
                       variant="ghost"
                       onClick={() =>

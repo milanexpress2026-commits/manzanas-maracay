@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useEffect, useState, useRef } from 'react';
 import {
   Apple,
@@ -43,6 +44,8 @@ import { packingLabel, productLabel, presentationNames } from '@/lib/commercial-
 import { useCommand } from '@/lib/inventory-api';
 import { FormError, SaveButton } from './operations-ui';
 import { Field, FieldLabel } from './ui/field';
+import { ProductForm } from './product-form';
+import productStyles from './product-form.module.css';
 const empty: Catalog = { fruits: [], varieties: [], calibers: [], configurations: [] };
 const tabLabels = {
   configurations: 'Empaques',
@@ -71,6 +74,9 @@ export function CatalogScreen({ session }: { session: AppSession }) {
     [guide, setGuide] = useState(false),
     [offline, setOffline] = useState(false);
   const [rename, setRename] = useState<{ id: string; name: string } | null>(null);
+  const [formBusy, setFormBusy] = useState(false);
+  const [returnToSale, setReturnToSale] = useState(false);
+  const [priceTarget, setPriceTarget] = useState('');
   const triggerRef = useRef<HTMLElement | null>(null);
   async function reload() {
     setLoading(true);
@@ -84,6 +90,13 @@ export function CatalogScreen({ session }: { session: AppSession }) {
     }
   }
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setReturnToSale(params.get('returnTo') === '/ventas/nueva');
+    const product = params.get('producto');
+    if (product) {
+      setSelectedId(product);
+      if (params.get('precios') === '1') setPriceTarget(product);
+    }
     void reload();
     const update = () => setOffline(!navigator.onLine);
     update();
@@ -98,12 +111,18 @@ export function CatalogScreen({ session }: { session: AppSession }) {
   function openForm(kind: FormKind, editing?: Configuration) {
     triggerRef.current = document.activeElement as HTMLElement;
     setSuccess('');
+    setFormBusy(false);
     setForm({ kind, editing });
   }
   function changeTab(value: string) {
     setTab(value as Tab);
     setSearch('');
     setFruitFilter('all');
+  }
+  function closeForm() {
+    setForm(null);
+    // Contextual fruit/variety/caliber entries are already saved even if the product is cancelled.
+    void reload().then(() => requestAnimationFrame(() => triggerRef.current?.focus()));
   }
   const query = search.trim().toLocaleLowerCase('es');
   const match = (value: string) => value.toLocaleLowerCase('es').includes(query);
@@ -163,17 +182,17 @@ export function CatalogScreen({ session }: { session: AppSession }) {
           </div>
           <Button
             className="primary-action"
-            onClick={() => openForm(!catalog.fruits.length ? 'fruits' : tab)}
+            onClick={() => openForm('configurations')}
             disabled={loading || !!error || offline}
           >
-            <Plus data-icon="inline-start" />{' '}
-            {!catalog.fruits.length
-              ? 'Nueva fruta'
-              : tab === 'calibers'
-                ? 'Nuevo calibre'
-                : `Nueva ${singular[tab]}`}
+            <Plus data-icon="inline-start" /> Agregar producto
           </Button>
         </div>
+        {returnToSale ? (
+          <p className="commercial-help">
+            <Link href="/ventas/nueva">Volver a la venta guardada</Link>
+          </p>
+        ) : null}
         <div className="catalog-summary" aria-label="Resumen del catálogo">
           <span>
             <Apple aria-hidden="true" />
@@ -269,6 +288,19 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                     <RefreshCw className={loading ? 'spin' : ''} />
                   </Button>
                 </div>
+                {tab !== 'configurations' && count > 0 ? (
+                  <div className="inline-actions">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openForm(tab)}
+                      disabled={loading || !!error || offline}
+                    >
+                      <Plus aria-hidden="true" />
+                      Crear {singular[tab]}
+                    </Button>
+                  </div>
+                ) : null}
                 {loading ? (
                   <div className="loading-list" role="status" aria-label="Cargando catálogo">
                     {[1, 2, 3].map((i) => (
@@ -291,9 +323,9 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                       {search || fruitFilter !== 'all'
                         ? 'Prueba otro nombre o quita el filtro.'
                         : !catalog.fruits.length
-                          ? 'Agrega la fruta que vas a recibir. Después podrás definir su empaque y las presentaciones que vendes.'
+                          ? 'Pulsa Agregar producto: podrás crear fruta, variedad y calibre aquí mismo, y después definir su empaque.'
                           : tab === 'configurations'
-                            ? 'Crea una configuración con las presentaciones permitidas para el producto.'
+                            ? 'Pulsa Agregar producto para definir lo que vas a recibir y vender.'
                             : `Agrega tu primer registro para organizar el catálogo.`}
                     </p>
                     {search || fruitFilter !== 'all' ? (
@@ -306,16 +338,16 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                       >
                         Limpiar filtros
                       </Button>
-                    ) : (
+                    ) : tab !== 'configurations' ? (
                       <Button
                         variant="outline"
-                        onClick={() => openForm(!catalog.fruits.length ? 'fruits' : tab)}
+                        onClick={() => openForm(tab)}
                         disabled={!!error || offline}
                       >
                         <Plus />
-                        Agregar {!catalog.fruits.length ? 'fruta' : singular[tab]}
+                        Crear {singular[tab]}
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 ) : tab === 'configurations' ? (
                   <div className="table-scroll">
@@ -441,7 +473,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                       ? 'Actualizando…'
                       : error
                         ? 'Sin conexión al servidor'
-                        : 'Guardado en PostgreSQL'}
+                        : 'Catálogo actualizado'}
                   </span>
                 </footer>
               </TabsContent>
@@ -539,13 +571,14 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                 <CatalogPrices
                   key={selected.id + ':' + selected.version}
                   configuration={selected}
+                  initialOpen={selected.id === priceTarget}
                   onSaved={reload}
                 />
               </>
             ) : (
               <div className="detail-empty">
                 <Box />
-                <p>El detalle aparecerá cuando agregues una configuración.</p>
+                <p>El detalle aparecerá cuando agregues un producto.</p>
               </div>
             )}
           </aside>
@@ -582,11 +615,18 @@ export function CatalogScreen({ session }: { session: AppSession }) {
       <Dialog
         open={!!form}
         onOpenChange={(open) => {
-          if (!open) setForm(null);
+          if (!open && !formBusy) closeForm();
         }}
       >
         <DialogContent
-          className="catalog-dialog"
+          className={`catalog-dialog ${form?.kind === 'configurations' && !form.editing ? productStyles.dialog : ''}`}
+          showCloseButton={!formBusy}
+          onInteractOutside={(event) => {
+            if (form?.kind === 'configurations' && !form.editing) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (formBusy) event.preventDefault();
+          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             triggerRef.current?.focus();
@@ -596,17 +636,35 @@ export function CatalogScreen({ session }: { session: AppSession }) {
             <DialogTitle>
               {form?.editing
                 ? 'Editar empaque'
-                : form?.kind === 'calibers'
-                  ? 'Nuevo calibre'
-                  : `Nueva ${form ? singular[form.kind] : 'configuración'}`}
+                : form?.kind === 'configurations'
+                  ? 'Agregar producto'
+                  : form?.kind === 'calibers'
+                    ? 'Nuevo calibre'
+                    : `Nueva ${form ? singular[form.kind] : 'configuración'}`}
             </DialogTitle>
             <DialogDescription>
               {form?.kind === 'configurations'
-                ? 'Define la presentación habitual. Podrás ajustarla en cada lote.'
+                ? form.editing
+                  ? 'Los cambios se aplican a próximas recepciones.'
+                  : 'Crea o elige el producto, define su empaque y revisa antes de guardar.'
                 : 'Agrega un registro al catálogo de frutas importadas.'}
             </DialogDescription>
           </DialogHeader>
-          {form ? (
+          {form?.kind === 'configurations' && !form.editing ? (
+            <ProductForm
+              catalog={catalog}
+              onCancel={closeForm}
+              onBusyChange={setFormBusy}
+              returnToSale={returnToSale}
+              onSaved={async (id) => {
+                setSelectedId(id);
+                setTab('configurations');
+                setSearch('');
+                setFruitFilter('all');
+                await reload();
+              }}
+            />
+          ) : form ? (
             <CatalogForm
               key={`${form.kind}-${form.editing?.id ?? 'new'}`}
               kind={form.kind}

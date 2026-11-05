@@ -1,8 +1,16 @@
-# Continuar Manzanas Maracay — fase 4
+# Continuar Manzanas Maracay — producción fase 4 y hotfix UX v3
 
 Repositorio: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). Rama phase-4/produccion-separada, basada en f6cff80ddaea19fa9c2ac1954cf0b4f6c6de4e94. Código publicado actual 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0, [PR #3](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/3). Verificar HEAD y PR actuales; conservar los PR anteriores sin merge indiscriminado. Este documento no contiene credenciales.
 
 **Producción publicada y activa:** [acceso privado](https://manzanas.ganamosclub.net/login), release phase4-2a81817fe2c1, código 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0, PR #3. Operación interna en USD autorizada y habilitada a las 12:04:09 UTC del 5 de noviembre de 2026; autenticación pública y cron propio verificados a las 12:04:59 y 12:05:58 UTC. No volver a pedir aprobación para ese cambio ya ejecutado. VES, fiscalidad y tablet física conservan límites. [Entrega](entrega-fase-4-produccion.md) y [evidencia remota](verificacion-produccion-fase4.json).
+
+## Trabajo vigente: hotfix UX v3 en QA/staging
+
+El propietario autorizó el hotfix de catálogo, ventas y acuerdo de cobro en la rama `hotfix/ux-ventas-catalogo-v3`, limitado a QA/staging. La producción de fase 4 indicada arriba conserva su release; este trabajo no autoriza actualizar producción ni reorganizar datos reales o infraestructura compartida.
+
+El [informe del hotfix UX v3](hotfix-ux-v3.md) es la fuente vigente para el commit candidato, las pruebas integradas y la release de staging efectivamente verificada. Leerlo junto con el [brief](referencias/brief-hotfix-ux-v3.txt) y las [reglas de dominio](domain-rules.md), que incorporan la aclaración posterior del propietario: el precio promocional pactado en divisa se conserva al cobrar bolívares mediante USDT compra; el acuerdo inicial BCV usa precio regular; las deudas antiguas no se reinterpretan.
+
+La revisión del lector USDT corrigió la aceptación de un precio fuera de `data.price` y de claves ambiguas. Las 11 unitarias dirigidas pasaron conservando la precisión decimal; esa evidencia local no equivale a un despliegue. Consultar el informe vigente antes de afirmar activación del recolector o cobros VES comprobados. El [documento BCV de fase 3](bcv.md) se conserva como archivo histórico.
 
 ## Prompt para copiar
 
@@ -10,11 +18,14 @@ Repositorio: [milanexpress2026-commits/manzanas-maracay](https://github.com/mila
 Continúa Manzanas Maracay, aplicación de una distribuidora venezolana de frutas importadas. Responde en español y distingue código, ensayo local, staging comprobado, producción desplegada y acceso real habilitado.
 
 Repositorio: https://github.com/milanexpress2026-commits/manzanas-maracay
-Rama: phase-4/produccion-separada
+Rama de producción publicada: phase-4/produccion-separada
+Rama de trabajo posterior: hotfix/ux-ventas-catalogo-v3
 Base: f6cff80ddaea19fa9c2ac1954cf0b4f6c6de4e94
 Código actual publicado: 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0
 PR #3: https://github.com/milanexpress2026-commits/manzanas-maracay/pull/3
 URL objetivo: https://manzanas.ganamosclub.net
+
+Trabajo vigente: hotfix UX v3 autorizado solo para QA/staging. Lee primero docs/hotfix-ux-v3.md, docs/referencias/brief-hotfix-ux-v3.txt y docs/domain-rules.md para la política posterior de precio pactado y conversiones BCV/USDT. Toma del informe del hotfix el candidato, la release y los resultados realmente acreditados; no deduzcas activación por existir código o pruebas locales. El historial de fase 4 descrito debajo corresponde a producción y no sustituye la verificación del hotfix. No actualizar producción ni reorganizar datos reales sin autorización específica.
 
 El propietario autorizó ejecutar la fase 4 y luego aprobó específicamente publicar y habilitar la operación interna en USD, con documentos comerciales no fiscales. El cambio ya se ejecutó y verificó: no repetir solicitud ni despliegue. Nuevos cambios de infraestructura compartida requieren su alcance correspondiente. Conserva historia y PRs; evita merges o force push indiscriminados. Código publicado 2a81817fe2c17130c07b47b04b98c6ce7aaf59b0; un HEAD documental posterior no cambia esa release.
 

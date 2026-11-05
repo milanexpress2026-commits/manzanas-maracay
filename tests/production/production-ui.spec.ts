@@ -73,7 +73,7 @@ test('mantener sesión conserva el acceso 30 días y cerrar sesión revoca la co
   }
 });
 
-test('primera operación por UI: proveedor, producto confirmado, recepción, precios, cliente, crédito y abono', async ({
+test('operación por UI: proveedor, producto confirmado, recepción, precios, cliente, crédito y abono', async ({
   page,
 }) => {
   test.setTimeout(240000);
@@ -100,32 +100,38 @@ test('primera operación por UI: proveedor, producto confirmado, recepción, pre
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await page.goto('/catalogo');
-  await page.getByRole('button', { name: 'Nueva fruta', exact: true }).click();
-  await page.getByLabel('Nombre de la fruta').fill(fruit);
-  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('tab', { name: /Empaques/ }).click();
-  await page.getByRole('button', { name: 'Nueva configuración', exact: true }).click();
-  await page
-    .getByRole('dialog')
-    .getByLabel('Fruta', { exact: true })
-    .selectOption({ label: fruit });
-  await page.getByLabel('Cómo se maneja la caja').selectOption('whole');
-  await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
+  await page.getByRole('button', { name: 'Agregar producto', exact: true }).click();
+  const productDialog = page.getByRole('dialog');
+  if (!(await productDialog.getByLabel('Nombre de la fruta', { exact: true }).isVisible()))
+    await productDialog.getByRole('button', { name: 'Crear fruta', exact: true }).click();
+  await productDialog.getByLabel('Nombre de la fruta', { exact: true }).fill(fruit);
+  await productDialog.getByRole('button', { name: 'Guardar fruta', exact: true }).click();
+  await productDialog.getByLabel('Variedad', { exact: true }).selectOption('none');
+  await productDialog.getByLabel('Calibre', { exact: true }).selectOption('none');
+  await productDialog.getByRole('button', { name: 'Continuar al empaque' }).click();
+  await productDialog.getByLabel('Presentación de la caja').selectOption('whole');
+  await productDialog.getByRole('button', { name: 'Revisar producto' }).click();
+  await productDialog.getByRole('button', { name: 'Guardar producto', exact: true }).click();
+  await expect(
+    productDialog.getByRole('heading', { name: 'Producto guardado', exact: true }),
+  ).toBeVisible();
+  await productDialog.getByRole('button', { name: 'Volver al catálogo' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   let catalog = (await (await page.request.get('/api/catalog')).json()) as Catalog;
   const configuration = catalog.configurations.find((c) => c.fruit === fruit)!;
   expect(configuration.confirmationStatus).toBe('pending');
-  await page.goto('/recepciones');
+  await page.goto('/recepciones?producto=' + configuration.id);
   await expect(
-    page.getByText('crea y confirma una configuración de empaque en el catálogo'),
+    page.getByText('Este producto tiene el empaque pendiente.', { exact: false }),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Revisar recepción', exact: true })).toBeDisabled();
+  await expect(
+    page.getByLabel('Fruta, variedad y calibre').getByRole('option', { name: fruit, exact: false }),
+  ).toHaveCount(0);
 
   await page.goto('/catalogo');
   await page.getByRole('button', { name: 'Editar ' + fruit, exact: true }).click();
   await page
-    .getByRole('checkbox', { name: 'El propietario confirmó esta configuración comercial' })
+    .getByRole('checkbox', { name: 'Confirmo que este empaque y sus presentaciones son correctos' })
     .check();
   await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -141,8 +147,8 @@ test('primera operación por UI: proveedor, producto confirmado, recepción, pre
   await page.getByLabel('Cajas cerradas recibidas').fill('20');
   await page.getByLabel('Costo por caja (USD)').fill('25');
   await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
-  await page.getByLabel('Promocional USD efectivo', { exact: true }).fill('40');
-  await page.getByLabel('Normal USD para VES', { exact: true }).fill('45');
+  await page.getByLabel('Promocional divisa', { exact: true }).fill('40');
+  await page.getByLabel('Regular · Bs. BCV', { exact: true }).fill('45');
   await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
   await page
     .getByRole('dialog')
@@ -161,6 +167,7 @@ test('primera operación por UI: proveedor, producto confirmado, recepción, pre
   await page.goto('/clientes');
   await page.getByRole('button', { name: 'Nuevo cliente', exact: true }).click();
   await page.getByLabel('Nombre del cliente').fill(clientName);
+  await page.getByText('Más datos del cliente', { exact: true }).click();
   await page
     .getByLabel('Observaciones del cliente')
     .fill('Cliente sintético de QA, sin teléfono ni envío de mensajes.');
@@ -172,18 +179,19 @@ test('primera operación por UI: proveedor, producto confirmado, recepción, pre
 
   await page.goto('/ventas/nueva');
   await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
-  await page.getByLabel('Condición de venta').selectOption('credit');
+  await page.getByRole('radio', { name: 'Crédito', exact: true }).check();
   await page.getByRole('button', { name: '7 días', exact: true }).click();
-  await expect(page.getByLabel('Fecha de pago pactada, opcional')).not.toHaveValue('');
+  await expect(page.getByLabel('Fecha acordada (opcional)', { exact: true })).not.toHaveValue('');
   await page.getByLabel('Producto', { exact: true }).selectOption(configuration.id);
   const presentation = page.getByLabel('Presentación', { exact: true });
   await expect(presentation).toHaveValue('box');
   await expect(presentation).toBeDisabled();
   await expect(presentation.getByRole('option')).toHaveText(['Selecciona', 'Caja']);
   await page.getByLabel('Cantidad', { exact: true }).fill('2');
-  await page.getByLabel('Referencia comercial').selectOption('usd_cash_promo');
-  await page.getByLabel('Monto pagado', { exact: true }).fill('0');
-  await page.getByRole('button', { name: 'Revisar venta', exact: true }).click();
+  await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
+  await expect(page.getByLabel('Total de la venta', { exact: true })).toHaveText('USD 80,00');
+  await page.getByLabel('Abono hoy (opcional) · USD', { exact: true }).fill('0');
+  await page.getByRole('button', { name: 'Revisar y registrar crédito', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar venta', exact: true })
@@ -198,8 +206,8 @@ test('primera operación por UI: proveedor, producto confirmado, recepción, pre
   expect(sale.payments).toEqual([]);
   await expect(page.getByRole('button', { name: 'Cobrar por WhatsApp' })).toBeDisabled();
   await page.getByRole('button', { name: 'Registrar abono', exact: true }).click();
-  await page.getByLabel('Monto recibido').fill('30');
-  await expect(page.getByRole('option', { name: 'VES — requiere BCV verificado' })).toBeDisabled();
+  await page.getByLabel('Monto recibido · USD', { exact: true }).fill('30');
+  await expect(page.getByRole('option', { name: 'Bolívares · tasa del acuerdo' })).toBeDisabled();
   await page.getByRole('button', { name: 'Revisar abono', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar abono', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

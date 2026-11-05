@@ -2,11 +2,14 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import Link from 'next/link';
 import Decimal from 'decimal.js';
-import { AlertCircle, Download, HandCoins, Info, UserPlus } from 'lucide-react';
+import { AlertCircle, Download, HandCoins, Info, UserPlus, ChevronDown } from 'lucide-react';
 import {
   clientSchema,
   updateClientSchema,
   paymentSchema,
+  paymentMethodLabel,
+  paymentSettlementBasis,
+  type SettlementBasis,
   type ClientSummary,
   type ClientAccount,
   type SaleSummary,
@@ -22,17 +25,80 @@ import { Alert, AlertDescription } from './ui/alert';
 import { FormError, SaveButton, LoadError, LoadingRows } from './operations-ui';
 import { useCommand, useRemote, displayMoney, displayDate } from '@/lib/inventory-api';
 import { caracasDateTime, caracasInstant, normalizedMoney } from '@/lib/commercial-ui';
+import {
+  PaymentMethodSelector,
+  defaultPaymentMethod,
+  type PaymentCurrency,
+} from './payment-method-selector';
+import styles from './sales-flow.module.css';
+export type RateValue = {
+  id: string;
+  rate: string;
+  sourceUrl: string;
+  validFrom: string;
+  validUntil: string;
+  verifiedAt?: string;
+  source?: string;
+};
 export type RateStatus = {
   status: 'available' | 'unavailable';
-  rate: {
-    id: string;
-    rate: string;
-    sourceUrl: string;
-    validFrom: string;
-    validUntil: string;
-  } | null;
+  rate: RateValue | null;
   message?: string;
+  usdt?: { status: 'available' | 'unavailable'; rate: RateValue | null; message?: string };
 };
+export function useQuoteCurrent(quote: RateValue | null | undefined) {
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const now = Date.now();
+    setClock(now);
+    const timers = [Date.parse(quote?.validFrom ?? ''), Date.parse(quote?.validUntil ?? '')]
+      .filter((time) => time > now)
+      .map((time) =>
+        window.setTimeout(() => setClock(Date.now()), Math.min(time - now + 10, 2_147_483_647)),
+      );
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [quote?.id, quote?.validFrom, quote?.validUntil]);
+  return !!quote && Date.parse(quote.validFrom) <= clock && clock < Date.parse(quote.validUntil);
+}
+
+export function RateSnapshot({ quote, basis }: { quote: RateValue; basis: 'divisa' | 'bcv' }) {
+  const time = quote.verifiedAt ? new Date(quote.verifiedAt) : null;
+  return (
+    <span>
+      <strong>
+        {basis === 'divisa' ? 'Binance P2P · compra · referencia general' : 'BCV oficial'}:{' '}
+        {quote.rate} Bs. por {basis === 'divisa' ? 'USDT' : 'USD'}.
+      </strong>
+      {time && Number.isFinite(time.valueOf()) ? (
+        <small className={styles.quoteMeta}>
+          Verificada{' '}
+          {new Intl.DateTimeFormat('es-VE', {
+            timeZone: 'America/Caracas',
+            dateStyle: 'short',
+            timeStyle: 'short',
+          }).format(time)}{' '}
+          · Venezuela.
+        </small>
+      ) : null}
+      {basis === 'divisa' ? (
+        <small className={styles.quoteMeta}>
+          Referencia general sin filtro de banco o monto; no realiza un cambio de moneda ni
+          garantiza una oferta.
+        </small>
+      ) : null}
+      {quote.sourceUrl.startsWith('https://') ? (
+        <a
+          className={styles.quoteSource}
+          href={quote.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Consultar fuente
+        </a>
+      ) : null}
+    </span>
+  );
+}
 export function DueBadge({ sale }: { sale: SaleSummary }) {
   const value = sale.status === 'cancelled' ? 'cancelled' : sale.dueStatus;
   const labels = {
@@ -67,7 +133,12 @@ export function SaleTable({
   onPayment?: (sale: SaleSummary) => void;
 }) {
   return (
-    <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabla de datos: desplázate para ver todas las columnas">
+    <div
+      className="table-scroll"
+      tabIndex={0}
+      role="region"
+      aria-label="Tabla de datos: desplázate para ver todas las columnas"
+    >
       <table className="commercial-table">
         <caption className="sr-only">Comprobantes de venta y saldo individual</caption>
         <thead>
@@ -125,20 +196,20 @@ export function SaleTable({
     </div>
   );
 }
-export function RateNotice({ rate }: { rate: RateStatus | null }) {
+export function RateNotice({ rate, basis }: { rate: RateStatus | null; basis?: SettlementBasis }) {
+  const divisa = basis === 'divisa';
+  const selected = divisa ? rate?.usdt : rate;
+  const current = useQuoteCurrent(selected?.rate);
   return (
     <Alert>
       <Info aria-hidden="true" />
       <AlertDescription>
-        {rate?.status === 'available' && rate.rate ? (
-          <span>
-            BCV oficial verificado: {rate.rate.rate} VES por USD. El servidor comprobará su vigencia
-            al confirmar el cobro.
-          </span>
+        {selected?.status === 'available' && selected.rate && current ? (
+          <RateSnapshot quote={selected.rate} basis={divisa ? 'divisa' : 'bcv'} />
         ) : (
           <span>
-            Tasa BCV no disponible. Los cobros en VES permanecen bloqueados. USD no requiere esta
-            conversión.
+            {divisa ? 'Tasa USDT compra no disponible.' : 'Tasa BCV no disponible.'} No se puede
+            cobrar en bolívares con este acuerdo hasta verificarla. USD y USDT se aplican 1:1.
           </span>
         )}
       </AlertDescription>
@@ -197,7 +268,7 @@ export function ClientDialog({
         <DialogHeader>
           <DialogTitle>{editing ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
           <DialogDescription>
-            El teléfono con prefijo internacional permite abrir su chat de WhatsApp.
+            El nombre basta para empezar. Puedes añadir el contacto y otros datos después.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={save}>
@@ -217,7 +288,7 @@ export function ClientDialog({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="client-phone">WhatsApp con prefijo internacional</FieldLabel>
+                <FieldLabel htmlFor="client-phone">WhatsApp (opcional)</FieldLabel>
                 <Input
                   id="client-phone"
                   name="tel"
@@ -229,36 +300,44 @@ export function ClientDialog({
                   placeholder="+58…"
                 />
                 <FieldDescription>
-                  Opcional. Si falta, no estará disponible Cobrar por WhatsApp.
+                  Usa el prefijo internacional, por ejemplo +58. Se usa solo para abrir el chat.
                 </FieldDescription>
               </Field>
-              <Field>
-                <FieldLabel htmlFor="client-tax">RIF o identificación</FieldLabel>
-                <Input
-                  id="client-tax"
-                  value={taxId}
-                  maxLength={40}
-                  onChange={(e) => setTaxId(e.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="client-address">Dirección</FieldLabel>
-                <Input
-                  id="client-address"
-                  value={address}
-                  maxLength={250}
-                  onChange={(e) => setAddress(e.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="client-notes">Observaciones del cliente</FieldLabel>
-                <Textarea
-                  id="client-notes"
-                  value={notes}
-                  maxLength={500}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </Field>
+              <details className={styles.optional} open={editing ? true : undefined}>
+                <summary>
+                  Más datos del cliente
+                  <ChevronDown aria-hidden="true" />
+                </summary>
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="client-tax">RIF o identificación</FieldLabel>
+                    <Input
+                      id="client-tax"
+                      value={taxId}
+                      maxLength={40}
+                      onChange={(e) => setTaxId(e.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="client-address">Dirección</FieldLabel>
+                    <Input
+                      id="client-address"
+                      value={address}
+                      maxLength={250}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="client-notes">Observaciones del cliente</FieldLabel>
+                    <Textarea
+                      id="client-notes"
+                      value={notes}
+                      maxLength={500}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </Field>
+                </FieldGroup>
+              </details>
               {editing ? (
                 <label className="inline-check">
                   <input
@@ -296,11 +375,14 @@ export function PaymentDialog({
 }) {
   const account = useRemote<ClientAccount>('/api/clients/' + clientId),
     rate = useRemote<RateStatus>('/api/rates/current');
-  const [currency, setCurrency] = useState<'USD' | 'VES'>('USD'),
+  const [currency, setCurrency] = useState<PaymentCurrency>('USD'),
     [amount, setAmount] = useState(''),
-    [method, setMethod] = useState('Efectivo'),
+    [method, setMethod] = useState(defaultPaymentMethod('USD')),
     [date, setDate] = useState(''),
     [applications, setApplications] = useState<Record<string, string>>({});
+  const [dateEdited, setDateEdited] = useState(false);
+  const [reviewQuote, setReviewQuote] = useState<RateValue | null>(null);
+  const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
   const [review, setReview] = useState<ReturnType<typeof paymentSchema.parse> | null>(null);
   const command = useCommand();
   useEffect(() => setDate(caracasDateTime()), []);
@@ -308,6 +390,29 @@ export function PaymentDialog({
     account.data?.sales.filter(
       (s) => s.status === 'confirmed' && new Decimal(s.balanceUsd).gt(0),
     ) ?? [];
+  const selectedInvoices = invoices.filter((invoice) => {
+    try {
+      return new Decimal(normalizedMoney(applications[invoice.id] ?? '') || 0).gt(0);
+    } catch {
+      return false;
+    }
+  });
+  const basisInvoices = selectedInvoices.length
+    ? selectedInvoices
+    : invoices.filter((invoice) => invoice.id === saleId);
+  let settlement: 'divisa' | 'bcv' | null = null;
+  let agreementError = '';
+  if (basisInvoices.length) {
+    try {
+      settlement = paymentSettlementBasis(basisInvoices.map((invoice) => invoice.settlementBasis));
+    } catch {
+      agreementError =
+        'Estos comprobantes tienen acuerdos de precio diferentes. Registra sus abonos por separado.';
+    }
+  }
+  const quoted = settlement === 'divisa' ? rate.data?.usdt : rate.data;
+  const quoteCurrent = useQuoteCurrent(quoted?.rate);
+  const activeRate = quoted?.status === 'available' && quoteCurrent ? quoted.rate : null;
   const sum = Object.values(applications).reduce((a, v) => {
     try {
       return a.plus(normalizedMoney(v) || '0');
@@ -320,30 +425,59 @@ export function PaymentDialog({
     const a = new Decimal(normalizedMoney(amount));
     if (a.gte(0))
       equivalent =
-        currency === 'USD'
+        currency !== 'VES'
           ? a.toFixed(2)
-          : rate.data?.status === 'available' && rate.data.rate
-            ? a.div(rate.data.rate.rate).toFixed(2, Decimal.ROUND_HALF_UP)
+          : settlement && activeRate
+            ? a.div(activeRate.rate).toFixed(2, Decimal.ROUND_HALF_UP)
             : null;
   } catch {}
   function setReceived(value: string) {
     setAmount(value);
-    if (saleId && currency === 'USD')
-      setApplications((current) => ({ ...current, [saleId]: value }));
+    if (saleId) {
+      let applied = value;
+      if (currency === 'VES') {
+        try {
+          applied = activeRate
+            ? new Decimal(normalizedMoney(value))
+                .div(activeRate.rate)
+                .toFixed(2, Decimal.ROUND_HALF_UP)
+            : '';
+        } catch {
+          applied = '';
+        }
+      }
+      setApplications((current) => ({ ...current, [saleId]: applied }));
+    }
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
     command.setError('');
     if (review) {
+      if (reviewQuote && !reviewQuoteCurrent) {
+        command.setError(
+          'La cotización venció. Vuelve a editar y actualiza la tasa antes de confirmar.',
+        );
+        return;
+      }
       try {
         const result = await command.run<PaymentDetail>('/api/payments', review);
         await onSaved(result);
       } catch {}
       return;
     }
+    if (currency === 'VES' && agreementError) {
+      command.setError(agreementError);
+      return;
+    }
+    if (currency === 'VES' && (!settlement || !activeRate)) {
+      command.setError(
+        'Selecciona comprobantes con el mismo acuerdo y actualiza su tasa para cobrar bolívares.',
+      );
+      return;
+    }
     let receivedAt: string;
     try {
-      receivedAt = caracasInstant(date);
+      receivedAt = dateEdited ? caracasInstant(date) : new Date().toISOString();
     } catch (e) {
       command.setError(e instanceof Error ? e.message : 'Revisa la fecha.');
       return;
@@ -354,16 +488,14 @@ export function PaymentDialog({
       amount: normalizedMoney(amount),
       method,
       receivedAt,
-      applications: invoices
-        .filter((s) => applications[s.id]?.trim())
-        .map((s) => ({ saleId: s.id, amountUsd: normalizedMoney(applications[s.id]) })),
+      ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
+      applications: selectedInvoices.map((s) => ({
+        saleId: s.id,
+        amountUsd: normalizedMoney(applications[s.id]),
+      })),
     });
     if (!parsed.success) {
       command.setError(parsed.error.issues[0]?.message ?? 'Elige comprobante e indica el reparto.');
-      return;
-    }
-    if (currency === 'VES' && rate.data?.status !== 'available') {
-      command.setError('No hay una tasa BCV oficial vigente. Puedes registrar el cobro en USD.');
       return;
     }
     if (equivalent === null || !sum.eq(equivalent)) {
@@ -380,6 +512,7 @@ export function PaymentDialog({
       command.setError('Un importe aplicado supera el saldo del comprobante. Revisa el reparto.');
       return;
     }
+    setReviewQuote(currency === 'VES' && activeRate ? { ...activeRate } : null);
     setReview(parsed.data);
   }
   return (
@@ -393,8 +526,8 @@ export function PaymentDialog({
         <DialogHeader>
           <DialogTitle>{review ? 'Confirmar abono' : 'Registrar abono'}</DialogTitle>
           <DialogDescription>
-            {account.data?.client.name ?? 'Cargando cliente…'} · Elige explícitamente los
-            comprobantes que recibirán el dinero.
+            {account.data?.client.name ?? 'Cargando cliente…'} · Revisa el importe y el comprobante
+            que recibirá el abono.
           </DialogDescription>
         </DialogHeader>
         {account.error ? (
@@ -403,7 +536,7 @@ export function PaymentDialog({
         {!account.data && account.loading ? <LoadingRows /> : null}
         {account.data ? (
           <form onSubmit={submit}>
-            <fieldset disabled={command.busy}>
+            <fieldset disabled={command.busy} className={styles.payment}>
               <FieldGroup>
                 {review ? (
                   <div className="receipt-review">
@@ -411,8 +544,13 @@ export function PaymentDialog({
                       <strong>
                         {review.currency} {review.amount}
                       </strong>{' '}
-                      · {review.method}
+                      · {paymentMethodLabel(review.method)}
                     </p>
+                    {reviewQuote ? (
+                      <p>
+                        <RateSnapshot quote={reviewQuote} basis={settlement ?? 'bcv'} />
+                      </p>
+                    ) : null}
                     <ul>
                       {review.applications.map((a) => (
                         <li key={a.saleId}>
@@ -434,19 +572,29 @@ export function PaymentDialog({
                           id="payment-currency"
                           value={currency}
                           onChange={(e) => {
-                            setCurrency(e.target.value as 'USD' | 'VES');
-                            setApplications({});
-                            setMethod(e.target.value === 'USD' ? 'Efectivo' : '');
+                            const next = e.target.value as PaymentCurrency;
+                            setCurrency(next);
+                            if (next === 'VES' || currency === 'VES') {
+                              setAmount('');
+                              setApplications({});
+                            }
+                            setMethod(defaultPaymentMethod(next));
                           }}
                         >
                           <option value="USD">USD</option>
-                          <option value="VES" disabled={rate.data?.status !== 'available'}>
-                            VES — requiere BCV verificado
+                          <option value="USDT">USDT · 1:1 USD</option>
+                          <option
+                            value="VES"
+                            disabled={!settlement || !activeRate || !!agreementError}
+                          >
+                            Bolívares · tasa del acuerdo
                           </option>
                         </NativeSelect>
                       </Field>
                       <Field>
-                        <FieldLabel htmlFor="payment-amount">Monto recibido</FieldLabel>
+                        <FieldLabel htmlFor="payment-amount">
+                          Monto recibido · {currency}
+                        </FieldLabel>
                         <Input
                           id="payment-amount"
                           required
@@ -454,33 +602,82 @@ export function PaymentDialog({
                           value={amount}
                           onChange={(e) => setReceived(e.target.value)}
                         />
+                        {saleId && invoices.some((invoice) => invoice.id === saleId) ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              const balance = invoices.find(
+                                (invoice) => invoice.id === saleId,
+                              )!.balanceUsd;
+                              setReceived(
+                                currency === 'VES' && activeRate
+                                  ? new Decimal(balance)
+                                      .times(activeRate.rate)
+                                      .toFixed(2, Decimal.ROUND_HALF_UP)
+                                  : balance,
+                              );
+                            }}
+                          >
+                            Cobrar saldo completo
+                          </Button>
+                        ) : null}
                       </Field>
-                      <Field>
-                        <FieldLabel htmlFor="payment-method">Método de pago</FieldLabel>
-                        <Input
-                          id="payment-method"
-                          required
-                          minLength={2}
-                          maxLength={80}
-                          value={method}
-                          onChange={(e) => setMethod(e.target.value)}
-                          placeholder="Efectivo, transferencia…"
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="payment-date">
-                          Fecha y hora del cobro en Venezuela
-                        </FieldLabel>
-                        <Input
-                          id="payment-date"
-                          type="datetime-local"
-                          required
-                          value={date}
-                          onChange={(e) => setDate(e.target.value)}
-                        />
-                      </Field>
+                      <PaymentMethodSelector
+                        id="payment-method"
+                        currency={currency}
+                        value={method}
+                        onChange={setMethod}
+                        label="Método de pago"
+                      />
+                      <details className={styles.optional}>
+                        <summary>
+                          Fecha del cobro
+                          <ChevronDown aria-hidden="true" />
+                        </summary>
+                        <Field>
+                          <FieldLabel htmlFor="payment-date">
+                            Fecha y hora del cobro en Venezuela
+                          </FieldLabel>
+                          <Input
+                            id="payment-date"
+                            type="datetime-local"
+                            required
+                            value={date}
+                            onChange={(e) => {
+                              setDate(e.target.value);
+                              setDateEdited(true);
+                            }}
+                          />
+                        </Field>
+                      </details>
                     </div>
-                    <RateNotice rate={rate.data} />
+                    {currency === 'VES' ? (
+                      <>
+                        <RateNotice rate={rate.data} basis={settlement ?? undefined} />
+                        <Button type="button" variant="outline" onClick={() => void rate.reload()}>
+                          Actualizar tasa
+                        </Button>
+                      </>
+                    ) : (
+                      <details className={styles.optional}>
+                        <summary>
+                          Monedas y tasas
+                          <ChevronDown aria-hidden="true" />
+                        </summary>
+                        <p className="commercial-help">
+                          USD y USDT se aplican 1:1. Los pagos conservan el precio y la condición
+                          acordados en cada venta.
+                        </p>
+                        {settlement ? (
+                          <RateNotice rate={rate.data} basis={settlement} />
+                        ) : (
+                          <p className="commercial-help">
+                            Selecciona un comprobante para consultar la tasa correspondiente.
+                          </p>
+                        )}
+                      </details>
+                    )}
                     <div>
                       <h3 className="commercial-section-title">Aplicar a comprobantes</h3>
                       <p className="commercial-help">
@@ -497,6 +694,11 @@ export function PaymentDialog({
                                 {s.id === saleId ? ' · Seleccionado' : ''}
                               </strong>
                               <small>Saldo: {displayMoney(s.balanceUsd)}</small>
+                              <small>
+                                {s.settlementBasis === 'divisa'
+                                  ? 'Promocional divisa'
+                                  : 'Acuerdo Bs. BCV'}
+                              </small>
                             </div>
                             <Field>
                               <FieldLabel htmlFor={'apply-' + s.id}>Aplicar USD</FieldLabel>
@@ -517,6 +719,9 @@ export function PaymentDialog({
                         ))}
                       </div>
                     </div>
+                    {currency === 'VES' && agreementError ? (
+                      <FormError message={agreementError} />
+                    ) : null}
                     <p className="commercial-line-summary">
                       <span>
                         Equivalente recibido:{' '}
