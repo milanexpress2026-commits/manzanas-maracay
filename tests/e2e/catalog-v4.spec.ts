@@ -68,23 +68,53 @@ test('plantillas activan solo calibres elegidos, conservan selección y aceptan 
   });
   expect(prepared.status()).toBe(201);
   const before = await (await page.request.get('/api/operations/overview')).json();
+  const beforeCatalog: Catalog = await (await page.request.get('/api/catalog')).json();
   await page.goto('/catalogo');
   const panel = page.getByRole('region', { name: 'Plantillas de productos habituales' });
   await panel.getByLabel('Plantilla de empaque').selectOption('apple_traditional');
   await panel.getByLabel('Variedad', { exact: true }).selectOption({ label: 'Gala' });
   for (const caliber of ['100', '113'])
     await panel.getByRole('checkbox', { name: caliber, exact: true }).check();
+  const batchRequest = page.waitForRequest(
+    (request) =>
+      request.method() === 'POST' && request.url().endsWith('/api/catalog/configurations/batch'),
+  );
   await panel.getByRole('button', { name: 'Agregar productos seleccionados' }).click();
+  const sent = (await batchRequest).postDataJSON() as {
+    configurations: { caliberId: string }[];
+  };
+  expect(
+    sent.configurations
+      .map((row) => beforeCatalog.calibers.find((caliber) => caliber.id === row.caliberId)?.label)
+      .sort(),
+  ).toEqual(['100', '113']);
   await expect(panel.getByRole('status')).toContainText('Productos disponibles');
   const catalog: Catalog = await (await page.request.get('/api/catalog')).json();
   const gala = catalog.configurations.filter(
     (row) =>
       row.fruit === 'Manzana' && row.variety === 'Gala' && row.commercialLine === 'Tradicional',
   );
-  expect(gala.map((row) => row.caliber).sort()).toEqual(['100', '113']);
+  for (const caliber of ['100', '113'])
+    expect(gala.filter((row) => row.caliber === caliber)).toHaveLength(1);
+  const added = catalog.configurations.filter(
+    (row) => !beforeCatalog.configurations.some((previous) => previous.id === row.id),
+  );
+  const missingBefore = ['100', '113'].filter(
+    (caliber) =>
+      !beforeCatalog.configurations.some(
+        (row) =>
+          row.fruit === 'Manzana' &&
+          row.variety === 'Gala' &&
+          row.commercialLine === 'Tradicional' &&
+          row.caliber === caliber,
+      ),
+  );
+  expect(added.map((row) => row.caliber).sort()).toEqual(missingBefore);
   expect(
-    gala.every((row) => row.confirmationStatus === 'pending' && row.blistersPerBox === null),
+    added.every((row) => row.confirmationStatus === 'pending' && row.blistersPerBox === null),
   ).toBe(true);
+  for (const previous of beforeCatalog.configurations)
+    expect(catalog.configurations.find((row) => row.id === previous.id)).toEqual(previous);
   await panel.getByLabel('Variedad', { exact: true }).selectOption({ label: 'Amarilla' });
   await expect(panel.getByRole('checkbox', { name: '100', exact: true })).toBeChecked();
   await expect(panel.getByRole('checkbox', { name: '113', exact: true })).toBeChecked();

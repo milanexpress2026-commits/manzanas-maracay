@@ -1,0 +1,45 @@
+{
+  "runtimeCommit": "53aeff14b981c52417d97c257f5be3ba1dd9d45f",
+  "stagingRelease": "hotfix-53aeff14b981",
+  "productionReleaseUnchanged": "phase4-2a81817fe2c1",
+  "typecheck": true,
+  "unitTests": 201,
+  "build": true,
+  "productionQa": {
+    "passed": 13,
+    "cleaned": true
+  },
+  "migrations": {
+    "fresh": 14,
+    "upgrade": [
+      13,
+      14
+    ],
+    "preserved": true
+  },
+  "e2eFull": {
+    "passed": 83,
+    "total": 84,
+    "failure": "Repeat execution encountered previously created caliber 90; fixture expectation corrected, no runtime change"
+  },
+  "e2eTargetedAfterCorrection": {
+    "passed": 2,
+    "total": 2
+  },
+  "stagingAuthSmoke": {
+    "passed": 15,
+    "total": 15,
+    "currentBcvAndUsdtVerifiedAtCheck": true
+  },
+  "realBackupIsolatedRehearsal": {
+    "from": 13,
+    "to": 14,
+    "tablesPreserved": 36,
+    "aclVerified": true,
+    "cleaned": true,
+    "liveDatabaseTouched": false,
+    "dump14RoundtripPending": true
+  },
+  "physicalTabletVerified": false,
+  "v42ContinuationBeforeProduction": true
+}

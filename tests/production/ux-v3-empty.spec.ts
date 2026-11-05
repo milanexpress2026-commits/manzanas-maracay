@@ -1,12 +1,64 @@
 import { test, expect, type Page } from '@playwright/test';
 import fs from 'node:fs';
+import path from 'node:path';
 import Decimal from 'decimal.js';
+import { Client } from 'pg';
 import type { Catalog, SaleDetail } from '../../packages/domain/src/index';
+import { databaseTarget } from '../../packages/database/src/environment';
 import { assertIsolatedProduction, assertNoDocumentOverflow, loginProduction } from './ui-helpers';
 
 // Run after the closed-gate empty checks and the LOCAL activation fixture, before other writes.
 // The harness owns creation/activation/cleanup of the unique production_regression database.
 test.beforeEach(async ({}, testInfo) => assertIsolatedProduction(testInfo));
+
+async function assertNoPersistedPrices() {
+  const fixture = JSON.parse(
+    fs.readFileSync(
+      process.env.MM_PRODUCTION_QA_STATE_FILE ?? path.resolve('.local/production-qa/current.json'),
+      'utf8',
+    ),
+  );
+  if (
+    process.env.NODE_ENV !== 'test' ||
+    process.env.MM_APP_ENV !== 'production' ||
+    fixture.runId !== process.env.MM_QA_RUN_ID ||
+    fixture.database !== process.env.MM_PRODUCTION_TEST_DATABASE ||
+    !/^[a-f0-9]{24}$/.test(fixture.runId) ||
+    !/^manzanas_maracay_production_test_[a-f0-9]{12}$/.test(fixture.database) ||
+    new URL(fixture.ownerUrl).hostname !== '127.0.0.1'
+  )
+    throw new Error('La consulta de precios solo admite el fixture local de producción QA.');
+  const target = databaseTarget(fixture.ownerUrl, {
+    environment: 'production',
+    role: 'owner',
+    nodeEnvironment: 'test',
+    productionTestDatabase: fixture.database,
+  });
+  if (target.purpose !== 'production_regression')
+    throw new Error('La consulta no admite una base operativa.');
+  const client = new Client({ connectionString: fixture.ownerUrl, statement_timeout: 10000 });
+  await client.connect();
+  try {
+    await client.query('begin read only');
+    const binding = (
+      await client.query(
+        "select e.*,shobj_description(d.oid,'pg_database') as marker from runtime_environment e join pg_database d on d.datname=current_database() where singleton",
+      )
+    ).rows[0];
+    if (
+      binding?.database_name !== fixture.database ||
+      binding.database_instance_id !== fixture.databaseInstanceId ||
+      binding.purpose !== 'production_regression' ||
+      binding.marker !== fixture.marker
+    )
+      throw new Error('El binding no coincide con el ensayo aislado.');
+    expect(
+      (await client.query('select count(*)::int as total from price_items')).rows[0].total,
+    ).toBe(0);
+  } finally {
+    await client.end();
+  }
+}
 
 async function activateProduct(page: Page, template: string, caliber: string) {
   const panel = page.getByRole('region', { name: 'Plantillas de productos habituales' });
@@ -81,11 +133,15 @@ test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera
       'Uva',
     ]);
     expect(prepared.configurations).toHaveLength(3);
-    expect(
-      prepared.configurations.every(
-        (row) => row.confirmationStatus === 'pending' && row.prices.length === 0,
-      ),
-    ).toBe(true);
+    for (const row of prepared.configurations) {
+      expect(row.confirmationStatus).toBe('pending');
+      expect(row.prices.map((price) => price.presentation)).toEqual(row.allowedPresentations);
+      for (const price of row.prices) {
+        expect(price.promoUsd).toBeNull();
+        expect(price.regularUsd).toBeNull();
+      }
+    }
+    await assertNoPersistedPrices();
     expect(prepared.varieties.filter((row) => row.name === 'Amarilla')).toHaveLength(1);
     expect(prepared.varieties.filter((row) => row.name === 'Gala')).toHaveLength(1);
     expect(prepared.configurations.find((row) => row.fruit === 'Kiwi')).toMatchObject({

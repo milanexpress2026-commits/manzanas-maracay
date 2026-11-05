@@ -1,6 +1,6 @@
 # Catálogo asistido y cobros V4
 
-Estado de trabajo: implementación y validación en curso. **Este documento no acredita una actualización de producción.** El dominio real continúa en `phase4-2a81817fe2c1` mientras no conste la promoción final.
+V4 verificada en staging con código `53aeff14b981c52417d97c257f5be3ba1dd9d45f`, release `hotfix-53aeff14b981`, el 5 de noviembre de 2026. **Producción sigue en `phase4-2a81817fe2c1`.** El propietario entregó después la continuación V4.2 corregida: se incorporará antes de solicitar la promoción definitiva. Este informe conserva la evidencia de V4; sus reglas de empaque no sustituyen la aclaración posterior del calibre 100.
 
 Se conserva el [PR #4](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/4), abierto y listo para revisión en `3378f7b46f7da27f75e9ff43faa6b2247072840d`, reconfirmado el 5 de noviembre de 2026. V4 parte de ese commit en `feature/catalogo-tasas-v4`, sin reescribir migraciones ni hacer merge. Staging previo: `hotfix-8612e8230bb5`, 14 migraciones; producción previa: `phase4-2a81817fe2c1`, 13 migraciones.
 
@@ -39,6 +39,15 @@ El recolector usa su propio rol limitado `mm_prod_rates`, secreto, red de salida
 
 Si falla la migración o verificación, se mantienen detenidos los escritores propios para inspección. **No se arranca el código anterior de 13 migraciones sobre el esquema de 14.** Se prepara una corrección compatible; restaurar la copia anterior requiere verificar que no existan nuevas operaciones y aprobación específica para esa restauración. No hay downgrade ni pérdida de datos automática.
 
-## Pendiente de evidencia final
+## Evidencia ejecutada
 
-Resultados exactos de check, navegador, QA vacía, migraciones, capturas/vídeo, fuente real de tasas, SHA e imágenes se incorporan al concluir su ejecución. Una tablet Android física no está conectada a este entorno: la emulación táctil no acredita descarga ni notificación real en ese dispositivo. Los PDF siguen siendo comprobantes comerciales; impresión HP y homologación fiscal no forman parte de V4.
+- Tipos, 201 pruebas unitarias y compilaciones API/web: aprobados.
+- QA de producción aislada: 13/13, incluida preparación desde cero, recepción, venta al contado, crédito y abonos. Sin precios ficticios; limpieza comprobada.
+- Migraciones: base nueva de 14 y actualización 13→14 con conservación de datos, hashes y acuerdos históricos.
+- Navegador completo: 83/84. El único fallo suponía que el calibre excepcional 90 no existía después de una ejecución anterior. Se corrigió la prueba para comprobar el delta y conservar los registros previos; ejecución dirigida posterior 2/2. No se presenta como una corrida completa 84/84.
+- Staging: respaldo restaurado antes y después, 14 migraciones conservadas, datos y acuerdos anteriores intactos; recolector propio reactivado y otras aplicaciones preservadas. Acceso autenticado, lecturas, tasas BCV/USDT vigentes y cierre de sesión: 15 verificaciones aprobadas.
+- Respaldo real cifrado fuera del VPS: recuperación aislada de esquema 13 y ensayo 13→14 aprobados; 36 tablas conservadas, permisos comprobados y recursos temporales eliminados. No se escribió en producción. La restauración posterior de un dump de 14 con ACL del recolector queda pendiente de la promoción real.
+
+Los cambios posteriores a `53aeff14` de este hito son pruebas y evidencia, sin diferencias de código ejecutable. [Registro resumido](verificacion-v4.json). [Capturas y vídeo](capturas/catalogo-v4/).
+
+Una tablet Android física no está conectada a este entorno: la emulación táctil no acredita descarga ni notificación real en ese dispositivo. Los PDF siguen siendo comprobantes comerciales; impresión HP y homologación fiscal no forman parte de V4.
