@@ -1,0 +1,529 @@
+{
+  "format": 1,
+  "version": "v4.5",
+  "candidateCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/7",
+  "status": "baseline_v45_qa_and_staging_complete_continue_v47",
+  "stages": {
+    "implemented": {
+      "status": "complete",
+      "scope": "candidate_source_only"
+    },
+    "tested": {
+      "status": "automated_baseline_passed",
+      "completeAcceptanceClaimed": false,
+      "scope": "runtime817_and_test_validation998cceb_not_future_v47_changes"
+    },
+    "deployed": {
+      "productionCandidateActive": false,
+      "stagingCandidateVerified": true
+    },
+    "pending": [
+      "authorized_v47_continuation_and_patched_node_runtime",
+      "final_v47_candidate_verification_and_staging",
+      "explicit_production_approval_for_exact_final_v47_candidate",
+      "final_production_promotion_and_authenticated_read_smoke",
+      "production_rate_collector_and_current_source_verification",
+      "post_promotion_encrypted_copies_and_isolated_restore",
+      "physical_android_whatsapp_profile_push_opt_in_and_hp215_verification"
+    ]
+  },
+  "productionApproval": {
+    "status": "pending_required_explicit_review",
+    "granted": false,
+    "requiredScope": "exact_final_v47_commit_migrations_own_service_window_and_rates_collector",
+    "source": "explicit_v47_continuation_and_final_operational_approval_requirement",
+    "ownerRequestsRealUseDelivery": true,
+    "approvalFileCreated": false,
+    "productionMutationPerformed": false,
+    "automaticReview": {
+      "result": "rejected",
+      "action": "create_production_approval_record_from_general_ready_instruction",
+      "requiredExplicitAcceptance": [
+        "runtime_commit_817a2783da7c4405e9c9609335adfe239a88e3ef",
+        "migrations_0013_0014_0015",
+        "own_rates_collector"
+      ],
+      "nextStep": "complete_v47_and_its_verification_before_requesting_precise_final_candidate_approval",
+      "bypassAttempted": false,
+      "scope": "historical_rejection_for_baseline817_not_a_new_approval_request"
+    },
+    "candidateAwaitingApproval": null,
+    "separate817ApprovalRequestPlanned": false
+  },
+  "sourceArtifact": {
+    "sha256": "18ec962021a6c1e25f968253c48c4f21707c23ab2b08e70813d03af3cd25cb79",
+    "uploadedToProductionReleaseDirectory": true,
+    "uploadPreservedActiveProductionAndPeers": true
+  },
+  "migrations": {
+    "candidateCount": 16,
+    "productionBefore": 13,
+    "stagingBefore": 15,
+    "firstFifteenSqlUnchanged": true,
+    "pendingProduction": [
+      {
+        "tag": "0013_agreed_settlement_rates",
+        "sha256": "a5f58f04dd9b473af1d6782024f8a1ef16e9562ccbcf5162f49f2ae9c922d268"
+      },
+      {
+        "tag": "0014_quick_receipts",
+        "sha256": "5180bfb6b1d935ae4b6da71bafd81f18e00530afc94f732f09e3e8c310afed57"
+      },
+      {
+        "tag": "0015_simple_operation_v45",
+        "sha256": "391b0bb5c7ef33d166eeda8bb774f59aab2c31d8ab62720421a8117901e5b8fd"
+      }
+    ],
+    "pendingStaging": [],
+    "seedOrBusinessDataResetIncluded": false,
+    "stagingAfter": 16
+  },
+  "localVerification": {
+    "candidateCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+    "typecheck": "passed",
+    "build": {
+      "api": "passed",
+      "web": "passed"
+    },
+    "unitTests": {
+      "status": "passed",
+      "passed": 286,
+      "total": 286,
+      "previousSubprocessTimeoutResolvedByRerun": true,
+      "timeoutIncreased": false
+    },
+    "fullBrowserRegression": {
+      "status": "completed_with_failures",
+      "total": 115,
+      "passed": 106,
+      "failed": 9,
+      "startedAt": "2026-11-06T16:00:18.742Z",
+      "finishedAt": "2026-11-06T16:28:52Z",
+      "durationMinutesApprox": 28.6,
+      "liveProductionUsed": false,
+      "singleRunAllTestsPassed": false,
+      "failureGroups": [
+        {
+          "count": 7,
+          "category": "postgres_connection_handshake_timeout",
+          "httpStatus": 503,
+          "diagnosticCode": "PG_CONNECTION_TIMEOUT"
+        },
+        {
+          "count": 2,
+          "category": "test_assertion_mismatch",
+          "cases": ["historical_cost_residue_sibling_order", "binance_payment_label"],
+          "testCorrectionStatus": "targeted_verification_passed_runtime_unchanged"
+        }
+      ]
+    },
+    "isolatedProductionQa": {
+      "passed": true,
+      "status": "passed",
+      "plannedCases": 13,
+      "realBusinessTransactionsPerformed": false,
+      "attempts": [
+        {
+          "environment": "isolated_linux_application_browser_and_postgresql_colocated",
+          "startedAt": "2026-11-06T21:14:03.293Z",
+          "finishedAt": "2026-11-06T21:14:39.493Z",
+          "executedCases": 2,
+          "passed": 1,
+          "failed": 1,
+          "remainingNotExecuted": 11,
+          "reason": "The empty-home test still expected seven onboarding steps. V4.5 has three. The test now validates their exact labels, destinations and incomplete state; runtime unchanged.",
+          "ownPostgresStopped": true
+        },
+        {
+          "environment": "isolated_linux_application_browser_and_postgresql_colocated",
+          "startedAt": "2026-11-06T21:55:41.114Z",
+          "finishedAt": "2026-11-06T21:58:18.557Z",
+          "executedCases": 13,
+          "passed": 13,
+          "failed": 0,
+          "remainingNotExecuted": 0,
+          "databaseCleaned": true,
+          "ownPostgresStopped": true
+        }
+      ],
+      "passedCases": 13,
+      "failedCases": 0,
+      "startedAt": "2026-11-06T21:55:41.114Z",
+      "finishedAt": "2026-11-06T21:58:18.557Z",
+      "emptyCasesPassed": 2,
+      "emptyWalkthroughCasesPassed": 1,
+      "uiCasesPassed": 4,
+      "apiCasesPassed": 6,
+      "emptyBusinessTablesVerified": 21,
+      "limitedMigrationOwner": true,
+      "databaseCleaned": true,
+      "ownPostgresStopped": true,
+      "runtimeSourceUnchangedBeforeAndAfter": true,
+      "testOverlaysVerifiedBeforeAndAfter": 6,
+      "expectedTests": 13,
+      "liveProductionUsed": false,
+      "runtimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+      "validationCommit": "998cceb478b525ceecda5e24ff53e86ce2c7105e",
+      "runtimeSourceChanged": false,
+      "postmasterPidFilesRemaining": 0
+    },
+    "privateOperatorTests": {
+      "status": "passed",
+      "passed": 49,
+      "candidateBound": true,
+      "remoteExecution": false
+    },
+    "finalMigrationRegression": {
+      "passed": true,
+      "finishedAt": "2026-11-06T12:08:16.459Z",
+      "freshMigrationCount": 16,
+      "upgradePath": [11, 13, 14, 15, 16],
+      "historicalTablesPreserved": 35,
+      "historicalMigrationHashesPreserved": 15,
+      "temporaryDatabasesCleaned": 2,
+      "finalMigration": "0015_simple_operation_v45",
+      "finalMigrationSha256": "391b0bb5c7ef33d166eeda8bb774f59aab2c31d8ab62720421a8117901e5b8fd",
+      "status": "passed"
+    },
+    "runtimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+    "targetedBrowserRegression": {
+      "status": "completed_with_failures",
+      "expectedTests": 9,
+      "runtimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+      "validationCommit": "998cceb478b525ceecda5e24ff53e86ce2c7105e",
+      "applicationSourceChanged": false,
+      "timeoutsIncreased": false,
+      "separateFromFullRun": true,
+      "connectionIssueResolved": false,
+      "diagnosticCode": "PG_CONNECTION_TIMEOUT",
+      "environment": "windows_local_postgresql",
+      "passed": 4,
+      "failed": 5,
+      "total": 9,
+      "additionalObsoleteAssertionsFound": [
+        "current_payment_method_labels",
+        "receipt_summary_no_longer_displays_cost"
+      ]
+    },
+    "historicalCostRegression": {
+      "status": "passed",
+      "passed": 1,
+      "durationSeconds": 4.2,
+      "freshDatabase": true,
+      "runtimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+      "applicationOrSqlChanged": false,
+      "verified": [
+        "exact_cost_multiset",
+        "total_cost_25",
+        "three_distinct_physical_origins",
+        "historical_cost_provenance",
+        "final_physical_stock_zero",
+        "final_remaining_cost_zero"
+      ]
+    },
+    "connectionDiagnosis": {
+      "applicationDefectDemonstrated": false,
+      "applicationSourceChanged": false,
+      "windowsColdConnections": {
+        "total": 21,
+        "passed": 17,
+        "timedOutBeforeAuthentication": 4,
+        "timeoutMilliseconds": 3000,
+        "sqlDurationMillisecondsRange": [0.2, 1]
+      },
+      "temporaryLinuxQa": {
+        "postgresVersion": "18.6",
+        "postgresImageId": "sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5",
+        "imageReferenceType": "local_image_config_id_no_pull",
+        "memoryMiB": 512,
+        "cpus": 1,
+        "isolatedInternalNetwork": true,
+        "syntheticDataOnly": true,
+        "productionOrStagingDatabaseUsed": false,
+        "applicationAndBrowserRemainLocal": true,
+        "cleanupStatus": "pending_after_qa"
+      },
+      "initialLinuxTargetedRun": {
+        "total": 5,
+        "passed": 1,
+        "failed": 4,
+        "failureCause": "private_ssh_relay",
+        "applicationSourceChanged": false
+      },
+      "privateRelayCorrection": {
+        "tcpNoDelay": true,
+        "listenBacklog": 64,
+        "repositoryRuntimeChanged": false
+      },
+      "linuxConnectionVerification": {
+        "status": "passed",
+        "checkedAt": "2026-11-06T18:56:22.107Z",
+        "passed": 22,
+        "total": 22,
+        "maximumConnectionMilliseconds": 1113.75,
+        "maximumSqlMilliseconds": 338.75,
+        "functionalRegressionClaimed": false
+      }
+    },
+    "linuxTargetedBrowserRegression": {
+      "environment": "isolated_linux_application_browser_and_postgresql_colocated",
+      "startedAt": "2026-11-06T21:12:45.070Z",
+      "finishedAt": "2026-11-06T21:14:03.103Z",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "runtimeSourceUnchanged": true,
+      "testOverlaysVerified": 5,
+      "ownPostgresStopped": true,
+      "status": "passed",
+      "runtimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+      "validationCommit": "998cceb478b525ceecda5e24ff53e86ce2c7105e",
+      "separateFromWindowsFullRun": true,
+      "liveProductionUsed": false
+    },
+    "e2eCoverage": {
+      "status": "passed_across_separate_executions",
+      "distinctCasesValidated": 115,
+      "expectedDistinctCases": 115,
+      "pendingCases": [],
+      "singleCompleteGreenRun": false,
+      "evidence": "docs/verificacion-local-v4-5.json"
+    },
+    "browserRecoveries": [
+      {
+        "environment": "isolated_fresh_windows_postgresql",
+        "startedAt": "2026-11-06T16:33:12.679Z",
+        "finishedAt": "2026-11-06T16:40:26.288Z",
+        "total": 9,
+        "passed": 4,
+        "failed": 5,
+        "previousClusterUnchanged": true,
+        "ownPostgresStopped": true
+      },
+      {
+        "environment": "windows_application_with_isolated_linux_postgresql_bridge",
+        "startedAt": "2026-11-06T18:37:05.045Z",
+        "finishedAt": "2026-11-06T18:44:11.257Z",
+        "total": 5,
+        "passed": 1,
+        "failed": 4,
+        "bridgeIdentityVerified": true,
+        "localConfigurationAndPreviousClusterUnchanged": true
+      },
+      {
+        "environment": "windows_application_with_isolated_linux_postgresql_bridge",
+        "startedAt": "2026-11-06T18:58:48.182Z",
+        "finishedAt": "2026-11-06T19:03:41.518Z",
+        "total": 4,
+        "passed": 1,
+        "failed": 3,
+        "bridgeIdentityVerified": true,
+        "localConfigurationAndPreviousClusterUnchanged": true
+      },
+      {
+        "environment": "isolated_linux_application_browser_and_postgresql_colocated",
+        "startedAt": "2026-11-06T21:12:45.070Z",
+        "finishedAt": "2026-11-06T21:14:03.103Z",
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "runtimeSourceUnchanged": true,
+        "testOverlaysVerified": 5,
+        "ownPostgresStopped": true
+      }
+    ],
+    "runtimeNodeSecurity": {
+      "observedCandidateToolsVersion": "24.21.0",
+      "observationSource": "exact_candidate_tools_image_linux_qa_startup",
+      "activeProductionVersionRevalidated": false,
+      "patched24Baseline": "24.22.1",
+      "advisory": "CVE-2026-111497",
+      "updatePlannedFor": "v4.7",
+      "publicExploitPathDemonstrated": false,
+      "primarySource": "https://nodejs.org/en/blog/release/v24.22.1"
+    }
+  },
+  "preparedProductionCandidate": {
+    "release": "phase4-817a2783da7c",
+    "stage": "built",
+    "activated": false,
+    "imagesVerified": true,
+    "buildPreservedActiveProductionAndPeers": true,
+    "images": {
+      "tools": "sha256:206f88fab8121b43e653fcf64a0a16d4e02dd3f9027939c7f55d1b3fb103b858",
+      "api": "sha256:05aebee0495e6c8210db06a1aeca44188e10db0a50df0829ed17e420243b1425",
+      "web": "sha256:6229bb44a3422fb0438a45ce923dc11172599ed9e66f075859fbd2b23015b204"
+    },
+    "promotionSupersededBy": "final_v47_candidate"
+  },
+  "liveProduction": {
+    "commit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
+    "release": "phase4-2a81817fe2c1",
+    "migrations": 13,
+    "candidateDeployed": false
+  },
+  "staging": {
+    "baselineCommit": "80b186f22b58b77a94a849c32d1d09f342478fd7",
+    "baselineRelease": "hotfix-80b186f22b58",
+    "baselineMigrations": 15,
+    "candidateUpgrade": {
+      "status": "passed",
+      "fromMigrations": 15,
+      "targetMigrations": 16,
+      "verifiedAt": "2026-11-06T16:38:07.418035Z",
+      "allPublicRowsPreserved": true,
+      "backupBeforeRestored": true,
+      "backupAfter16MigrationsRestored": true,
+      "preexistingContainersPreserved": true,
+      "productionPreviousReleasePreserved": true,
+      "syntheticBusinessOperationsCreated": false,
+      "integrity": {
+        "active_devices": 0,
+        "pending_notices": 0,
+        "empty_nonzero_costs": 0,
+        "cost_projection_errors": 0,
+        "unvalidated_constraints": 0
+      }
+    },
+    "candidateAuthenticatedReadSmoke": {
+      "status": "passed",
+      "checkedAt": "2026-11-06T16:39:03.827680Z",
+      "passed": 16,
+      "total": 16,
+      "businessWrites": false,
+      "rateAvailabilityScope": "verified_at_smoke_time_only",
+      "checks": {
+        "exactRelease": true,
+        "healthyStaging": true,
+        "anonymousDenied": true,
+        "loginAccepted": true,
+        "secureCookie": true,
+        "authenticatedStaging": true,
+        "catalogReadable": true,
+        "habitualCatalogReadable": true,
+        "inventoryReadable": true,
+        "salesReadable": true,
+        "paymentsReadable": true,
+        "collectionsReadable": true,
+        "bcvAvailableVerified": true,
+        "usdtAvailableVerified": true,
+        "logoutAccepted": true,
+        "oldCookieRejected": true
+      }
+    },
+    "preparedCandidate": {
+      "commit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+      "release": "hotfix-817a2783da7c",
+      "stage": "built",
+      "uploaded": true,
+      "imagesVerified": true,
+      "images": {
+        "tools": "sha256:176a163354c8d7f9218b4303af477fa2529d5b9c221a3f2835fe29c092dbeaff",
+        "api": "sha256:77b111ad9a42cccabd1e8f1323b36d94d1570aa7355a692706d497359e8f569a",
+        "web": "sha256:db171ad48f62672e58196bf833d70ae5738b8cfd6e3abf4a63255e19f24594d4"
+      }
+    },
+    "commit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+    "release": "hotfix-817a2783da7c",
+    "migrations": 16,
+    "healthy": true,
+    "verifiedAt": "2026-11-06T16:38:07.418035Z",
+    "rateCollector": {
+      "status": "verified",
+      "observationCheckedAt": "2026-11-06T16:38:19.186818Z",
+      "ownCronResumed": true,
+      "preexistingContainersPreserved": true,
+      "availabilityScope": "verified_observation_and_smoke_times_only"
+    }
+  },
+  "prePromotionBackup": {
+    "verifiedAt": "2026-11-06T18:22:03.920801Z",
+    "sourceMigrations": 13,
+    "externalCopyVerified": true,
+    "externalCopyEncrypted": true,
+    "encryption": "AES-256-GCM",
+    "keyProtection": "DPAPI-CurrentUser",
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true,
+    "remoteAndExternalCiphertextIdentical": true,
+    "externalPlaintextRetained": false,
+    "newBackupAfterWriterStopRequired": true,
+    "previousVerifiedAt": "2026-11-06T16:18:29.425267Z"
+  },
+  "isolatedRealBackupRehearsal": {
+    "candidateCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+    "status": "passed",
+    "checkedAt": "2026-11-06T16:06:18.751534Z",
+    "migrationsBefore": 13,
+    "migrationsAfter": 16,
+    "tablesPreserved": 36,
+    "historicalRowsPreserved": true,
+    "legacyAgreementsPreserved": true,
+    "rateCacheInitiallyEmpty": true,
+    "collectorNoLogin": true,
+    "collectorPrivilegesVerified": true,
+    "isolatedRestore13Verified": true,
+    "isolatedIntegrity16Verified": true,
+    "temporaryResourcesCleaned": true,
+    "liveDatabaseTouched": false,
+    "preexistingContainersPreserved": true,
+    "acl16RoundtripRestored": false,
+    "acl16RoundtripStatus": "pending_post_promotion_backup_and_restore"
+  },
+  "limits": {
+    "rateAvailability": "must_be_verified_at_actual_smoke_time",
+    "physicalDevicesVerified": false,
+    "fiscalDocumentCertificationClaimed": false,
+    "sharedInfrastructureChangeIncluded": false,
+    "automaticDowngradeOrOldBackupRestoreIncluded": false
+  },
+  "documents": {
+    "acceptanceMatrix": "docs/matriz-aceptacion-v4-5.md",
+    "promotionPlan": "docs/promocion-v4-5.md",
+    "operatorGuide": "docs/guia-socios-v4-5.md",
+    "operationRules": "docs/operacion-simple-v4-5.md",
+    "localVerification": "docs/verificacion-local-v4-5.json",
+    "continuationBrief": "docs/referencias/brief-cierre-beta-v4-7.txt"
+  },
+  "runtimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+  "validationCommit": "998cceb478b525ceecda5e24ff53e86ce2c7105e",
+  "validationCommitStatus": "recorded_tests_only_runtime_diff_verified_empty",
+  "validationDiff": {
+    "runtimePathsChanged": [],
+    "testFiles": [
+      "tests/e2e/operations-ui.spec.ts",
+      "tests/e2e/packaging-phase3.spec.ts",
+      "tests/e2e/payment-methods-v4.spec.ts",
+      "tests/e2e/phase3-ui.spec.ts",
+      "tests/production/production-ui.spec.ts",
+      "tests/production/production-empty.spec.ts"
+    ],
+    "changes": [
+      "assert_historical_cost_multiset_and_physical_provenance_instead_of_sibling_sale_order",
+      "match_current_binance_payment_labels",
+      "assert_receipt_quantity_summary_without_cost_or_price",
+      "assert_current_three_step_empty_home_preparation"
+    ],
+    "runtimeImagesRebuiltForAssertionChanges": false,
+    "additionalAssertionCorrectionsStatus": "passed_e2e_recoveries_and_isolated_production_qa",
+    "additionalAssertionCorrections": [
+      "current_payment_method_labels_in_payment_methods_v4_and_production_ui",
+      "obsolete_small_usd_receipt_expectation",
+      "production_empty_three_steps_exact_labels_destinations_and_incomplete_state"
+    ],
+    "verifiedChangedFileCount": 6,
+    "verifiedAgainstRuntimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef"
+  },
+  "continuation": {
+    "version": "v4.7",
+    "implementationAuthorized": true,
+    "v45CancelledOrDiscarded": false,
+    "separate817PromotionPlanned": false,
+    "finalRuntimeCommit": null,
+    "finalProductionApprovalGranted": false,
+    "brief": "docs/referencias/brief-cierre-beta-v4-7.txt",
+    "v45BaselineClosed": true
+  }
+}

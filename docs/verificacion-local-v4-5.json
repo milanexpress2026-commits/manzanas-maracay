@@ -1,0 +1,165 @@
+{
+  "format": 1,
+  "status": "baseline_automated_validation_passed",
+  "runtimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+  "runtimeUnchangedDuringRecovery": true,
+  "validationOverlay": {
+    "scope": "tests_only",
+    "files": [
+      "tests/e2e/operations-ui.spec.ts",
+      "tests/e2e/packaging-phase3.spec.ts",
+      "tests/e2e/payment-methods-v4.spec.ts",
+      "tests/e2e/phase3-ui.spec.ts",
+      "tests/production/production-ui.spec.ts",
+      "tests/production/production-empty.spec.ts"
+    ],
+    "testTimeoutsChanged": false,
+    "applicationConnectionTimeoutChanged": false
+  },
+  "check": {
+    "passed": true,
+    "unitPassed": 286,
+    "unitFiles": 28,
+    "typesPassed": true,
+    "apiBuildPassed": true,
+    "webBuildPassed": true,
+    "firstAttempt": {
+      "passed": false,
+      "unitPassed": 285,
+      "unitFailed": 1,
+      "reason": "A runtime-security test subprocess exceeded its existing timeout. The unchanged directed case and subsequent complete check passed."
+    }
+  },
+  "migrations": {
+    "passed": true,
+    "finishedAt": "2026-11-06T12:08:16.459Z",
+    "freshMigrationCount": 16,
+    "upgradePath": [11, 13, 14, 15, 16],
+    "historicalTablesPreserved": 35,
+    "historicalMigrationHashesPreserved": 15,
+    "temporaryDatabasesCleaned": 2,
+    "finalMigration": "0015_simple_operation_v45",
+    "finalMigrationSha256": "391b0bb5c7ef33d166eeda8bb774f59aab2c31d8ab62720421a8117901e5b8fd"
+  },
+  "e2e": {
+    "completeSuite": {
+      "environment": "isolated_fresh_windows_postgresql",
+      "startedAt": "2026-11-06T16:00:18.742Z",
+      "finishedAt": "2026-11-06T16:28:52.000Z",
+      "total": 115,
+      "passed": 106,
+      "failed": 9,
+      "previousClusterUnchanged": true,
+      "ownPostgresStopped": true
+    },
+    "recoveries": [
+      {
+        "environment": "isolated_fresh_windows_postgresql",
+        "startedAt": "2026-11-06T16:33:12.679Z",
+        "finishedAt": "2026-11-06T16:40:26.288Z",
+        "total": 9,
+        "passed": 4,
+        "failed": 5,
+        "previousClusterUnchanged": true,
+        "ownPostgresStopped": true
+      },
+      {
+        "environment": "windows_application_with_isolated_linux_postgresql_bridge",
+        "startedAt": "2026-11-06T18:37:05.045Z",
+        "finishedAt": "2026-11-06T18:44:11.257Z",
+        "total": 5,
+        "passed": 1,
+        "failed": 4,
+        "bridgeIdentityVerified": true,
+        "localConfigurationAndPreviousClusterUnchanged": true
+      },
+      {
+        "environment": "windows_application_with_isolated_linux_postgresql_bridge",
+        "startedAt": "2026-11-06T18:58:48.182Z",
+        "finishedAt": "2026-11-06T19:03:41.518Z",
+        "total": 4,
+        "passed": 1,
+        "failed": 3,
+        "bridgeIdentityVerified": true,
+        "localConfigurationAndPreviousClusterUnchanged": true
+      },
+      {
+        "environment": "isolated_linux_application_browser_and_postgresql_colocated",
+        "startedAt": "2026-11-06T21:12:45.070Z",
+        "finishedAt": "2026-11-06T21:14:03.103Z",
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "runtimeSourceUnchanged": true,
+        "testOverlaysVerified": 5,
+        "ownPostgresStopped": true
+      }
+    ],
+    "distinctCasesValidated": 115,
+    "pendingCases": [],
+    "singleCompleteGreenRun": false
+  },
+  "productionRegression": {
+    "passed": true,
+    "status": "passed",
+    "plannedCases": 13,
+    "realBusinessTransactionsPerformed": false,
+    "attempts": [
+      {
+        "environment": "isolated_linux_application_browser_and_postgresql_colocated",
+        "startedAt": "2026-11-06T21:14:03.293Z",
+        "finishedAt": "2026-11-06T21:14:39.493Z",
+        "executedCases": 2,
+        "passed": 1,
+        "failed": 1,
+        "remainingNotExecuted": 11,
+        "reason": "The empty-home test still expected seven onboarding steps. V4.5 has three. The test now validates their exact labels, destinations and incomplete state; runtime unchanged.",
+        "ownPostgresStopped": true
+      },
+      {
+        "environment": "isolated_linux_application_browser_and_postgresql_colocated",
+        "startedAt": "2026-11-06T21:55:41.114Z",
+        "finishedAt": "2026-11-06T21:58:18.557Z",
+        "executedCases": 13,
+        "passed": 13,
+        "failed": 0,
+        "remainingNotExecuted": 0,
+        "databaseCleaned": true,
+        "ownPostgresStopped": true
+      }
+    ],
+    "passedCases": 13,
+    "failedCases": 0,
+    "startedAt": "2026-11-06T21:55:41.114Z",
+    "finishedAt": "2026-11-06T21:58:18.557Z",
+    "emptyCasesPassed": 2,
+    "emptyWalkthroughCasesPassed": 1,
+    "uiCasesPassed": 4,
+    "apiCasesPassed": 6,
+    "emptyBusinessTablesVerified": 21,
+    "limitedMigrationOwner": true,
+    "databaseCleaned": true,
+    "ownPostgresStopped": true,
+    "runtimeSourceUnchangedBeforeAndAfter": true,
+    "testOverlaysVerifiedBeforeAndAfter": 6
+  },
+  "visual": {
+    "reviewPassed": true,
+    "viewportWidths": [390, 800, 1024, 1440],
+    "axeAndOverflowAssertionsPassed": true,
+    "reducedMotionCovered": true,
+    "pdfDocumentsReviewed": ["commercial_receipt", "delivery_note", "payment_receipt"],
+    "emptyDatabaseWalkthroughVideo": "generated_pending_import_and_visual_review",
+    "physicalAndroidTabletTested": false,
+    "businessOwnerUsabilitySessionPerformed": false,
+    "reviewScope": "Existing responsive captures and synthetic PDF documents; the new empty-database walkthrough video has not yet been visually inspected."
+  },
+  "limitations": [
+    "The complete suite and directed recoveries are reported separately; they are not a single 115-case green execution.",
+    "Windows PostgreSQL cold connections exceeded the unchanged 3-second limit under a connection burst.",
+    "The cross-host database bridge added per-query latency. The three remaining E2E cases and the 13-case production regression subsequently passed with application, browser and PostgreSQL colocated in isolated Linux.",
+    "This report is QA evidence, not evidence of a production deployment or real commercial transactions.",
+    "The baseline closes V4.5 automated verification only. V4.7 printing and durable recovery changes require separate verification; physical HP/Android validation is pending."
+  ],
+  "validationCommit": "998cceb478b525ceecda5e24ff53e86ce2c7105e"
+}
