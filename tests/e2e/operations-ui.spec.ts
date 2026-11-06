@@ -3,6 +3,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
 import { loginPage } from './helpers/auth';
 import type { Catalog, LotDetail, ReceiptResult, Supplier } from '../../packages/domain/src/index';
+import { habitualOptions } from './helpers/receipt-v42';
+import { chooseReceiptProduct } from './helpers/quick-receipt-ui';
 
 test.beforeEach(async ({ page }) => loginPage(page));
 
@@ -91,29 +93,34 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
     expect(response.status(), await response.text()).toBe(201);
     configs.push(await response.json());
   }
+  const receiptOptions = await habitualOptions(page.request);
   await page.goto('/recepciones');
-  await page.getByLabel('Proveedor', { exact: true }).selectOption(supplier.id);
-  await page.getByLabel('Referencia del documento').fill(`DEMO-${randomUUID()}`);
-  await page.getByLabel('Fecha y hora de recepción').fill('2026-11-04T10:30');
-  await page.getByRole('button', { name: 'Agregar producto', exact: true }).click();
+  await page.getByText('Más detalles (opcional)', { exact: true }).click();
+  await page.getByLabel('Proveedor (opcional)', { exact: true }).selectOption(supplier.id);
+  await page
+    .getByLabel('Documento del proveedor (opcional)', { exact: true })
+    .fill(`DEMO-${randomUUID()}`);
+  await page
+    .getByLabel('Fecha y hora de recepción (opcional)', { exact: true })
+    .fill('2026-11-04T10:30');
   for (let i = 0; i < configs.length; i++) {
-    const line = page.getByRole('region', { name: `Producto ${i + 1}`, exact: true });
-    await line.getByLabel('Fruta, variedad y calibre').selectOption(configs[i].id);
-    await line.getByLabel('Cajas cerradas recibidas').fill('1');
-    await line.getByLabel('Costo por caja (USD)').fill('0,10');
-    await expect(line.getByText('Confirmar el empaque pendiente', { exact: true })).toBeVisible();
+    const label = receiptOptions.options.find(
+      (option) => option.configurationId === configs[i]!.id,
+    )!.label;
+    const line = await chooseReceiptProduct(page, label, i);
+    await line.getByLabel('Cajas recibidas', { exact: true }).fill('1');
+    await line.getByLabel('Costo real por caja · USD', { exact: true }).fill('0,10');
+    await expect(line.getByText('Confirmar presentación', { exact: true })).toBeVisible();
     await line.getByLabel('Blíster por caja', { exact: true }).fill('4');
     await line.getByLabel('Preparación de media caja', { exact: true }).selectOption('counted');
   }
   await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('main').getByRole('alert')).toContainText(
-    'Revisa y confirma el empaque pendiente',
-  );
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Confirma la presentación');
   for (let i = 0; i < configs.length; i++) {
     await page
       .getByRole('region', { name: `Producto ${i + 1}`, exact: true })
-      .getByRole('checkbox', { name: /Verifiqué este empaque/ })
+      .getByRole('checkbox', { name: /Verifiqué esta presentación/ })
       .check();
   }
   const commandKeys: string[] = [];
@@ -134,15 +141,15 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
     } else await route.continue();
   });
   await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText('USD 0,1000');
-  await page.getByRole('button', { name: 'Confirmar recepción', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('USD 0,10');
+  await page.getByRole('button', { name: 'Guardar recepción', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
     'Se perdió la confirmación de prueba',
   );
   await expect(page.getByRole('dialog')).toContainText(supplier.name);
-  await page.getByRole('button', { name: 'Confirmar recepción', exact: true }).click();
+  await page.getByRole('button', { name: 'Reintentar misma recepción', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Mercancía recibida', exact: true }),
+    page.getByRole('heading', { name: 'Recepción guardada', exact: true }),
   ).toBeVisible();
   expect(commandKeys).toHaveLength(2);
   expect(commandKeys[1]).toBe(commandKeys[0]);

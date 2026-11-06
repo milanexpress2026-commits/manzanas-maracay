@@ -56,6 +56,19 @@ BEGIN
       RAISE EXCEPTION 'Restored sequence permissions incorrect';
     END IF;
   END LOOP;
+  -- V4.2 adds an internal receipt number without renumbering older receipts.
+  -- Optional here so the same verifier can recover pre-upgrade backups.
+  IF to_regclass('public.mm_receipt_number_seq') IS NOT NULL THEN
+    IF NOT has_sequence_privilege('mm_prod_app','public.mm_receipt_number_seq','USAGE')
+      OR NOT has_sequence_privilege('mm_prod_app','public.mm_receipt_number_seq','SELECT')
+      OR has_sequence_privilege('mm_prod_app','public.mm_receipt_number_seq','UPDATE')
+      OR NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public'
+        AND table_name='purchases' AND column_name='receipt_number' AND data_type='bigint')
+      OR EXISTS(SELECT 1 FROM purchases WHERE receipt_number IS NOT NULL AND receipt_number<=0)
+      OR EXISTS(SELECT receipt_number FROM purchases WHERE receipt_number IS NOT NULL
+        GROUP BY receipt_number HAVING count(*)>1)
+    THEN RAISE EXCEPTION 'Restored receipt numbering or permissions incorrect'; END IF;
+  END IF;
   FOREACH required_table IN ARRAY ARRAY['purchases','purchase_lines','inventory_movements','inventory_entries','inventory_cost_entries','sales','sale_lines','sale_allocations','sale_date_events','sale_cancellations','payments','payment_applications','payment_reversals','command_receipts'] LOOP
     IF NOT has_table_privilege('mm_prod_app','public.'||required_table,'INSERT')
       OR has_table_privilege('mm_prod_app','public.'||required_table,'UPDATE,DELETE,TRUNCATE,TRIGGER') THEN

@@ -36,6 +36,8 @@ test('producción sin activar: acceso privado y todo el recorrido demo cerrado',
   }
   for (const path of [
     'catalog',
+    'catalog/options',
+    'receipts/options',
     'inventory',
     'suppliers',
     'clients',

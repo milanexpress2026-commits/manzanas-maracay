@@ -157,14 +157,16 @@ export const suppliers = pgTable(
     ),
   ],
 );
+export const receiptNumberSequence = pgSequence('mm_receipt_number_seq');
 export const purchases = pgTable(
   'purchases',
   {
     id: id(),
-    supplierId: uuid('supplier_id')
-      .notNull()
-      .references(() => suppliers.id),
-    reference: text('reference').notNull(),
+    supplierId: uuid('supplier_id').references(() => suppliers.id),
+    reference: text('reference'),
+    receiptNumber: bigint('receipt_number', { mode: 'bigint' }).default(
+      sql`nextval('mm_receipt_number_seq')`,
+    ),
     purchasedAt: time('purchased_at').notNull(),
     status: text('status').notNull().default('draft'),
     notes: text('notes').notNull().default(''),
@@ -174,6 +176,13 @@ export const purchases = pgTable(
   (t) => [
     index('purchases_supplier_idx').on(t.supplierId),
     unique('purchases_reference_uq').on(t.supplierId, t.reference),
+    uniqueIndex('purchases_receipt_number_uq')
+      .on(t.receiptNumber)
+      .where(sql`${t.receiptNumber} is not null`),
+    check(
+      'purchase_receipt_number_positive',
+      sql`${t.receiptNumber} is null or ${t.receiptNumber}>0`,
+    ),
     check('purchase_status_valid', sql`${t.status} in ('draft','received','cancelled')`),
   ],
 );
@@ -210,9 +219,7 @@ export const lots = pgTable(
     variantId: uuid('variant_id')
       .notNull()
       .references(() => variants.id),
-    supplierId: uuid('supplier_id')
-      .notNull()
-      .references(() => suppliers.id),
+    supplierId: uuid('supplier_id').references(() => suppliers.id),
     purchaseLineId: uuid('purchase_line_id').references(() => purchaseLines.id),
     packingRuleId: uuid('packing_rule_id').notNull(),
     packingRuleVersion: integer('packing_rule_version').notNull(),
@@ -241,6 +248,13 @@ export const lots = pgTable(
     index('lots_supplier_idx').on(t.supplierId),
     index('lots_purchase_idx').on(t.purchaseLineId),
     index('lots_rule_idx').on(t.packingRuleId),
+    index('lots_previous_cost_idx').on(
+      t.packingRuleId,
+      t.isDemo,
+      t.receivedAt.desc(),
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
     foreignKey({
       columns: [t.packingRuleId, t.variantId],
       foreignColumns: [packingRules.id, packingRules.variantId],

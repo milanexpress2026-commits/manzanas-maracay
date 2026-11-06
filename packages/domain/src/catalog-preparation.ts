@@ -247,14 +247,19 @@ export function previewCatalogPreparation(
 
 type TemplatePacking = Pick<
   Configuration,
-  | 'packingModel'
-  | 'halfPreparation'
-  | 'allowedPresentations'
-  | 'boxWeightKg'
-  | 'blistersPerBox'
+  'packingModel' | 'halfPreparation' | 'allowedPresentations' | 'boxWeightKg' | 'blistersPerBox'
 > & { confirmationStatus: 'pending' };
 export type CatalogTemplate = {
-  id: 'apple_traditional' | 'apple_bulk' | 'pear' | 'kiwi' | 'grape' | 'mandarin';
+  id:
+    | 'apple_traditional'
+    | 'apple_bulk'
+    | 'pear'
+    | 'kiwi'
+    | 'grape'
+    | 'mandarin'
+    | 'plum'
+    | 'nectarine'
+    | 'orange';
   fruitName: string;
   commercialLine: string;
   varieties: string[];
@@ -286,7 +291,7 @@ export const CATALOG_TEMPLATES: readonly CatalogTemplate[] = [
     fruitName: 'Manzana',
     commercialLine: 'Tradicional',
     varieties: ['Gala', 'Roja normal', 'Verde', 'Pink Lady', 'Amarilla'],
-    calibers: ['88', '100', '113', '125', '135', '150', '163', '175', '198'],
+    calibers: ['80', '88', '100', '113', '125', '135', '150', '163', '175', '198', '216'],
     requiresVariety: true,
     requiresCaliber: true,
     packing: blister,
@@ -308,7 +313,7 @@ export const CATALOG_TEMPLATES: readonly CatalogTemplate[] = [
     fruitName: 'Pera',
     commercialLine: 'Tradicional',
     varieties: ['Forelle', 'Packcam'],
-    calibers: ['90', '100', '110', '120', '135'],
+    calibers: ['70', '80', '90', '100', '110', '120', '135'],
     requiresVariety: true,
     requiresCaliber: true,
     packing: blister,
@@ -329,7 +334,7 @@ export const CATALOG_TEMPLATES: readonly CatalogTemplate[] = [
     id: 'grape',
     fruitName: 'Uva',
     commercialLine: 'Caja completa',
-    varieties: ['Roja', 'Morada'],
+    varieties: ['Roja', 'Morada', 'Verde'],
     calibers: [],
     requiresVariety: true,
     requiresCaliber: false,
@@ -343,6 +348,23 @@ export const CATALOG_TEMPLATES: readonly CatalogTemplate[] = [
     },
     note: 'Solo caja; sin medias, peso obligatorio, blíster ni gajos.',
   },
+  ...(
+    [
+      ['plum', 'Ciruela'],
+      ['nectarine', 'Nectarina'],
+      ['orange', 'Naranja'],
+    ] as const
+  ).map(([id, fruitName]) => ({
+    id,
+    fruitName,
+    commercialLine: '',
+    varieties: [],
+    calibers: [],
+    requiresVariety: false,
+    requiresCaliber: false,
+    packing: null,
+    note: 'Confirmar presentación antes de recibir; sin peso ni conteos inventados.',
+  })),
   {
     id: 'mandarin',
     fruitName: 'Mandarina',
@@ -381,22 +403,21 @@ export function getCatalogPreparationDefaults(): CatalogPreparationInput {
 
 export function suggestedBlistersPerBox(
   fruit: string,
-  variety: string | null,
+  _variety: string | null,
   caliber: string | null,
+  commercialLine = 'Tradicional',
+  packingModel: Configuration['packingModel'] = 'blister',
 ): number | null {
-  if (!caliber || !/^\d+$/.test(caliber.trim())) return null;
-  const n = Number(caliber),
-    f = catalogNameKey(fruit),
-    v = catalogNameKey(variety ?? '');
+  if (
+    catalogNameKey(fruit) !== 'manzana' ||
+    catalogNameKey(commercialLine) !== 'tradicional' ||
+    packingModel !== 'blister' ||
+    !caliber ||
+    !/^\d+$/.test(caliber.trim())
+  )
+    return null;
+  const n = Number(caliber);
   if (!Number.isSafeInteger(n) || n <= 0) return null;
-  if (f === 'manzana') {
-    if (['gala', 'roja normal', 'verde'].includes(v)) {
-      if (v === 'gala' && [80, 180].includes(n)) return null; // Contradictory historical examples.
-      return n > 0 && n <= 88 ? 4 : n >= 100 ? 5 : null;
-    }
-    if (v === 'pink lady' && n > 0 && n <= 110) return 4;
-  }
-  if (f === 'pera' && ['forelle', 'packcam'].includes(v))
-    return n > 0 && n <= 110 ? 4 : [120, 135].includes(n) ? 5 : null;
-  return null;
+  // Owner-confirmed V4.2 rule: exactly 100 belongs to the four-blister group.
+  return n <= 100 ? 4 : 5;
 }

@@ -97,6 +97,9 @@ class CatalogController {
   @Get() read() {
     return this.catalog.read();
   }
+  @Get('options') options() {
+    return this.catalog.options();
+  }
   @Post('preparation/preview') preparationPreview(@Body() body: unknown) {
     return this.catalog.preparationPreview(body);
   }

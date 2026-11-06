@@ -26,7 +26,14 @@ test('sin sesión: pantalla privada redirige y las APIs rechazan lectura y escri
   await page.goto('/catalogo');
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: 'Bienvenido a Manzanas Maracay' })).toBeVisible();
-  for (const endpoint of ['catalog', 'suppliers', 'inventory', 'auth/me'])
+  for (const endpoint of [
+    'catalog',
+    'catalog/options',
+    'receipts/options',
+    'suppliers',
+    'inventory',
+    'auth/me',
+  ])
     expect((await request.get(`/api/${endpoint}`)).status()).toBe(401);
   expect(
     (

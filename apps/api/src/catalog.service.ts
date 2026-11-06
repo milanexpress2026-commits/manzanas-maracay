@@ -25,6 +25,7 @@ import {
   catalogNameKey,
   previewCatalogPreparation,
   emptyCatalogPreparationCounts,
+  buildHabitualCatalogOptions,
   type Catalog,
   type CatalogPreparedConfiguration,
   type CatalogPreparationResult,
@@ -159,6 +160,9 @@ export class CatalogService implements OnModuleDestroy {
   async preparationPreview(body: unknown) {
     const data = catalogPreparationInputSchema.parse(body);
     return previewCatalogPreparation(data, (await this.read()) as Catalog);
+  }
+  async options() {
+    return buildHabitualCatalogOptions((await this.read()) as Catalog);
   }
   private async ensureConfiguration(
     tx: CatalogTransaction,

@@ -144,7 +144,7 @@ export function InventoryScreen({
       (fruit === 'all' || lot.fruitId === fruit) &&
       (variety === 'all' || lot.varietyId === variety) &&
       (caliber === 'all' || lot.caliberId === caliber) &&
-      `${lot.code} ${lot.fruit} ${lot.variety} ${lot.caliber} ${lot.supplier}`
+      `${lot.code} ${lot.fruit} ${lot.variety ?? ''} ${lot.caliber ?? ''} ${lot.supplier ?? 'Sin proveedor indicado'}`
         .toLocaleLowerCase('es')
         .includes(query.trim().toLocaleLowerCase('es')) &&
       (physical === 'all' ||
@@ -345,7 +345,9 @@ export function InventoryScreen({
                                 {lot.commercialLine} · {lot.code}
                               </span>
                             </Link>
-                            <span className="lot-supplier">{lot.supplier}</span>
+                            <span className="lot-supplier">
+                              {lot.supplier ?? 'Sin proveedor indicado'}
+                            </span>
                             {lot.isDemo ? <Badge variant="secondary">DEMO</Badge> : null}
                           </td>
                           <td data-label="Cajas cerradas">{lot.closedBoxes}</td>
@@ -469,7 +471,7 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
         <dl>
           <div>
             <dt>Proveedor</dt>
-            <dd>{lot.supplier}</dd>
+            <dd>{lot.supplier ?? 'Sin proveedor indicado'}</dd>
           </div>
           <div>
             <dt>Ingreso</dt>

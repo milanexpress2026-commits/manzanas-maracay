@@ -50,6 +50,9 @@ export class InventoryController {
   ) {
     return this.inventory.receive(body, key, req.user!.id);
   }
+  @Get('receipts/options') receiptOptions(@Query() query: unknown) {
+    return this.inventory.receiptOptions(query);
+  }
   @Post('inventory/lots/:id/:operation') operate(
     @Param('id') id: string,
     @Param('operation') operation: string,

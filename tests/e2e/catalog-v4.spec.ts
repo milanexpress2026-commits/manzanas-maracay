@@ -13,13 +13,19 @@ test('preparación revisable en catálogo parcial: editar, excluir, revisar y re
   const before: Catalog = await (await page.request.get('/api/catalog')).json();
   expect(before.fruits.length).toBeGreaterThan(0);
   const name = `Mandarina QA revisión ${randomUUID().slice(0, 8)}`;
+  await page.getByText('Preparar y editar maestros', { exact: true }).click();
   await page
     .getByRole('button', { name: 'Preparar catálogo de Manzanas Maracay', exact: true })
     .click();
   const panel = page.getByRole('region', { name: 'Preparación del catálogo' });
-  for (const fruit of ['Manzana', 'Pera', 'Kiwi', 'Uva'])
+  for (const fruit of getCatalogPreparationDefaults()
+    .fruits.map((row) => row.name)
+    .filter((name) => name !== 'Mandarina'))
     await panel.getByRole('checkbox', { name: `Incluir ${fruit}`, exact: true }).uncheck();
-  await panel.getByLabel('Nombre de la fruta', { exact: true }).last().fill(name);
+  await panel
+    .getByRole('group', { name: 'Incluir Mandarina', exact: true })
+    .getByLabel('Nombre de la fruta', { exact: true })
+    .fill(name);
   await panel.getByRole('button', { name: 'Revisar catálogo seleccionado' }).click();
   await expect(panel.getByRole('heading', { name: 'Revisa lo que se guardará' })).toBeVisible();
   await expect(panel).toContainText(name);
@@ -70,6 +76,7 @@ test('plantillas activan solo calibres elegidos, conservan selección y aceptan 
   const before = await (await page.request.get('/api/operations/overview')).json();
   const beforeCatalog: Catalog = await (await page.request.get('/api/catalog')).json();
   await page.goto('/catalogo');
+  await page.getByText('Preparar y editar maestros', { exact: true }).click();
   const panel = page.getByRole('region', { name: 'Plantillas de productos habituales' });
   await panel.getByLabel('Plantilla de empaque').selectOption('apple_traditional');
   await panel.getByLabel('Variedad', { exact: true }).selectOption({ label: 'Gala' });

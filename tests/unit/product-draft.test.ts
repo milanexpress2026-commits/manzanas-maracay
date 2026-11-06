@@ -9,9 +9,22 @@ describe('suggestions do not reinterpret existing product names', () => {
     expect(catalogFamilyFor('Manzana Gala')).toBe('other');
     expect(catalogFamilyFor(' Manzana ')).toBe('apple');
     expect(catalogFamilyFor('PERA')).toBe('pear');
-    expect(caliberSuggestions.apple).not.toContain('216');
+    expect(caliberSuggestions.apple).toEqual([
+      '80',
+      '88',
+      '100',
+      '113',
+      '125',
+      '135',
+      '150',
+      '163',
+      '175',
+      '198',
+      '216',
+    ]);
     expect(caliberSuggestions.bulk).toContain('216');
     expect(caliberSuggestions.pear).not.toContain('198');
+    expect(caliberSuggestions.pear).toEqual(['70', '80', '90', '100', '110', '120', '135']);
     expect(caliberSuggestions.kiwi).toBeUndefined();
     expect(caliberSuggestions.grape).toBeUndefined();
   });

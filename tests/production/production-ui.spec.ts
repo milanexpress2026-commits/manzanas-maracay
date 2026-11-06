@@ -121,26 +121,28 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   const configuration = catalog.configurations.find((c) => c.fruit === fruit)!;
   expect(configuration.confirmationStatus).toBe('pending');
   await page.goto('/recepciones?producto=' + configuration.id);
-  await expect(page.getByText('Confirmar el empaque pendiente', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Fruta, variedad y calibre', { exact: true })).toHaveValue(
-    configuration.id,
-  );
-  await page.getByLabel('Proveedor', { exact: true }).selectOption({ label: supplier });
-  await page.getByLabel('Referencia del documento').fill('QA ingreso UI ' + suffix);
-  await page.getByLabel('Fruta, variedad y calibre').selectOption(configuration.id);
-  await page.getByLabel('Cajas cerradas recibidas').fill('20');
-  await page.getByLabel('Costo por caja (USD)').fill('25');
+  const receiptLine = page.getByRole('region', { name: 'Producto 1', exact: true });
+  await expect(receiptLine).toContainText(fruit);
+  await expect(receiptLine.getByText('Confirmar presentación', { exact: true })).toBeVisible();
+  await page.getByText('Más detalles (opcional)', { exact: true }).click();
+  await page.getByLabel('Proveedor (opcional)', { exact: true }).selectOption({ label: supplier });
+  await page
+    .getByLabel('Documento del proveedor (opcional)', { exact: true })
+    .fill('QA ingreso UI ' + suffix);
+  await receiptLine.getByLabel('Cajas recibidas', { exact: true }).fill('20');
+  await receiptLine.getByLabel('Costo real por caja · USD', { exact: true }).fill('25');
+  await receiptLine.getByText('Notas y precios de este producto', { exact: true }).click();
   await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
   await page.getByLabel('Promocional divisa', { exact: true }).fill('40');
   await page.getByLabel('Regular · Bs. BCV', { exact: true }).fill('45');
-  await page.getByRole('checkbox', { name: /Verifiqué este empaque/ }).check();
+  await page.getByRole('checkbox', { name: /Verifiqué esta presentación/ }).check();
   await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: 'Confirmar recepción', exact: true })
+    .getByRole('button', { name: 'Guardar recepción', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Mercancía recibida', exact: true }),
+    page.getByRole('heading', { name: 'Recepción guardada', exact: true }),
   ).toBeVisible();
   catalog = (await (await page.request.get('/api/catalog')).json()) as Catalog;
   expect(catalog.configurations.find((c) => c.id === configuration.id)?.confirmationStatus).toBe(

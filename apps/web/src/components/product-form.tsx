@@ -96,6 +96,8 @@ export function ProductForm({
           currentFruit?.name ?? '',
           variety?.name ?? null,
           caliber?.label ?? null,
+          line,
+          model,
         )
       : null;
   const productName = [
@@ -113,7 +115,8 @@ export function ProductForm({
     packingModel: model,
     halfPreparation: half,
     allowedPresentations: presentations,
-    blistersPerBox: model === 'blister' && blisters.trim() ? Number(blisters) : null,
+    blistersPerBox:
+      model === 'blister' ? (blisters.trim() ? Number(blisters) : audioSuggestion) : null,
     boxWeightKg: weight.trim() ? weight.trim().replace(',', '.') : null,
     confirmationStatus: confirmed ? ('confirmed' as const) : ('pending' as const),
     notes,
@@ -121,8 +124,8 @@ export function ProductForm({
   function chooseFamily(next: CatalogFamily) {
     setFamily(next);
     setChosenCalibers([...(rememberedCalibers.current[next] ?? caliberSuggestions[next] ?? [])]);
-    setLine((current) =>
-      next === 'bulk' ? 'Granel' : current === 'Granel' ? 'Estándar' : current,
+    setLine(
+      next === 'bulk' ? 'Granel' : ['apple', 'pear'].includes(next) ? 'Tradicional' : 'Estándar',
     );
     setConfirmed(false);
   }
@@ -563,8 +566,8 @@ export function ProductForm({
                   <FieldLabel htmlFor="product-blisters">Blíster por caja</FieldLabel>
                   {audioSuggestion ? (
                     <p className={styles.hint}>
-                      Cantidad sugerida según audio: {audioSuggestion}; verificar con la mercancía.
-                      Sigue pendiente hasta tu confirmación.
+                      Empaque habitual confirmado: {audioSuggestion} blíster por caja. Puedes
+                      indicar una excepción si esta presentación es distinta.
                     </p>
                   ) : null}
                   <Input
@@ -575,14 +578,16 @@ export function ProductForm({
                     max={100}
                     step={1}
                     placeholder="Pendiente de confirmar"
-                    value={blisters}
+                    value={blisters || (audioSuggestion == null ? '' : String(audioSuggestion))}
                     onChange={(event) => {
                       setBlisters(event.target.value);
                       setConfirmed(false);
                     }}
                   />
                   <FieldDescription>
-                    Escribe la cantidad verificada. La sugerencia no confirma el empaque.
+                    {audioSuggestion
+                      ? 'El calibre 100 pertenece al grupo de cuatro; mayores de 100 llevan cinco.'
+                      : 'Indica la cantidad verificada; si no la conoces, conserva el dato pendiente.'}
                   </FieldDescription>
                 </Field>
                 <Field>

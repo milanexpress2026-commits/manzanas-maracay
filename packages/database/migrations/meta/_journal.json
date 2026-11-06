@@ -99,6 +99,13 @@
       "when": 1793886300000,
       "tag": "0013_agreed_settlement_rates",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793918600919,
+      "tag": "0014_quick_receipts",
+      "breakpoints": true
     }
   ]
 }

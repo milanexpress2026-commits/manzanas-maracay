@@ -12,6 +12,7 @@ import { z } from 'zod';
 import Decimal from 'decimal.js';
 import { allocateCost, replayLegacyCosts } from '../../../packages/domain/src/costing';
 import { applyPresentationPrices } from './commerce-prices';
+import { resolveReceiptProduct, type ReceiptRule } from './catalog-receipt';
 import { assertBusinessWritesReady, commandIsDemo } from './production-state';
 import { authConfig } from './auth/config';
 import {
@@ -23,6 +24,12 @@ import {
   supplierSchema,
   updateSupplierSchema,
   receiptSchema,
+  quickReceiptSchema,
+  formatReceiptNumber,
+  businessDate,
+  type QuickReceipt,
+  type ReceiptOptions,
+  type PreviousReceiptCost,
   openBoxSchema,
   withdrawBlistersSchema,
   openBlisterSchema,
@@ -57,6 +64,10 @@ type LotRow = {
   inventory_version: number;
 };
 type StateMap = Map<string, ContainerStock>;
+type ResolvedReceipt = Omit<z.infer<typeof receiptSchema>, 'supplierId' | 'reference'> & {
+  supplierId: string | null;
+  reference: string | null;
+};
 const containerSelect = `select c.id,c.lot_id as "lotId",c.warehouse_id as "warehouseId",c.parent_id as "parentId",
   c.kind,c.state,s.unit,s.quantity,s.counted_pieces as "countedPieces",s.version,s.cost_usd as "costUsd"
   from containers c join stock_balances s on s.container_id=c.id`;
@@ -69,7 +80,7 @@ const lotSelect = `select l.id,l.code,l.packing_rule_id as "configurationId",v.f
   l.blisters_per_box_snapshot as "blistersPerBox",l.unit_cost_usd as "unitCostUsd",l.notes,l.is_demo as "isDemo",
   l.inventory_version as version from lots l join product_variants v on v.id=l.variant_id
   join fruits f on f.id=v.fruit_id left join varieties vr on vr.id=v.variety_id left join calibers cl on cl.id=v.caliber_id
-  join suppliers sp on sp.id=l.supplier_id`;
+  left join suppliers sp on sp.id=l.supplier_id`;
 
 @Injectable()
 export class InventoryService implements OnModuleDestroy {
@@ -617,13 +628,118 @@ export class InventoryService implements OnModuleDestroy {
     );
     return movementId;
   }
+  private async previousCost(
+    client: PoolClient,
+    configurationId: string,
+    demo: boolean,
+  ): Promise<PreviousReceiptCost | null> {
+    const row = (
+      await client.query(
+        `select l.id as "sourceLotId",l.unit_cost_usd::text as "unitCostUsd",l.received_at as "receivedAt"
+      from lots l join purchase_lines pl on pl.id=l.purchase_line_id join purchases p on p.id=pl.purchase_id
+      where l.packing_rule_id=$1 and l.is_demo=$2 and p.is_demo=$2 and p.status='received'
+        and l.confirmation_status_snapshot='confirmed' and l.unit_cost_usd>0 and l.received_at<=now()
+        and exists(select 1 from inventory_movements m where m.lot_id=l.id and m.kind='receipt'
+          and not exists(select 1 from inventory_movements r where r.reversal_of=m.id))
+      order by l.received_at desc,l.created_at desc,l.id desc limit 1`,
+        [configurationId, demo],
+      )
+    ).rows[0];
+    return row ? { ...row, receivedAt: row.receivedAt.toISOString() } : null;
+  }
+  async receiptOptions(query: unknown): Promise<ReceiptOptions> {
+    const { configurationId } = z.object({ configurationId: z.uuid() }).strict().parse(query);
+    return this.read(async (client) => {
+      if (
+        !(await client.query('select id from packing_rules where id=$1', [configurationId]))
+          .rowCount
+      )
+        throw new NotFoundException('El producto no existe.');
+      return {
+        configurationId,
+        previousCost: await this.previousCost(client, configurationId, commandIsDemo(false)),
+      };
+    });
+  }
+  private async resolveQuickReceipt(
+    client: PoolClient,
+    input: QuickReceipt,
+    actor: string,
+    key: string,
+  ): Promise<ResolvedReceipt> {
+    await client.query('select pg_advisory_xact_lock(68493004)');
+    const demo = commandIsDemo(input.isDemo);
+    const resolved = new Map<string, { fingerprint: string; rule: ReceiptRule }>();
+    const lines: ResolvedReceipt['lines'] = [];
+    for (const line of input.lines) {
+      const productKey = JSON.stringify(line.product),
+        fingerprint = JSON.stringify(line.packing ?? null);
+      const previous = resolved.get(productKey);
+      if (previous && previous.fingerprint !== fingerprint)
+        throw new BadRequestException(
+          'Dos líneas revisan empaques diferentes del mismo producto. Usa excepciones por lote para cambiar solo blísteres.',
+        );
+      const rule =
+        previous?.rule ??
+        (await resolveReceiptProduct(client, line.product, line.packing, actor, key));
+      resolved.set(productKey, { fingerprint, rule });
+      if (line.blisterOverride && rule.packing_model !== 'blister')
+        throw new BadRequestException('Este producto no utiliza blíster.');
+      if (line.cost.kind === 'previous') {
+        const cost = await this.previousCost(client, rule.id, demo);
+        if (
+          !cost ||
+          cost.sourceLotId !== line.cost.sourceLotId ||
+          !new Decimal(cost.unitCostUsd).eq(line.cost.unitCostUsd)
+        )
+          throw new ConflictException(
+            'Cambió el último costo confirmado. Revisa y acepta el costo actual o escribe el nuevo costo.',
+          );
+      }
+      lines.push({
+        configurationId: rule.id,
+        boxes: line.boxes,
+        unitCostUsd: line.cost.unitCostUsd,
+        ...(line.blisterOverride ? { blistersPerBox: line.blisterOverride.blistersPerBox } : {}),
+        priceAction: line.priceAction,
+        prices: line.prices,
+        notes: line.notes,
+      });
+    }
+    return {
+      supplierId: input.supplierId,
+      reference: input.reference,
+      receivedAt: input.receivedAt ?? new Date().toISOString(),
+      notes: input.notes,
+      isDemo: input.isDemo,
+      lines,
+    };
+  }
   async receive(body: unknown, key: string | undefined, actor: string): Promise<ReceiptResult> {
-    const data = receiptSchema.parse(body);
-    return this.runCommand('receipt', data, key, actor, async (client, hash) => {
-      const supplier = (
-        await client.query('select active from suppliers where id=$1 for share', [data.supplierId])
-      ).rows[0];
-      if (!supplier?.active) throw new BadRequestException('Selecciona un proveedor activo.');
+    // Never include server-generated dates/numbers or resolved IDs in the request hash.
+    // The legacy parser/hash is retained so a pre-upgrade confirmed request can still replay.
+    const input =
+      body && typeof body === 'object' && 'schemaVersion' in body
+        ? quickReceiptSchema.parse(body)
+        : receiptSchema.parse(body);
+    return this.runCommand('receipt', input, key, actor, async (client, hash) => {
+      const data: ResolvedReceipt =
+        'schemaVersion' in input
+          ? await this.resolveQuickReceipt(client, input, actor, key!)
+          : input;
+      if (data.lines.some((line) => new Decimal(line.unitCostUsd).lte(0)))
+        throw new BadRequestException('Confirma un costo real por caja mayor que cero.');
+      if (data.supplierId !== null) {
+        const supplier = (
+          await client.query('select active from suppliers where id=$1 for share', [
+            data.supplierId,
+          ])
+        ).rows[0];
+        if (!supplier?.active)
+          throw new BadRequestException(
+            'Selecciona un proveedor activo o deja el proveedor sin indicar.',
+          );
+      }
       const warehouse = (
         await client.query('select id from warehouses order by created_at,id limit 1')
       ).rows[0];
@@ -680,12 +796,14 @@ export class InventoryService implements OnModuleDestroy {
           );
         }
       }
-      const purchaseId = (
+      const purchase = (
         await client.query(
-          `insert into purchases(supplier_id,reference,purchased_at,status,notes,is_demo) values($1,$2,$3,'received',$4,$5) returning id`,
+          `insert into purchases(supplier_id,reference,purchased_at,status,notes,is_demo) values($1,$2,$3,'received',$4,$5) returning id,receipt_number::text`,
           [data.supplierId, data.reference, data.receivedAt, data.notes, demo],
         )
-      ).rows[0].id;
+      ).rows[0];
+      const purchaseId = purchase.id,
+        receiptNumber = formatReceiptNumber(purchase.receipt_number);
       const lots: ReceiptResult['lots'] = [];
       const priceUpdates = new Map<string, Parameters<typeof applyPresentationPrices>[1][number]>();
       for (const line of data.lines) {
@@ -731,7 +849,7 @@ export class InventoryService implements OnModuleDestroy {
           )
         ).rows[0].id;
         const id = randomUUID(),
-          code = `MM-${data.receivedAt.slice(0, 10).replaceAll('-', '')}-${id.slice(0, 8).toUpperCase()}`;
+          code = `MM-${businessDate(new Date(data.receivedAt)).replaceAll('-', '')}-${id.slice(0, 8).toUpperCase()}`;
         const blisterCount = line.blistersPerBox ?? rule.blisters_per_box;
         await client.query(
           `insert into lots(id,code,variant_id,supplier_id,purchase_line_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd,received_boxes,notes,is_demo,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,box_weight_kg_snapshot,confirmation_status_snapshot)
@@ -778,7 +896,7 @@ export class InventoryService implements OnModuleDestroy {
           [],
           state,
           'receipt',
-          `Recepción ${data.reference}`,
+          `Recepción ${receiptNumber}`,
           actor,
           key!,
           hash,
@@ -793,11 +911,35 @@ export class InventoryService implements OnModuleDestroy {
         purchaseId,
         'receipt',
         null,
-        { supplierId: data.supplierId, reference: data.reference, lots },
+        {
+          supplierId: data.supplierId,
+          reference: data.reference,
+          receiptNumber,
+          receivedAt: data.receivedAt,
+          lots,
+          ...('schemaVersion' in input
+            ? {
+                schemaVersion: 2,
+                confirmations: input.lines.map((line, index) => ({
+                  lotId: lots[index].id,
+                  product: line.product,
+                  cost: line.cost,
+                  blisterOverride: line.blisterOverride ?? null,
+                  packing: line.packing ?? null,
+                })),
+              }
+            : {}),
+        },
         actor,
         key!,
       );
-      return { purchaseId, lots, movementId: lots[0].movementId };
+      return {
+        purchaseId,
+        receiptNumber,
+        receivedAt: data.receivedAt,
+        lots,
+        movementId: lots[0].movementId,
+      };
     });
   }
   async operate(

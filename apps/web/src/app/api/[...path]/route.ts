@@ -8,6 +8,8 @@ function allowedRoute(method: string, endpoint: string) {
     return (
       [
         'catalog',
+        'catalog/options',
+        'receipts/options',
         'health',
         'auth/me',
         'suppliers',

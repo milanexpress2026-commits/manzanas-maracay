@@ -18,7 +18,7 @@ export function ReceiptPrices({
   update,
 }: {
   line: Line;
-  config: Configuration;
+  config: Pick<Configuration, 'confirmationStatus'>;
   update: (changes: Partial<Line>) => void;
 }) {
   const boxPrice = line.prices.find((p) => p.presentation === 'box')?.promoUsd;

@@ -1,719 +1,719 @@
 'use client';
 import Link from 'next/link';
-import { suggestedBlistersPerBox, type Presentation, type Configuration } from '@mm/domain';
-import { ReceiptPrices } from './receipt-prices';
-import { PackingReviewFields, type PackingReviewValue } from './packing-review-fields';
-import preparationStyles from './catalog-preparation.module.css';
-import {
-  caracasDateTime,
-  caracasInstant,
-  decimalTotal,
-  normalizedMoney,
-  productLabel,
-  packingLabel,
-} from '@/lib/commercial-ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Plus, Trash2, Truck, CheckCircle2, ArrowRight, Info } from 'lucide-react';
-import { receiptSchema, type Catalog, type Supplier, type ReceiptResult } from '@mm/domain';
+import { ZodError } from 'zod';
+import { Plus, ArrowRight, CheckCircle2, RotateCcw } from 'lucide-react';
+import {
+  quickReceiptSchema,
+  type Catalog,
+  type HabitualCatalogOption,
+  type HabitualCatalogOptions,
+  type ReceiptOptions,
+  type ReceiptResult,
+  type Supplier,
+} from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
+import { HabitualProductPicker } from './habitual-product-picker';
+import { ReceiptQuickLine } from './receipt-quick-line';
+import { ReceiptExceptionalCaliber } from './receipt-exceptional-caliber';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Field, FieldGroup, FieldLabel, FieldDescription } from './ui/field';
 import { NativeSelect } from './ui/native-select';
-import { Alert, AlertDescription } from './ui/alert';
+import { Field, FieldLabel } from './ui/field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { FormError, LoadError, LoadingRows, PageFooter, SaveButton } from './operations-ui';
-import { useRemote, useCommand, displayMoney } from '@/lib/inventory-api';
-type LineDraft = {
-  key: number;
-  configurationId: string;
-  boxes: string;
-  cost: string;
-  blisters: string;
-  notes: string;
-  priceAction: 'keep' | 'update';
-  prices: { presentation: Presentation; promoUsd: string; regularUsd: string }[];
-  packing: PackingReviewValue | null;
-  packingVersion: number | null;
-  packingConfirmed: boolean;
-  packingChanged: boolean;
-};
-const blankLine = (key: number): LineDraft => ({
-  key,
-  configurationId: '',
-  boxes: '1',
-  cost: '',
-  blisters: '',
-  notes: '',
-  priceAction: 'keep',
-  prices: [],
-  packing: null,
-  packingVersion: null,
-  packingConfirmed: false,
-  packingChanged: false,
-});
-function packingValue(config: Configuration): PackingReviewValue {
-  return {
-    packingModel: config.packingModel,
-    halfPreparation: config.halfPreparation,
-    allowedPresentations: [...config.allowedPresentations],
-    blistersPerBox: config.blistersPerBox,
-    boxWeightKg: config.boxWeightKg,
-  };
-}
+import { FormError, LoadError, LoadingRows, PageFooter } from './operations-ui';
+import { readApi, useRemote, displayDate, displayMoney } from '@/lib/inventory-api';
+import { caracasDateTime } from '@/lib/commercial-ui';
+import {
+  buildQuickReceipt,
+  emptyReceiptDraft,
+  pickerOptions,
+  receiptDraftSchema,
+  receiptLine,
+  receiptTotal,
+  receiptCostsReady,
+  type QuickLine,
+  type ReceiptDraft,
+} from '@/lib/receipt-flow';
+import {
+  createPendingReceipt,
+  canEditAfterReceiptResponse,
+  deviceScope,
+  readPreferences,
+  rememberProducts,
+  writePreferences,
+  verifyPendingReceipt,
+  RECEIPT_STORAGE_PREFIX,
+  type PendingReceipt,
+} from '@/lib/receipt-storage';
+import styles from './receipt-quick.module.css';
+
 export function ReceiptScreen({
   session,
   initialConfigurationId = '',
+  initialOptionKey = '',
   returnToSale = false,
 }: {
   session: AppSession;
   initialConfigurationId?: string;
+  initialOptionKey?: string;
   returnToSale?: boolean;
 }) {
-  const catalog = useRemote<Catalog>('/api/catalog'),
-    suppliers = useRemote<Supplier[]>('/api/suppliers');
-  const [supplierId, setSupplierId] = useState(''),
-    [reference, setReference] = useState(''),
-    [date, setDate] = useState(''),
-    [notes, setNotes] = useState('');
-  const [lines, setLines] = useState<LineDraft[]>([blankLine(1)]),
-    [nextKey, setNextKey] = useState(2);
-  const [review, setReview] = useState<ReturnType<typeof receiptSchema.parse> | null>(null),
-    [saved, setSaved] = useState<ReceiptResult | null>(null);
-  const command = useCommand();
-  const preselectionApplied = useRef(false);
-  useEffect(() => setDate(caracasDateTime()), []);
-  const activeSuppliers = suppliers.data?.filter((s) => s.active) ?? [];
-  const receivingConfigurations = catalog.data?.configurations ?? [];
-  const requestedProduct = catalog.data?.configurations.find(
-    (row) => row.id === initialConfigurationId,
+  const scope = deviceScope(session.environment, session.user.id);
+  const storageKey = RECEIPT_STORAGE_PREFIX + scope;
+  const options = useRemote<HabitualCatalogOptions>('/api/catalog/options');
+  const catalog = useRemote<Catalog>('/api/catalog');
+  const [draft, setDraft] = useState<ReceiptDraft>(() => emptyReceiptDraft(scope));
+  const draftRef = useRef(draft);
+  const [hydrated, setHydrated] = useState(false);
+  const [restored, setRestored] = useState(false);
+  const [storageError, setStorageError] = useState('');
+  const [error, setError] = useState('');
+  const [authNeeded, setAuthNeeded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  const [picker, setPicker] = useState<'new' | string | null>(null);
+  const [review, setReview] = useState(false);
+  const [saved, setSaved] = useState<{ result: ReceiptResult; draft: ReceiptDraft } | null>(null);
+  const [suppliers, setSuppliers] = useState<Supplier[] | null>(null);
+  const [supplierError, setSupplierError] = useState('');
+  const [costState, setCostState] = useState<Record<string, { loading: boolean; error: string }>>(
+    {},
   );
-  const requestedProductAllowed = !!requestedProduct;
+  const initialApplied = useRef(false);
+  const costsLoaded = useRef(new Set<string>());
+  const ready = hydrated && !!options.data && !!catalog.data && !options.error && !catalog.error;
+  const locked = busy || !!draft.pending;
+  const mutate = (fn: (current: ReceiptDraft) => ReceiptDraft) =>
+    setDraft((current) => {
+      const next = fn(current);
+      draftRef.current = next;
+      return next;
+    });
   useEffect(() => {
-    if (!initialConfigurationId || !catalog.data || preselectionApplied.current) return;
-    preselectionApplied.current = true;
-    if (!requestedProductAllowed || !requestedProduct) return;
-    setLines((current) =>
-      current.length === 1 && !current[0].configurationId && !current[0].cost && !current[0].notes
-        ? [
-            {
-              ...current[0],
-              configurationId: requestedProduct.id,
-              packing: packingValue(requestedProduct),
-              packingVersion: requestedProduct.version,
-              prices: requestedProduct.allowedPresentations.map((presentation) => ({
-                presentation,
-                promoUsd:
-                  requestedProduct.prices.find((price) => price.presentation === presentation)
-                    ?.promoUsd ?? '',
-                regularUsd:
-                  requestedProduct.prices.find((price) => price.presentation === presentation)
-                    ?.regularUsd ?? '',
-              })),
+    let cancelled = false;
+    async function restore() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          const parsed = receiptDraftSchema.safeParse(JSON.parse(raw));
+          if (!parsed.success || parsed.data.scope !== scope)
+            throw new Error(
+              'No se pudo leer el borrador de este acceso. Conserva esta pantalla y consulta antes de iniciar otra recepción si habías pulsado Guardar.',
+            );
+          if (parsed.data.pending && !(await verifyPendingReceipt(parsed.data.pending)))
+            throw new Error(
+              'No se pudo verificar la confirmación pendiente. No se enviará otra recepción.',
+            );
+          if (!cancelled) {
+            draftRef.current = parsed.data;
+            setDraft(parsed.data);
+            setRestored(parsed.data.lines.length > 0);
+            setReview(!!parsed.data.pending);
+          }
+        }
+      } catch (reason) {
+        if (!cancelled)
+          setStorageError(
+            reason instanceof Error
+              ? reason.message
+              : 'El dispositivo no pudo recuperar el borrador.',
+          );
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    }
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, [scope, storageKey]);
+  useEffect(() => {
+    if (!hydrated || storageError) return;
+    try {
+      if (draft.lines.length) localStorage.setItem(storageKey, JSON.stringify(draft));
+      else localStorage.removeItem(storageKey);
+    } catch {
+      setStorageError(
+        'No se pudo conservar el borrador en este dispositivo. Revisa el almacenamiento del navegador antes de guardar.',
+      );
+    }
+  }, [draft, hydrated, storageKey, storageError]);
+  async function loadPrevious(line: QuickLine, option: HabitualCatalogOption) {
+    if (!option.configurationId || draftRef.current.pending) return;
+    setCostState((current) => ({ ...current, [line.key]: { loading: true, error: '' } }));
+    try {
+      const value = await readApi<ReceiptOptions>(
+        `/api/receipts/options?configurationId=${encodeURIComponent(option.configurationId)}`,
+      );
+      mutate((current) =>
+        current.pending
+          ? current
+          : {
+              ...current,
+              lines: current.lines.map((item) => {
+                if (item.key !== line.key || item.optionKey !== option.optionKey) return item;
+                const changed =
+                  item.costSource === 'previous' &&
+                  item.previousCost?.sourceLotId !== value.previousCost?.sourceLotId;
+                return {
+                  ...item,
+                  previousCost: value.previousCost,
+                  ...(changed ? { cost: '', costSource: 'entered' as const } : {}),
+                };
+              }),
             },
-          ]
-        : current,
+      );
+      setCostState((current) => ({ ...current, [line.key]: { loading: false, error: '' } }));
+    } catch {
+      setCostState((current) => ({
+        ...current,
+        [line.key]: { loading: false, error: 'No se pudo consultar el costo anterior.' },
+      }));
+    }
+  }
+  useEffect(() => {
+    if (!ready || !options.data || initialApplied.current) return;
+    initialApplied.current = true;
+    const selected = options.data.options.find((option) =>
+      initialOptionKey
+        ? option.optionKey === initialOptionKey
+        : initialConfigurationId && option.configurationId === initialConfigurationId,
     );
-  }, [catalog.data, initialConfigurationId, requestedProduct, requestedProductAllowed]);
-  const ready = !!catalog.data && !!suppliers.data && !catalog.error && !suppliers.error;
-  const canReceive = ready && activeSuppliers.length > 0 && receivingConfigurations.length > 0;
-  const totalBoxes = lines.reduce(
-    (sum, line) => sum + (Number.isSafeInteger(Number(line.boxes)) ? Number(line.boxes) : 0),
+    if (selected && !draftRef.current.lines.length) {
+      const line = receiptLine(
+        selected,
+        catalog.data?.configurations.find((item) => item.id === selected.configurationId),
+      );
+      mutate((current) => ({ ...current, lines: [line] }));
+    } else if ((initialOptionKey || initialConfigurationId) && !selected)
+      setError('El producto del enlace ya no está disponible. Elige uno de las opciones actuales.');
+  }, [ready, options.data, catalog.data, initialOptionKey, initialConfigurationId]);
+  useEffect(() => {
+    if (!ready || draft.pending) return;
+    for (const line of draft.lines) {
+      const option = options.data?.options.find((item) => item.optionKey === line.optionKey);
+      const key = `${line.key}:${line.optionKey}`;
+      if (option?.configurationId && !costsLoaded.current.has(key)) {
+        costsLoaded.current.add(key);
+        void loadPrevious(line, option);
+      }
+    }
+  }, [ready, draft.lines, draft.pending, options.data]);
+  async function loadSuppliers() {
+    try {
+      setSuppliers(await readApi<Supplier[]>('/api/suppliers'));
+      setSupplierError('');
+    } catch {
+      setSupplierError(
+        'No se pudieron consultar los proveedores. Puedes recibir sin indicar proveedor.',
+      );
+    }
+  }
+  function choose(optionKey: string) {
+    const option = options.data?.options.find((item) => item.optionKey === optionKey);
+    if (!option || locked) return;
+    const line = receiptLine(
+      option,
+      catalog.data?.configurations.find((item) => item.id === option.configurationId),
+    );
+    mutate((current) => ({
+      ...current,
+      lines:
+        picker && picker !== 'new'
+          ? current.lines.map((item) =>
+              item.key === picker
+                ? {
+                    ...line,
+                    key: item.key,
+                    boxes: item.boxes,
+                    ...(item.optionKey === line.optionKey
+                      ? {
+                          cost: item.cost,
+                          costSource: item.costSource,
+                          previousCost: item.previousCost,
+                          notes: item.notes,
+                          priceAction: item.priceAction,
+                          prices: item.priceAction === 'update' ? item.prices : line.prices,
+                        }
+                      : {}),
+                  }
+                : item,
+            )
+          : [...current.lines, line],
+    }));
+    setPicker(null);
+    setError('');
+  }
+  function updateLine(line: QuickLine) {
+    if (!locked)
+      mutate((current) => ({
+        ...current,
+        lines: current.lines.map((item) => (item.key === line.key ? line : item)),
+      }));
+  }
+  function inspect(event: FormEvent) {
+    event.preventDefault();
+    setError('');
+    try {
+      buildQuickReceipt(draft, options.data?.options ?? []);
+      setReview(true);
+    } catch (reason) {
+      setError(
+        reason instanceof ZodError
+          ? (reason.issues[0]?.message ?? 'Revisa la recepción.')
+          : reason instanceof Error
+            ? reason.message
+            : 'Revisa los productos y costos.',
+      );
+    }
+  }
+  async function confirm() {
+    if (inFlight.current || storageError) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError('');
+    let pending = draftRef.current.pending;
+    try {
+      if (!pending)
+        pending = await createPendingReceipt(
+          buildQuickReceipt(draftRef.current, options.data?.options ?? []),
+        );
+      if (!(await verifyPendingReceipt(pending)))
+        throw new Error('No se pudo verificar la recepción pendiente.');
+      quickReceiptSchema.parse(JSON.parse(pending.body));
+      const submitting = { ...draftRef.current, pending };
+      // Persist before sending. A lost response keeps the exact command across a reload.
+      localStorage.setItem(storageKey, JSON.stringify(submitting));
+      mutate(() => submitting);
+      const response = await fetch('/api/receipts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': pending.key },
+        body: pending.body,
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 401) setAuthNeeded(true);
+        if (canEditAfterReceiptResponse(response.status)) {
+          const editable = { ...submitting, pending: null };
+          localStorage.setItem(storageKey, JSON.stringify(editable));
+          mutate(() => editable);
+          if (response.status === 409) {
+            costsLoaded.current.clear();
+            void options.reload();
+            void catalog.reload();
+          }
+        }
+        throw new Error(
+          typeof result?.message === 'string'
+            ? result.message
+            : 'No se recibió confirmación del servidor. Reintenta esta misma recepción.',
+        );
+      }
+      if (
+        !result?.purchaseId ||
+        !Array.isArray(result.lots) ||
+        result.lots.length !== submitting.lines.length
+      )
+        throw new Error(
+          'La respuesta no permite confirmar la recepción. Reintenta con la misma clave.',
+        );
+      setSaved({ result, draft: submitting });
+      setReview(false);
+      localStorage.removeItem(storageKey);
+      try {
+        writePreferences(
+          localStorage,
+          scope,
+          rememberProducts(
+            readPreferences(localStorage, scope),
+            submitting.lines.map((line) => line.optionKey),
+          ),
+        );
+      } catch {
+        /* The confirmed document does not depend on preferences. */
+      }
+      mutate(() => emptyReceiptDraft(scope));
+      setRestored(false);
+      void options.reload();
+      void catalog.reload();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'No llegó la confirmación. Tu recepción se conserva para reintentar.',
+      );
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }
+  const totalBoxes = draft.lines.reduce(
+    (sum, line) => sum + (/^\d+$/.test(line.boxes) ? Number(line.boxes) : 0),
     0,
   );
-  function updateLine(key: number, changes: Partial<LineDraft>) {
-    setLines((current) =>
-      current.map((line) => (line.key === key ? { ...line, ...changes } : line)),
-    );
-  }
-  const totalCost = decimalTotal(lines.map((line) => ({ quantity: line.boxes, price: line.cost })));
-  function validate(e: FormEvent) {
-    e.preventDefault();
-    command.setError('');
-    const pending = lines.find(
-      (line) =>
-        (line.packingChanged ||
-          catalog.data?.configurations.find((config) => config.id === line.configurationId)
-            ?.confirmationStatus === 'pending') &&
-        !line.packingConfirmed,
-    );
-    if (pending) {
-      command.setError(
-        'Revisa y confirma el empaque pendiente en el producto recibido antes de continuar.',
-      );
-      return;
-    }
-    let receivedAt: string;
-    try {
-      receivedAt = caracasInstant(date);
-    } catch (e) {
-      command.setError(e instanceof Error ? e.message : 'Revisa la fecha.');
-      return;
-    }
-    const result = receiptSchema.safeParse({
-      supplierId,
-      reference,
-      receivedAt,
-      notes,
-      lines: lines.map((line) => ({
-        configurationId: line.configurationId,
-        boxes: Number(line.boxes),
-        unitCostUsd: line.cost.trim().replace(',', '.'),
-        ...(line.packingConfirmed && line.packing && line.packingVersion !== null
-          ? {
-              packingConfirmation: {
-                ...line.packing,
-                boxWeightKg: line.packing.boxWeightKg?.trim().replace(',', '.') || null,
-                expectedVersion: line.packingVersion,
-                confirmed: true,
-              },
-            }
-          : {}),
-        ...(line.blisters ? { blistersPerBox: Number(line.blisters) } : {}),
-        notes: line.notes,
-        priceAction: line.priceAction,
-        prices:
-          line.priceAction === 'update'
-            ? line.prices
-                .filter((p) => p.promoUsd.trim() || p.regularUsd.trim())
-                .map((p) => ({
-                  ...p,
-                  promoUsd: normalizedMoney(p.promoUsd),
-                  regularUsd: normalizedMoney(p.regularUsd),
-                }))
-            : [],
-      })),
-    });
-    if (!result.success) {
-      command.setError(result.error.issues[0]?.message ?? 'Revisa los datos de la recepción.');
-      return;
-    }
-    setReview(result.data);
-  }
-  async function confirm(e: FormEvent) {
-    e.preventDefault();
-    if (!review || command.busy) return;
-    try {
-      const result = await command.run<ReceiptResult>('/api/receipts', review);
-      setSaved(result);
-      setReview(null);
-      void catalog.reload();
-    } catch {}
-  }
-  function reset() {
-    setSaved(null);
-    setReview(null);
-    setReference('');
-    setDate(caracasDateTime());
-    setNotes('');
-    setLines([blankLine(nextKey)]);
-    setNextKey((key) => key + 1);
-    command.setError('');
-  }
+  const title = (line: QuickLine) =>
+    options.data?.options.find((option) => option.optionKey === line.optionKey)?.label ??
+    'Producto de la recepción';
   return (
     <AppShell session={session} current="/recepciones">
       <main id="app-main" className="main-content operations-page">
         <div className="page-heading">
           <div>
-            <h1>Recepción de mercancía</h1>
-            <p>Registra lo que llegó y conserva el empaque de cada lote.</p>
+            <h1>Recepción rápida</h1>
+            <p>Elige lo que llegó, indica las cajas y confirma el costo.</p>
           </div>
           <Button variant="outline" asChild>
             <Link href="/inventario">
               Ver inventario
-              <ArrowRight data-icon="inline-end" />
+              <ArrowRight aria-hidden="true" />
             </Link>
           </Button>
         </div>
         {returnToSale ? (
-          <p className="commercial-help">
+          <p className={styles.help}>
             <Link href="/ventas/nueva">Volver a la venta guardada</Link>
           </p>
         ) : null}
-        {initialConfigurationId && catalog.data && !requestedProductAllowed ? (
-          <Alert>
-            <Info aria-hidden="true" />
-            <AlertDescription>
-              No se encontró el producto del enlace. Elige uno del catálogo para continuar.{' '}
-              <Link href={`/catalogo${returnToSale ? '?returnTo=/ventas/nueva' : ''}`}>
-                Revisar catálogo
-              </Link>
-            </AlertDescription>
-          </Alert>
+        {restored ? (
+          <p role="status" className={styles.status}>
+            Recuperamos tu borrador en este dispositivo. Revisa productos, empaques y costos antes
+            de guardar.
+          </p>
+        ) : null}
+        {storageError ? <FormError message={storageError} /> : null}
+        {options.error ? (
+          <LoadError error={options.error} retry={() => void options.reload()} />
         ) : null}
         {catalog.error ? (
           <LoadError error={catalog.error} retry={() => void catalog.reload()} />
         ) : null}
-        {suppliers.error ? (
-          <LoadError error={suppliers.error} retry={() => void suppliers.reload()} />
-        ) : null}
-        {!ready && (catalog.loading || suppliers.loading) ? <LoadingRows /> : null}
+        {!ready && !options.error && !catalog.error ? <LoadingRows /> : null}
         {saved ? (
-          <section className="receipt-complete operations-panel" aria-label="Recepción confirmada">
+          <section className={styles.section} aria-label="Recepción confirmada">
             <CheckCircle2 aria-hidden="true" />
-            <h2>Mercancía recibida</h2>
+            <h2>Recepción guardada</h2>
             <p>
-              Se crearon {saved.lots.length} lotes con sus cajas cerradas. Los blíster equivalentes
-              no se suman como existencias adicionales.
+              <strong>{saved.result.receiptNumber}</strong> ·{' '}
+              {saved.draft.lines.reduce((sum, line) => sum + Number(line.boxes), 0)} cajas
+              recibidas. Sus lotes conservan el costo y el empaque confirmado.
             </p>
             <ul>
-              {saved.lots.map((lot) => (
+              {saved.result.lots.map((lot) => (
                 <li key={lot.id}>
-                  <Link href={`/inventario?lote=${lot.id}`}>
-                    {lot.code}
-                    <ArrowRight aria-hidden="true" />
-                  </Link>
+                  <Link href={`/inventario?lote=${lot.id}`}>{lot.code}</Link>
                 </li>
               ))}
             </ul>
-            <div className="inline-actions">
+            <div className={styles.inlineActions}>
+              <Button
+                onClick={() => {
+                  setSaved(null);
+                  setError('');
+                  setPicker('new');
+                }}
+              >
+                Recibir más mercancía
+              </Button>
               {returnToSale ? (
-                <Button asChild>
+                <Button variant="outline" asChild>
                   <Link href="/ventas/nueva">Continuar la venta</Link>
                 </Button>
               ) : null}
-              <Button onClick={reset}>Registrar otra recepción</Button>
-              <Button variant="outline" asChild>
-                <Link href="/inventario">Consultar inventario</Link>
-              </Button>
             </div>
           </section>
         ) : ready ? (
-          <>
-            {!canReceive ? (
-              <Alert>
-                <Info aria-hidden="true" />
-                <AlertDescription>
-                  {activeSuppliers.length === 0 ? (
-                    <p>
-                      Primero <Link href="/proveedores">agrega un proveedor activo</Link>.
-                    </p>
-                  ) : null}
-                  {receivingConfigurations.length === 0 ? (
-                    <p>
-                      Primero{' '}
-                      <Link href="/catalogo">
-                        crea y confirma una configuración de empaque en el catálogo
-                      </Link>
-                      .
-                    </p>
-                  ) : null}
-                </AlertDescription>
-              </Alert>
-            ) : null}
-            <form className="receipt-form" onSubmit={validate}>
-              <fieldset disabled={command.busy || !canReceive}>
-                <section className="operations-panel reception-data">
-                  <div className="panel-heading">
-                    <Truck aria-hidden="true" />
-                    <h2>Datos de la recepción</h2>
+          <form onSubmit={inspect}>
+            <fieldset disabled={locked}>
+              {!draft.lines.length ? (
+                <section className={styles.section}>
+                  <h2>¿Qué mercancía llegó?</h2>
+                  <p className={styles.help}>
+                    Las opciones habituales ya están listas. No necesitas registrar proveedor ni
+                    escribir una referencia.
+                  </p>
+                  <Button type="button" size="lg" onClick={() => setPicker('new')}>
+                    <Plus aria-hidden="true" />
+                    Recibir mercancía
+                  </Button>
+                </section>
+              ) : (
+                <section aria-labelledby="received-products-title">
+                  <div className="section-heading">
+                    <h2 id="received-products-title">Productos recibidos</h2>
                   </div>
-                  <FieldGroup className="operation-form-grid">
-                    <Field>
-                      <FieldLabel htmlFor="receipt-supplier">Proveedor</FieldLabel>
-                      <NativeSelect
-                        id="receipt-supplier"
-                        required
-                        value={supplierId}
-                        onChange={(e) => setSupplierId(e.target.value)}
-                      >
-                        <option value="">Selecciona el proveedor</option>
-                        {activeSuppliers.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
+                  {draft.lines.map((line, index) => (
+                    <ReceiptQuickLine
+                      key={line.key}
+                      line={line}
+                      index={index}
+                      option={options.data!.options.find(
+                        (option) => option.optionKey === line.optionKey,
+                      )}
+                      configuration={catalog.data!.configurations.find(
+                        (configuration) =>
+                          configuration.id ===
+                          options.data!.options.find(
+                            (option) => option.optionKey === line.optionKey,
+                          )?.configurationId,
+                      )}
+                      update={updateLine}
+                      remove={() =>
+                        mutate((current) => ({
+                          ...current,
+                          lines: current.lines.filter((item) => item.key !== line.key),
+                        }))
+                      }
+                      choose={() => setPicker(line.key)}
+                      costLoading={costState[line.key]?.loading ?? false}
+                      costError={costState[line.key]?.error ?? ''}
+                      reloadCost={() => {
+                        const option = options.data!.options.find(
+                          (item) => item.optionKey === line.optionKey,
+                        );
+                        if (option) void loadPrevious(line, option);
+                      }}
+                    />
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={draft.lines.length >= 50}
+                    onClick={() => setPicker('new')}
+                  >
+                    <Plus aria-hidden="true" />
+                    Otra fruta
+                  </Button>
+                </section>
+              )}
+              <details
+                className={styles.details}
+                onToggle={(event) => {
+                  if (event.currentTarget.open && !suppliers) void loadSuppliers();
+                }}
+              >
+                <summary>Más detalles (opcional)</summary>
+                <p className={styles.help}>
+                  Se asignará un número único y la fecha actual de Venezuela al guardar. Los precios
+                  de venta se conservan salvo que elijas actualizarlos.
+                </p>
+                <div className={styles.detailsGrid}>
+                  <Field>
+                    <FieldLabel htmlFor="receipt-supplier">Proveedor (opcional)</FieldLabel>
+                    <NativeSelect
+                      id="receipt-supplier"
+                      value={draft.supplierId}
+                      onChange={(event) =>
+                        mutate((current) => ({ ...current, supplierId: event.target.value }))
+                      }
+                    >
+                      <option value="">Sin proveedor indicado</option>
+                      {suppliers
+                        ?.filter((supplier) => supplier.active)
+                        .map((supplier) => (
+                          <option key={supplier.id} value={supplier.id}>
+                            {supplier.name}
                           </option>
                         ))}
-                      </NativeSelect>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="receipt-reference">Referencia del documento</FieldLabel>
-                      <Input
-                        id="receipt-reference"
-                        required
-                        maxLength={80}
-                        value={reference}
-                        placeholder="Factura o nota de entrega"
-                        onChange={(e) => setReference(e.target.value)}
-                      />
-                      <FieldDescription>
-                        La referencia no se puede repetir para el mismo proveedor.
-                      </FieldDescription>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="receipt-date">Fecha y hora de recepción</FieldLabel>
-                      <Input
-                        id="receipt-date"
-                        type="datetime-local"
-                        required
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                      />
-                      <FieldDescription>Hora de Venezuela (America/Caracas).</FieldDescription>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="receipt-notes">Observaciones generales</FieldLabel>
-                      <Textarea
-                        id="receipt-notes"
-                        maxLength={500}
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Estado de la mercancía…"
-                      />
-                    </Field>
-                  </FieldGroup>
-                </section>
-                <section className="receipt-lines" aria-label="Productos recibidos">
-                  <div className="section-heading">
-                    <h2>Productos recibidos</h2>
-                    <span>
-                      {lines.length} {lines.length === 1 ? 'línea' : 'líneas'}
-                    </span>
-                  </div>
-                  {lines.map((line, index) => {
-                    const config = catalog.data!.configurations.find(
-                      (c) => c.id === line.configurationId,
-                    );
-                    return (
-                      <section
-                        key={line.key}
-                        className="operations-panel receipt-line"
-                        aria-labelledby={`line-title-${line.key}`}
-                      >
-                        <div className="receipt-line-title">
-                          <h3 id={`line-title-${line.key}`}>Producto {index + 1}</h3>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Quitar producto ${index + 1}`}
-                            disabled={lines.length === 1}
-                            onClick={() =>
-                              setLines((list) => list.filter((item) => item.key !== line.key))
-                            }
-                          >
-                            <Trash2 />
-                          </Button>
-                        </div>
-                        <FieldGroup>
-                          <Field>
-                            <FieldLabel htmlFor={`line-product-${line.key}`}>
-                              Fruta, variedad y calibre
-                            </FieldLabel>
-                            <NativeSelect
-                              id={`line-product-${line.key}`}
-                              required
-                              value={line.configurationId}
-                              onChange={(e) => {
-                                const nextConfig = catalog.data!.configurations.find(
-                                  (c) => c.id === e.target.value,
-                                );
-                                updateLine(line.key, {
-                                  configurationId: e.target.value,
-                                  blisters: '',
-                                  packing: nextConfig ? packingValue(nextConfig) : null,
-                                  packingVersion: nextConfig?.version ?? null,
-                                  packingConfirmed: false,
-                                  packingChanged: false,
-                                  priceAction: 'keep',
-                                  prices:
-                                    catalog
-                                      .data!.configurations.find((c) => c.id === e.target.value)
-                                      ?.allowedPresentations.map((presentation) => ({
-                                        presentation,
-                                        promoUsd:
-                                          catalog
-                                            .data!.configurations.find(
-                                              (c) => c.id === e.target.value,
-                                            )
-                                            ?.prices.find((p) => p.presentation === presentation)
-                                            ?.promoUsd ?? '',
-                                        regularUsd:
-                                          catalog
-                                            .data!.configurations.find(
-                                              (c) => c.id === e.target.value,
-                                            )
-                                            ?.prices.find((p) => p.presentation === presentation)
-                                            ?.regularUsd ?? '',
-                                      })) ?? [],
-                                });
-                              }}
-                            >
-                              <option value="">Selecciona un empaque del catálogo</option>
-                              {receivingConfigurations.map((c) => (
-                                <option value={c.id} key={c.id}>
-                                  {productLabel(c)} · {packingLabel(c)}
-                                  {c.confirmationStatus === 'pending' ? ' · Revisar aquí' : ''}
-                                </option>
-                              ))}
-                            </NativeSelect>
-                          </Field>
-                          <div className="receipt-quantities">
-                            <Field>
-                              <FieldLabel htmlFor={`line-boxes-${line.key}`}>
-                                Cajas cerradas recibidas
-                              </FieldLabel>
-                              <Input
-                                id={`line-boxes-${line.key}`}
-                                type="number"
-                                inputMode="numeric"
-                                min={1}
-                                max={1000}
-                                step={1}
-                                required
-                                value={line.boxes}
-                                onChange={(e) => updateLine(line.key, { boxes: e.target.value })}
-                              />
-                            </Field>
-                            <Field>
-                              <FieldLabel htmlFor={`line-cost-${line.key}`}>
-                                Costo por caja (USD)
-                              </FieldLabel>
-                              <Input
-                                id={`line-cost-${line.key}`}
-                                type="text"
-                                inputMode="decimal"
-                                required
-                                maxLength={19}
-                                pattern="[0-9]{1,14}([.,][0-9]{1,4})?"
-                                placeholder="0,00"
-                                value={line.cost}
-                                onChange={(e) => updateLine(line.key, { cost: e.target.value })}
-                              />
-                              <FieldDescription>Hasta cuatro decimales.</FieldDescription>
-                            </Field>
-                            {config?.packingModel === 'blister' &&
-                            config.confirmationStatus === 'confirmed' ? (
-                              <Field>
-                                <FieldLabel htmlFor={`line-blisters-${line.key}`}>
-                                  Blíster por caja en este lote
-                                </FieldLabel>
-                                <Input
-                                  id={`line-blisters-${line.key}`}
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={1}
-                                  max={100}
-                                  step={1}
-                                  placeholder={
-                                    config?.blistersPerBox != null
-                                      ? `${config.blistersPerBox} (habitual)`
-                                      : 'Pendiente de confirmar'
-                                  }
-                                  value={line.blisters}
-                                  onChange={(e) =>
-                                    updateLine(line.key, { blisters: e.target.value })
-                                  }
-                                />
-                                <FieldDescription>
-                                  Vacío conserva la regla habitual. Corregirlo solo cambia este
-                                  lote.
-                                </FieldDescription>
-                              </Field>
-                            ) : null}
-                          </div>
-                          {config && line.packing ? (
-                            <details
-                              className={preparationStyles.draft}
-                              open={config.confirmationStatus === 'pending' || undefined}
-                            >
-                              <summary className={preparationStyles.option}>
-                                {config.confirmationStatus === 'pending'
-                                  ? 'Confirmar el empaque pendiente'
-                                  : 'Revisar empaque para esta y próximas recepciones'}
-                              </summary>
-                              <p className={preparationStyles.help}>
-                                Este empaque se usará en esta recepción y próximos lotes; los lotes
-                                anteriores no cambian. Verifica la mercancía y confirma abajo.
-                              </p>
-                              <PackingReviewFields
-                                id={`receipt-packing-${line.key}`}
-                                value={line.packing}
-                                suggestion={suggestedBlistersPerBox(
-                                  config.fruit,
-                                  config.variety,
-                                  config.caliber,
-                                )}
-                                onChange={(packing) =>
-                                  updateLine(line.key, {
-                                    packing,
-                                    packingConfirmed: false,
-                                    packingChanged: true,
-                                    prices: packing.allowedPresentations.map(
-                                      (presentation) =>
-                                        line.prices.find(
-                                          (price) => price.presentation === presentation,
-                                        ) ?? { presentation, promoUsd: '', regularUsd: '' },
-                                    ),
-                                  })
-                                }
-                              />
-                              <label className={preparationStyles.confirmation}>
-                                <input
-                                  type="checkbox"
-                                  checked={line.packingConfirmed}
-                                  onChange={(event) =>
-                                    updateLine(line.key, { packingConfirmed: event.target.checked })
-                                  }
-                                />
-                                <span>
-                                  Verifiqué este empaque y confirmo su uso en esta recepción y
-                                  próximos lotes.
-                                </span>
-                              </label>
-                              {line.packingChanged && config.confirmationStatus === 'confirmed' ? (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    updateLine(line.key, {
-                                      packing: packingValue(config),
-                                      packingChanged: false,
-                                      packingConfirmed: false,
-                                      prices: config.allowedPresentations.map(
-                                        (presentation) =>
-                                          line.prices.find(
-                                            (price) => price.presentation === presentation,
-                                          ) ?? { presentation, promoUsd: '', regularUsd: '' },
-                                      ),
-                                    })
-                                  }
-                                >
-                                  Descartar cambios de empaque
-                                </Button>
-                              ) : null}
-                            </details>
-                          ) : null}
-                          <Field>
-                            <FieldLabel htmlFor={`line-notes-${line.key}`}>
-                              Notas del lote
-                            </FieldLabel>
-                            <Input
-                              id={`line-notes-${line.key}`}
-                              maxLength={500}
-                              value={line.notes}
-                              onChange={(e) => updateLine(line.key, { notes: e.target.value })}
-                            />
-                          </Field>
-                          {config ? (
-                            <ReceiptPrices
-                              line={line}
-                              config={config}
-                              update={(changes) => updateLine(line.key, changes)}
-                            />
-                          ) : null}
-                        </FieldGroup>
-                      </section>
-                    );
-                  })}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={lines.length >= 50}
-                    onClick={() => {
-                      setLines((current) => [...current, blankLine(nextKey)]);
-                      setNextKey((key) => key + 1);
-                    }}
-                  >
-                    <Plus data-icon="inline-start" />
-                    Agregar producto
-                  </Button>
-                </section>
-              </fieldset>
-              <FormError message={!review ? command.error : ''} />
-              <div className="receipt-submit">
+                    </NativeSelect>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="receipt-reference">
+                      Documento del proveedor (opcional)
+                    </FieldLabel>
+                    <Input
+                      id="receipt-reference"
+                      maxLength={80}
+                      value={draft.reference}
+                      onChange={(event) =>
+                        mutate((current) => ({ ...current, reference: event.target.value }))
+                      }
+                      placeholder="Factura o nota de entrega"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="receipt-date">
+                      Fecha y hora de recepción (opcional)
+                    </FieldLabel>
+                    <Input
+                      id="receipt-date"
+                      type="datetime-local"
+                      value={draft.date}
+                      onChange={(event) =>
+                        mutate((current) => ({ ...current, date: event.target.value }))
+                      }
+                    />
+                    <p className={styles.help}>
+                      Vacío: hora actual · America/Caracas. Ahora:{' '}
+                      {caracasDateTime().replace('T', ' ')}.
+                    </p>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="receipt-notes">Observaciones generales</FieldLabel>
+                    <Textarea
+                      id="receipt-notes"
+                      maxLength={500}
+                      value={draft.notes}
+                      onChange={(event) =>
+                        mutate((current) => ({ ...current, notes: event.target.value }))
+                      }
+                    />
+                  </Field>
+                </div>
+                {supplierError ? (
+                  <p role="status" className={styles.help}>
+                    {supplierError}
+                    <Button type="button" variant="ghost" onClick={() => void loadSuppliers()}>
+                      Reintentar proveedores
+                    </Button>
+                  </p>
+                ) : null}
+              </details>
+            </fieldset>
+            {!review ? <FormError message={error} /> : null}
+            {draft.lines.length ? (
+              <div className={styles.sticky} role="region" aria-label="Resumen y guardado">
                 <div>
                   <strong>
-                    {totalBoxes} cajas cerradas · Costo total {displayMoney(totalCost)}
+                    {totalBoxes} cajas ·{' '}
+                    {receiptCostsReady(draft.lines)
+                      ? displayMoney(receiptTotal(draft.lines))
+                      : 'Costo por confirmar'}
                   </strong>
-                  <p>Solo costo de mercancía. No incluye gastos accesorios.</p>
+                  <p>Solo costo de mercancía. Se guardará un único ingreso.</p>
                 </div>
-                <Button type="submit" disabled={command.busy || !canReceive}>
-                  Revisar recepción
-                  <ArrowRight data-icon="inline-end" />
+                <Button
+                  type={draft.pending ? 'button' : 'submit'}
+                  onClick={draft.pending ? () => setReview(true) : undefined}
+                  disabled={busy || !!storageError}
+                >
+                  {draft.pending ? 'Resolver confirmación pendiente' : 'Revisar recepción'}
+                  <ArrowRight aria-hidden="true" />
                 </Button>
               </div>
-            </form>
-          </>
+            ) : null}
+            {draft.lines.length && !draft.pending ? (
+              <p className={styles.help}>
+                Tu borrador se conserva en este dispositivo para tu acceso, también si cierras
+                sesión. Se elimina al guardar.
+              </p>
+            ) : null}
+          </form>
         ) : null}
-        <PageFooter />
         <Dialog
-          open={!!review}
+          open={picker !== null}
           onOpenChange={(open) => {
-            if (!open && !command.busy) setReview(null);
+            if (!open) setPicker(null);
           }}
         >
-          <DialogContent className="catalog-dialog">
+          <DialogContent className={styles.pickerDialog}>
             <DialogHeader>
-              <DialogTitle>Confirmar recepción</DialogTitle>
+              <DialogTitle>Elige la mercancía</DialogTitle>
               <DialogDescription>
-                Se crearán los lotes y sus existencias en una sola operación.
+                Busca fruta, variedad o calibre. Solo se registrará lo que agregues a la recepción.
               </DialogDescription>
             </DialogHeader>
-            {review ? (
-              <form onSubmit={confirm} className="catalog-form">
-                <div className="receipt-review">
-                  <p>
-                    <strong>{activeSuppliers.find((s) => s.id === review.supplierId)?.name}</strong>
-                    <br />
-                    Referencia: {review.reference}
-                  </p>
-                  <ul>
-                    {review.lines.map((line, index) => {
-                      const config = catalog.data?.configurations.find(
-                        (c) => c.id === line.configurationId,
-                      );
-                      const reviewedPacking = line.packingConfirmation ?? config;
-                      return (
-                        <li key={index}>
-                          <strong>{config ? productLabel(config) : 'Producto'}</strong>
-                          <span>
-                            {line.boxes} cajas ·{' '}
-                            {reviewedPacking?.packingModel === 'blister'
-                              ? (line.blistersPerBox ??
-                                  reviewedPacking.blistersPerBox ??
-                                  'Pendiente') + ' blíster/caja'
-                              : reviewedPacking
-                                ? packingLabel(reviewedPacking)
-                                : ''}
-                          </span>
-                          <span>{displayMoney(line.unitCostUsd)} por caja</span>
-                          {line.packingConfirmation ? (
-                            <span>
-                              Empaque verificado para este lote y próximas recepciones; historial
-                              anterior conservado.
-                            </span>
-                          ) : null}
-                          <span>
-                            {line.priceAction === 'update'
-                              ? 'Actualizar precios comerciales'
-                              : 'Conservar precios comerciales'}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <p>
-                    Costo total: {displayMoney(totalCost)}. Los empaques quedan guardados como
-                    historia de cada lote. Comprueba cantidades y costos antes de confirmar.
-                  </p>
-                </div>
-                <FormError message={command.error} />
-                <div className="form-actions">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={command.busy}
-                    onClick={() => setReview(null)}
-                  >
-                    Volver a editar
-                  </Button>
-                  <SaveButton busy={command.busy}>Confirmar recepción</SaveButton>
-                </div>
-              </form>
+            {options.data ? (
+              <>
+                <HabitualProductPicker
+                  id="receipt-picker"
+                  options={pickerOptions(options.data.options)}
+                  scope={scope}
+                  onSelect={(option) => choose(option.optionKey)}
+                />
+                <ReceiptExceptionalCaliber
+                  options={options.data}
+                  reload={async () => {
+                    await options.reload();
+                    await catalog.reload();
+                  }}
+                />
+              </>
             ) : null}
           </DialogContent>
         </Dialog>
+        <Dialog
+          open={review}
+          onOpenChange={(open) => {
+            if (!busy) setReview(open);
+          }}
+        >
+          <DialogContent className={styles.reviewDialog}>
+            <DialogHeader>
+              <DialogTitle>Revisar recepción</DialogTitle>
+              <DialogDescription>
+                {draft.pending
+                  ? 'La respuesta anterior no quedó confirmada. Reintentar conserva la misma recepción y no duplica cajas.'
+                  : 'Confirma productos, costos y empaques. Guardar registrará toda la recepción una sola vez.'}
+              </DialogDescription>
+            </DialogHeader>
+            <p>
+              Número: se asigna al guardar ·{' '}
+              {draft.date ? draft.date.replace('T', ' ') : 'Fecha actual de Venezuela'} ·{' '}
+              {draft.supplierId
+                ? (suppliers?.find((supplier) => supplier.id === draft.supplierId)?.name ??
+                  'Proveedor seleccionado')
+                : 'Sin proveedor indicado'}
+            </p>
+            <ul className={styles.reviewList}>
+              {draft.lines.map((line) => (
+                <li key={line.key}>
+                  <strong>{title(line)}</strong>
+                  <p>
+                    {line.boxes} cajas × {displayMoney(line.cost.replace(',', '.') || '0')} por caja
+                  </p>
+                  <p>
+                    {line.blisterOverride
+                      ? `${line.blisterOverride} blíster por caja · excepción confirmada: ${line.overrideReason}`
+                      : line.packing?.blistersPerBox
+                        ? `${line.packing.blistersPerBox} blíster por caja`
+                        : line.packing?.packingModel === 'halves'
+                          ? 'Caja y media comercial'
+                          : 'Caja completa'}{' '}
+                    ·{' '}
+                    {line.priceAction === 'keep'
+                      ? 'Precios de venta conservados'
+                      : 'Actualizar los precios indicados'}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <p>
+              <strong>Costo total {displayMoney(receiptTotal(draft.lines))}</strong>
+            </p>
+            <FormError message={error} />
+            {authNeeded ? (
+              <p className={styles.warning}>
+                Tu recepción pendiente se conserva.{' '}
+                <Link href="/login">Iniciar sesión de nuevo</Link> para recuperar la misma
+                confirmación.
+              </p>
+            ) : null}
+            <div className={styles.inlineActions}>
+              <Button
+                type="button"
+                disabled={busy || !!storageError}
+                onClick={() => void confirm()}
+              >
+                {busy
+                  ? 'Guardando recepción…'
+                  : draft.pending
+                    ? 'Reintentar misma recepción'
+                    : 'Guardar recepción'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => setReview(false)}
+              >
+                {draft.pending ? 'Cerrar resumen' : 'Corregir datos'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <PageFooter />
       </main>
     </AppShell>
   );

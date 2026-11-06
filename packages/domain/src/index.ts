@@ -8,6 +8,7 @@ export * from './auth';
 export * from './operations';
 export * from './production';
 export * from './catalog-preparation';
+export * from './catalog-options';
 
 export const nameSchema = z
   .string()
