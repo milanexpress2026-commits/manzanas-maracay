@@ -220,7 +220,7 @@ test('navegación móvil, recuperación de carga y accesibilidad de los nuevos m
   await page.goto('/catalogo');
   for (const [label, path, heading] of [
     ['Inventario', '/inventario', 'Inventario'],
-    ['Recepciones', '/recepciones', 'Recepción de mercancía'],
+    ['Recepciones', '/recepciones', 'Recepción rápida'],
     ['Proveedores', '/proveedores', 'Proveedores'],
   ]) {
     await page.getByRole('button', { name: 'Abrir navegación', exact: true }).click();
