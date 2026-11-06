@@ -25,7 +25,7 @@ export function HabitualCatalog({
           <h2>Catálogo habitual listo</h2>
           <p>
             Elige lo que llegó. Las opciones ya están disponibles; el inventario empieza al guardar
-            una recepción con su costo real.
+            una recepción con su cantidad.
           </p>
         </div>
       </div>

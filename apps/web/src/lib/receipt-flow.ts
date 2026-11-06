@@ -1,16 +1,14 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js';
 import {
-  quickReceiptSchema,
+  simpleReceiptSchema,
   receiptProductSchema,
-  positiveReceiptCostSchema,
   type HabitualCatalogOption,
   type ReceiptPacking,
-  type PreviousReceiptCost,
   type Configuration,
-  type QuickReceipt,
+  type SimpleReceipt,
 } from '@mm/domain';
-import { normalizedMoney, caracasInstant } from './commercial-ui';
+import { caracasInstant } from './commercial-ui';
 import type { PendingReceipt } from './receipt-storage';
 
 export type PickerOption = {
@@ -28,11 +26,7 @@ const packing = z.object({
   allowedPresentations: z.array(z.enum(['box', 'half_box', 'blister'])).max(3),
   blistersPerBox: z.number().int().min(1).max(100).nullable(),
   boxWeightKg: z.string().max(30).nullable(),
-});
-const previous = z.object({
-  sourceLotId: z.uuid(),
-  unitCostUsd: z.string().max(30),
-  receivedAt: z.string().max(50),
+  commercialUnitLabel: z.string().max(80).nullable().optional(),
 });
 const lineSchema = z.object({
   key: z.uuid(),
@@ -40,9 +34,6 @@ const lineSchema = z.object({
   product: receiptProductSchema,
   selectionPacking: packing.nullable(),
   boxes: z.string().max(8),
-  cost: z.string().max(30),
-  costSource: z.enum(['entered', 'previous']),
-  previousCost: previous.nullable(),
   packing: packing.nullable(),
   packingChanged: z.boolean(),
   packingConfirmed: z.boolean(),
@@ -51,20 +42,10 @@ const lineSchema = z.object({
   overrideReason: z.string().max(500),
   overrideConfirmed: z.boolean(),
   notes: z.string().max(500),
-  priceAction: z.enum(['keep', 'update']),
-  prices: z
-    .array(
-      z.object({
-        presentation: z.enum(['box', 'half_box', 'blister']),
-        promoUsd: z.string().max(30),
-        regularUsd: z.string().max(30),
-      }),
-    )
-    .max(3),
 });
 export type QuickLine = z.infer<typeof lineSchema>;
-export const receiptDraftSchema = z.object({
-  version: z.literal(2),
+const currentReceiptDraftSchema = z.object({
+  version: z.literal(3),
   scope: z.string().max(150),
   supplierId: z.string().max(36),
   reference: z.string().max(80),
@@ -79,10 +60,16 @@ export const receiptDraftSchema = z.object({
     })
     .nullable(),
 });
+// Upgrade only editable local fields; an uncertain legacy command retains its exact body/key/hash.
+export const receiptDraftSchema = z.preprocess((value) => {
+  if (value && typeof value === 'object' && 'version' in value && value.version === 2)
+    return { ...value, version: 3 };
+  return value;
+}, currentReceiptDraftSchema);
 export type ReceiptDraft = z.infer<typeof receiptDraftSchema>;
 export function emptyReceiptDraft(scope: string): ReceiptDraft {
   return {
-    version: 2,
+    version: 3,
     scope,
     supplierId: '',
     reference: '',
@@ -100,22 +87,27 @@ export function pickerOptions(options: HabitualCatalogOption[]): PickerOption[] 
     configurationId: option.configurationId,
     needsPresentation: option.needsPresentation,
     description:
-      option.currentPacking?.blistersPerBox != null && option.confirmationStatus === 'confirmed'
-        ? `${option.currentPacking.blistersPerBox} blíster por caja · ${option.commercialLine}`
-        : option.suggestedPacking?.blistersPerBox != null
-          ? `${option.suggestedPacking.blistersPerBox} blíster por caja · ${option.commercialLine}`
-          : option.suggestedPacking?.boxWeightKg
-            ? `Caja ${new Decimal(option.suggestedPacking.boxWeightKg).toString()} kg · media comercial`
-            : option.suggestedPacking?.packingModel === 'halves'
-              ? 'Caja y media caja comercial'
-              : option.suggestedPacking
-                ? 'Caja completa'
-                : option.commercialLine,
+      option.currentPacking?.commercialUnitLabel && option.confirmationStatus === 'confirmed'
+        ? option.currentPacking.commercialUnitLabel
+        : option.requiresCommercialUnit
+          ? 'Confirmar unidad comercial'
+          : option.currentPacking?.blistersPerBox != null &&
+              option.confirmationStatus === 'confirmed'
+            ? `${option.currentPacking.blistersPerBox} blíster por caja · ${option.commercialLine}`
+            : option.suggestedPacking?.blistersPerBox != null
+              ? `${option.suggestedPacking.blistersPerBox} blíster por caja · ${option.commercialLine}`
+              : option.suggestedPacking?.boxWeightKg
+                ? `Caja ${new Decimal(option.suggestedPacking.boxWeightKg).toString()} kg · media comercial`
+                : option.suggestedPacking?.packingModel === 'halves'
+                  ? 'Caja y media caja comercial'
+                  : option.suggestedPacking
+                    ? 'Caja completa'
+                    : option.commercialLine,
   }));
 }
 export function receiptLine(
   option: HabitualCatalogOption,
-  configuration?: Configuration,
+  _configuration?: Configuration,
 ): QuickLine {
   const initialPacking =
     option.confirmationStatus === 'confirmed'
@@ -127,9 +119,6 @@ export function receiptLine(
     product: structuredClone(option.product),
     selectionPacking: initialPacking ? structuredClone(initialPacking) : null,
     boxes: '1',
-    cost: '',
-    costSource: 'entered',
-    previousCost: null,
     packing: initialPacking ? structuredClone(initialPacking) : null,
     packingChanged: false,
     packingConfirmed: false,
@@ -138,15 +127,6 @@ export function receiptLine(
     overrideReason: '',
     overrideConfirmed: false,
     notes: '',
-    priceAction: 'keep',
-    prices: (initialPacking?.allowedPresentations ?? ['box']).map((presentation) => ({
-      presentation,
-      promoUsd:
-        configuration?.prices.find((price) => price.presentation === presentation)?.promoUsd ?? '',
-      regularUsd:
-        configuration?.prices.find((price) => price.presentation === presentation)?.regularUsd ??
-        '',
-    })),
   };
 }
 export function revisePacking(line: QuickLine, value: ReceiptPacking): QuickLine {
@@ -155,34 +135,7 @@ export function revisePacking(line: QuickLine, value: ReceiptPacking): QuickLine
     packing: value,
     packingChanged: true,
     packingConfirmed: false,
-    prices: value.allowedPresentations.map(
-      (presentation) =>
-        line.prices.find((price) => price.presentation === presentation) ?? {
-          presentation,
-          promoUsd: '',
-          regularUsd: '',
-        },
-    ),
   };
-}
-export function acceptPreviousCost(line: QuickLine, cost: PreviousReceiptCost): QuickLine {
-  return { ...line, costSource: 'previous', cost: cost.unitCostUsd, previousCost: cost };
-}
-export function receiptTotal(lines: QuickLine[]) {
-  return lines
-    .reduce((total, line) => {
-      const cost = normalizedMoney(line.cost);
-      return /^\d+(\.\d{1,4})?$/.test(cost) && /^\d+$/.test(line.boxes)
-        ? total.plus(new Decimal(cost).times(line.boxes))
-        : total;
-    }, new Decimal(0))
-    .toFixed(4);
-}
-export function receiptCostsReady(lines: QuickLine[]) {
-  return (
-    lines.length > 0 &&
-    lines.every((line) => positiveReceiptCostSchema.safeParse(normalizedMoney(line.cost)).success)
-  );
 }
 export function receiptOptionChanged(line: QuickLine, option: HabitualCatalogOption) {
   const currentPacking =
@@ -210,9 +163,9 @@ export function productSearchMatches(label: string, description: string, query: 
 export function buildQuickReceipt(
   draft: ReceiptDraft,
   options: HabitualCatalogOption[],
-): QuickReceipt {
-  return quickReceiptSchema.parse({
-    schemaVersion: 2,
+): SimpleReceipt {
+  return simpleReceiptSchema.parse({
+    schemaVersion: 3,
     supplierId: draft.supplierId || null,
     reference: draft.reference.trim() || null,
     ...(draft.date ? { receivedAt: caracasInstant(draft.date) } : {}),
@@ -223,7 +176,7 @@ export function buildQuickReceipt(
         throw new Error(`Vuelve a elegir el producto ${index + 1}; sus opciones cambiaron.`);
       if (receiptOptionChanged(line, option))
         throw new Error(
-          `El empaque del producto ${index + 1} cambió. Vuelve a elegirlo para revisar la versión actual; tus cajas y costo se conservarán.`,
+          `El empaque del producto ${index + 1} cambió. Vuelve a elegirlo para revisar la versión actual; se conservará la cantidad.`,
         );
       if (
         (option.needsPresentation || line.packingChanged) &&
@@ -236,6 +189,8 @@ export function buildQuickReceipt(
         );
       if (line.blisterOverride && !line.overrideConfirmed)
         throw new Error(`Confirma la excepción del producto ${index + 1}.`);
+      if (option.requiresCommercialUnit && !line.packing?.commercialUnitLabel?.trim())
+        throw new Error(`Indica la unidad comercial del producto ${index + 1}.`);
       const usePacking =
         line.packing &&
         (line.packingChanged ||
@@ -244,15 +199,6 @@ export function buildQuickReceipt(
       return {
         product: line.product,
         boxes: Number(line.boxes),
-        cost:
-          line.costSource === 'previous' && line.previousCost
-            ? {
-                kind: 'previous',
-                sourceLotId: line.previousCost.sourceLotId,
-                unitCostUsd: normalizedMoney(line.cost),
-                accepted: true,
-              }
-            : { kind: 'entered', unitCostUsd: normalizedMoney(line.cost), accepted: true },
         ...(usePacking
           ? {
               packing: {
@@ -271,17 +217,6 @@ export function buildQuickReceipt(
               },
             }
           : {}),
-        priceAction: line.priceAction,
-        prices:
-          line.priceAction === 'update'
-            ? line.prices
-                .filter((price) => price.promoUsd.trim() || price.regularUsd.trim())
-                .map((price) => ({
-                  presentation: price.presentation,
-                  promoUsd: normalizedMoney(price.promoUsd),
-                  regularUsd: normalizedMoney(price.regularUsd),
-                }))
-            : [],
         notes: line.notes,
       };
     }),

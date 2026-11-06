@@ -131,13 +131,9 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
     .getByLabel('Documento del proveedor (opcional)', { exact: true })
     .fill('QA ingreso UI ' + suffix);
   await receiptLine.getByLabel('Cajas recibidas', { exact: true }).fill('20');
-  await receiptLine.getByLabel('Costo real por caja · USD', { exact: true }).fill('25');
-  await receiptLine.getByText('Notas y precios de este producto', { exact: true }).click();
-  await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
-  await page.getByLabel('Promocional divisa', { exact: true }).fill('40');
-  await page.getByLabel('Regular · Bs. BCV', { exact: true }).fill('45');
+  await expect(receiptLine.getByLabel(/Costo|Precio/i)).toHaveCount(0);
   await page.getByRole('checkbox', { name: /Verifiqué esta presentación/ }).check();
-  await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Guardar recepción', exact: true })
@@ -180,7 +176,8 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await expect(presentation).toBeDisabled();
   await expect(presentation.getByRole('option')).toHaveText(['Selecciona', 'Caja']);
   await page.getByLabel('Cantidad', { exact: true }).fill('2');
-  await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
+  await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
   await expect(page.getByLabel('Total de la venta', { exact: true })).toHaveText('USD 80,00');
   await expect(page.getByRole('checkbox', { name: 'Registrar un abono ahora' })).not.toBeChecked();
   await expect(page.locator('#sale-paid')).toHaveCount(0);
@@ -194,7 +191,8 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   let sale = (await (await page.request.get('/api/sales/' + saleId)).json()) as SaleDetail;
   expect(sale.isDemo).toBe(false);
   expect(sale.totalUsd).toBe('80.00');
-  expect(Number(sale.costUsd)).toBe(50);
+  expect(sale.costUsd).toBeNull();
+  expect(sale.grossProfitUsd).toBeNull();
   expect(sale.balanceUsd).toBe('80.00');
   expect(sale.payments).toEqual([]);
   await expect(page.getByRole('button', { name: 'Cobrar por WhatsApp' })).toBeDisabled();

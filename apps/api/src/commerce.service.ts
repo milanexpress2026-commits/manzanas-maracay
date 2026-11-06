@@ -26,6 +26,7 @@ import {
   settlementBasisForLines,
   paymentSettlementBasis,
   quotedVesToUsd,
+  settleQuotedVes,
   receivableStatus,
   collectionWhatsApp,
   type ClientSummary,
@@ -40,7 +41,7 @@ import {
   type CollectionsOverview,
   type ClientSnapshot,
   type Presentation,
-  type PriceBasis,
+  type SalePriceBasis,
   type PaymentCurrency,
   type SettlementBasis,
 } from '../../../packages/domain/src/commerce';
@@ -59,8 +60,8 @@ const saleSelect = `select s.id,s.number,s.client_id as "clientId",s.client_snap
   case when dates.id is null then s.reminder_date::text else dates.reminder_date::text end as "reminderDate",
   s.total_usd::text as "totalUsd",coalesce(paid.amount,0)::numeric(18,2)::text as "paidUsd",
   case when cancel.id is null then (s.total_usd-coalesce(paid.amount,0)) else 0 end::numeric(18,2)::text as "balanceUsd",
-  s.cost_usd::text as "costUsd",(s.total_usd-s.cost_usd)::numeric(18,4)::text as "grossProfitUsd",
-  coalesce((select sum(round(l.quantity*l.reference_unit_usd,2))-s.total_usd from sale_lines l where l.sale_id=s.id),0)::numeric(18,2)::text as "discountUsd",
+  null::text as "costUsd",null::text as "grossProfitUsd",
+  (select case when bool_and(l.reference_unit_usd is not null) then sum(round(l.quantity*l.reference_unit_usd,2))-s.total_usd end from sale_lines l where l.sale_id=s.id)::numeric(18,2)::text as "discountUsd",
   s.is_demo as "isDemo",s.notes,s.actor,s.client_snapshot as client
   from sales s left join sale_cancellations cancel on cancel.sale_id=s.id
   left join lateral(select id,due_date,reminder_date from sale_date_events where sale_id=s.id order by event_order desc limit 1) dates on true
@@ -80,6 +81,8 @@ type PaymentConversion = {
   basis: Exclude<SettlementBasis, 'legacy_bcv'>;
   bcvRate: HistoricalOfficialRate | null;
   usdtRate: HistoricalUsdtRate | null;
+  usdtReferenceRate: HistoricalUsdtRate | null;
+  roundingUsd: string;
 };
 
 @Injectable()
@@ -275,14 +278,14 @@ export class CommerceService implements OnModuleDestroy {
     const lines = (
       await client.query(
         `select l.id,l.variant_id as "variantId",r.id as "configurationId",l.description_snapshot as description,l.presentation,l.quantity,l.price_basis as "priceBasis",
-      l.reference_unit_usd::text as "referenceUnitUsd",l.agreed_unit_usd::text as "agreedUnitUsd",l.line_total_usd::text as "totalUsd",l.cost_usd::text as "costUsd"
+      l.reference_unit_usd::text as "referenceUnitUsd",l.agreed_unit_usd::text as "agreedUnitUsd",l.line_total_usd::text as "totalUsd",null::text as "costUsd",l.commercial_unit_label_snapshot as "commercialUnitLabel"
       from sale_lines l join packing_rules r on r.variant_id=l.variant_id where l.sale_id=$1 order by l.id`,
         [id],
       )
     ).rows as SaleLine[];
     const allocations = (
       await client.query(
-        `select a.sale_line_id as "saleLineId",a.lot_id as "lotId",a.container_id as "containerId",a.movement_id as "movementId",a.quantity,a.cost_usd::text as "costUsd"
+        `select a.sale_line_id as "saleLineId",a.lot_id as "lotId",a.container_id as "containerId",a.movement_id as "movementId",a.quantity,null::text as "costUsd"
       from sale_allocations a join sale_lines l on l.id=a.sale_line_id where l.sale_id=$1 order by a.created_at,a.id`,
         [id],
       )
@@ -344,7 +347,7 @@ export class CommerceService implements OnModuleDestroy {
     if (!row) throw new NotFoundException('Este recibo no existe.');
     const info = (
       await client.query(
-        'select client_snapshot,bcv_rate_id,usdt_rate_id,coalesce((select display_name from app_users u where u.id::text=p.actor),p.actor) as operator_name from payments p where id=$1',
+        'select client_snapshot,bcv_rate_id,usdt_rate_id,usdt_reference_rate_id,conversion_rounding_usd::text,coalesce((select display_name from app_users u where u.id::text=p.actor),p.actor) as operator_name from payments p where id=$1',
         [id],
       )
     ).rows[0];
@@ -372,6 +375,21 @@ export class CommerceService implements OnModuleDestroy {
       usdtRate.validFrom = new Date(usdtRate.validFrom).toISOString();
       usdtRate.validUntil = new Date(usdtRate.validUntil).toISOString();
     }
+    const usdtReferenceRate = info.usdt_reference_rate_id
+      ? (
+          await client.query(
+            'select id,rate::text,source_url as "sourceUrl",valid_from as "validFrom",valid_until as "validUntil" from usdt_rates where id=$1',
+            [info.usdt_reference_rate_id],
+          )
+        ).rows[0]
+      : null;
+    if (usdtReferenceRate) {
+      usdtReferenceRate.validFrom = new Date(usdtReferenceRate.validFrom).toISOString();
+      usdtReferenceRate.validUntil = new Date(usdtReferenceRate.validUntil).toISOString();
+      usdtReferenceRate.equivalentVes = new Decimal(row.amount)
+        .times(usdtReferenceRate.rate)
+        .toFixed(2, Decimal.ROUND_HALF_UP);
+    }
     const applications = (
       await client.query(
         `select a.sale_id as "saleId",s.number,a.amount_usd::numeric(18,2)::text as "amountUsd",a.balance_after_usd::text as "balanceAfterUsd" from payment_applications a join sales s on s.id=a.sale_id where a.payment_id=$1 order by s.number`,
@@ -392,6 +410,8 @@ export class CommerceService implements OnModuleDestroy {
       operatorName: info.operator_name,
       bcvRate,
       usdtRate,
+      usdtReferenceRate,
+      conversionRoundingUsd: info.conversion_rounding_usd,
       applications,
       reversal,
     };
@@ -410,17 +430,37 @@ export class CommerceService implements OnModuleDestroy {
       amount: string;
       receivedAt: string;
       rateId?: string;
+      informationalUsdtRateId?: string;
     },
     basis: Exclude<SettlementBasis, 'legacy_bcv'>,
+    intendedUsd?: string,
   ): Promise<PaymentConversion> {
     this.validateTimestamp(input.receivedAt);
-    if (input.currency !== 'VES')
+    if (input.currency !== 'VES') {
+      let usdtReferenceRate: HistoricalUsdtRate | null = null;
+      if (input.currency === 'USDT' && input.informationalUsdtRateId) {
+        const candidate = await this.bcv.getUsdtById(
+          input.informationalUsdtRateId,
+          new Date(input.receivedAt),
+        );
+        if (candidate) {
+          try {
+            quotedVesToUsd(input.amount, candidate, 'divisa', new Date());
+            usdtReferenceRate = candidate;
+          } catch {
+            /* Informational only: USDT still settles USD 1:1. */
+          }
+        }
+      }
       return {
         amountUsd: new Decimal(input.amount).toFixed(2),
         basis,
         bcvRate: null,
         usdtRate: null,
+        usdtReferenceRate,
+        roundingUsd: '0.00',
       };
+    }
     const at = new Date(input.receivedAt),
       rate =
         basis === 'divisa'
@@ -439,7 +479,7 @@ export class CommerceService implements OnModuleDestroy {
         'La tasa cotizada venció antes de confirmar. Actualiza la tasa y revisa el cobro.',
       );
     }
-    const amountUsd = quotedVesToUsd(input.amount, rate, basis, at);
+    const { amountUsd, roundingUsd } = settleQuotedVes(input.amount, rate, basis, at, intendedUsd);
     if (new Decimal(amountUsd).lte(0))
       throw new BadRequestException(
         'El monto no alcanza un centavo USD; no se registró ningún abono.',
@@ -449,11 +489,14 @@ export class CommerceService implements OnModuleDestroy {
       basis,
       bcvRate: rate.source === 'BCV' ? rate : null,
       usdtRate: rate.source === 'BINANCE_P2P_BUY' ? rate : null,
+      usdtReferenceRate: null,
+      roundingUsd,
     };
   }
   async createSale(body: unknown, key: string | undefined, actor: string): Promise<SaleDetail> {
     const data = saleSchema.parse(body);
-    const settlementBasis = settlementBasisForLines(data.lines);
+    const settlementBasis =
+      'schemaVersion' in data ? data.settlementBasis : settlementBasisForLines(data.lines);
     this.validateTimestamp(data.soldAt);
     if (data.dueDate && data.dueDate < businessDate(new Date(data.soldAt)))
       throw new BadRequestException('La fecha pactada no puede ser anterior a la venta.');
@@ -463,9 +506,6 @@ export class CommerceService implements OnModuleDestroy {
       // The command receipt is checked before consulting rates, so a committed retry
       // remains recoverable even when the official rate later becomes unavailable.
       // BcvService reads the local verified cache only; it performs no network request.
-      const conversion = data.initialPayment
-        ? await this.conversion(data.initialPayment, settlementBasis)
-        : null;
       const customer = await this.client(client, data.clientId, true);
       if (!customer.active)
         throw new ConflictException('Este cliente está inactivo. Actívalo antes de vender.');
@@ -481,15 +521,16 @@ export class CommerceService implements OnModuleDestroy {
         description: string;
         presentation: Presentation;
         quantity: number;
-        priceBasis: PriceBasis;
-        referenceUnitUsd: string;
+        priceBasis: SalePriceBasis;
+        referenceUnitUsd: string | null;
+        commercialUnitLabel: string | null;
         agreedUnitUsd: string;
         totalUsd: string;
       }[] = [];
       for (const input of data.lines) {
         const rule = (
           await client.query(
-            `select r.id,r.variant_id,r.allowed_presentations,r.confirmation_status,f.name as fruit,v.name as variety,c.label as caliber,p.commercial_line
+            `select r.id,r.variant_id,r.allowed_presentations,r.confirmation_status,r.commercial_unit_label,f.name as fruit,v.name as variety,c.label as caliber,p.commercial_line
           from packing_rules r join product_variants p on p.id=r.variant_id join fruits f on f.id=p.fruit_id
           left join varieties v on v.id=p.variety_id left join calibers c on c.id=p.caliber_id where r.id=$1 for update of r`,
             [input.configurationId],
@@ -502,13 +543,16 @@ export class CommerceService implements OnModuleDestroy {
           );
         if (!(rule.allowed_presentations as string[]).includes(input.presentation))
           throw new BadRequestException('Esa presentación no está habilitada para el producto.');
-        const price = (
-          await client.query(
-            'select i.unit_usd::text from price_items i join price_lists l on l.id=i.price_list_id where i.variant_id=$1 and i.presentation=$2 and l.payment_basis=$3',
-            [rule.variant_id, input.presentation, input.priceBasis],
-          )
-        ).rows[0];
-        if (!price)
+        const price =
+          'priceBasis' in input
+            ? (
+                await client.query(
+                  'select i.unit_usd::text from price_items i join price_lists l on l.id=i.price_list_id where i.variant_id=$1 and i.presentation=$2 and l.payment_basis=$3',
+                  [rule.variant_id, input.presentation, input.priceBasis],
+                )
+              ).rows[0]
+            : null;
+        if ('priceBasis' in input && !price)
           throw new ConflictException(
             'Configura el precio de referencia de esa presentación antes de vender.',
           );
@@ -525,13 +569,18 @@ export class CommerceService implements OnModuleDestroy {
           id: randomUUID(),
           variantId: rule.variant_id,
           description,
-          referenceUnitUsd: price.unit_usd,
+          priceBasis: 'priceBasis' in input ? input.priceBasis : 'manual',
+          referenceUnitUsd: price?.unit_usd ?? null,
+          commercialUnitLabel: rule.commercial_unit_label ?? null,
           totalUsd: new Decimal(input.agreedUnitUsd)
             .times(input.quantity)
             .toFixed(2, Decimal.ROUND_HALF_UP),
         });
       }
       const totals = totalSaleLines(lines);
+      const conversion = data.initialPayment
+        ? await this.conversion(data.initialPayment, settlementBasis, totals.totalUsd)
+        : null;
       if (
         data.condition === 'cash' &&
         !new Decimal(conversion?.amountUsd ?? '0').eq(totals.totalUsd)
@@ -574,9 +623,9 @@ export class CommerceService implements OnModuleDestroy {
         throw new BadRequestException(
           'La venta no puede tener una fecha anterior a la recepción de su mercancía.',
         );
-      const costUsd = allocations
-        .reduce((sum, item) => sum.add(item.costUsd), new Decimal(0))
-        .toFixed(4);
+      const costUsd = allocations.some((item) => item.costUsd === null)
+        ? null
+        : allocations.reduce((sum, item) => sum.add(item.costUsd!), new Decimal(0)).toFixed(4);
       const number = (
         await client.query("select 'V-'||lpad(nextval('mm_sale_number_seq')::text,8,'0') as number")
       ).rows[0].number;
@@ -600,12 +649,12 @@ export class CommerceService implements OnModuleDestroy {
         ],
       );
       for (const line of lines) {
-        const cost = allocations
-          .filter((a) => a.saleLineId === line.id)
-          .reduce((sum, a) => sum.add(a.costUsd), new Decimal(0))
-          .toFixed(4);
+        const lineAllocations = allocations.filter((a) => a.saleLineId === line.id);
+        const cost = lineAllocations.some((a) => a.costUsd === null)
+          ? null
+          : lineAllocations.reduce((sum, a) => sum.add(a.costUsd!), new Decimal(0)).toFixed(4);
         await client.query(
-          `insert into sale_lines(id,sale_id,variant_id,presentation,quantity,reference_unit_usd,agreed_unit_usd,price_basis,description_snapshot,line_total_usd,cost_usd) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          `insert into sale_lines(id,sale_id,variant_id,presentation,quantity,reference_unit_usd,agreed_unit_usd,price_basis,description_snapshot,line_total_usd,cost_usd,commercial_unit_label_snapshot) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
           [
             line.id,
             id,
@@ -618,6 +667,7 @@ export class CommerceService implements OnModuleDestroy {
             line.description,
             line.totalUsd,
             cost,
+            line.commercialUnitLabel,
           ],
         );
       }
@@ -662,6 +712,13 @@ export class CommerceService implements OnModuleDestroy {
     customer: ClientSummary,
   ): Promise<string> {
     const rate = conversion.bcvRate ?? conversion.usdtRate;
+    if (conversion.usdtReferenceRate) {
+      try {
+        quotedVesToUsd(data.amount, conversion.usdtReferenceRate, 'divisa', new Date());
+      } catch {
+        conversion.usdtReferenceRate = null;
+      }
+    }
     if (rate) {
       try {
         quotedVesToUsd(data.amount, rate, conversion.basis, new Date());
@@ -673,8 +730,13 @@ export class CommerceService implements OnModuleDestroy {
     }
     if (
       rate &&
-      quotedVesToUsd(data.amount, rate, conversion.basis, new Date(data.receivedAt)) !==
-        conversion.amountUsd
+      settleQuotedVes(
+        data.amount,
+        rate,
+        conversion.basis,
+        new Date(data.receivedAt),
+        conversion.amountUsd,
+      ).amountUsd !== conversion.amountUsd
     )
       throw new ConflictException('La tasa del cobro dejó de ser válida.');
     if (
@@ -726,8 +788,8 @@ export class CommerceService implements OnModuleDestroy {
         );
     }
     const id = randomUUID();
-    await client.query(
-      'insert into payments(id,client_id,currency,amount,amount_usd,bcv_rate_id,received_at,idempotency_key,method,actor,client_snapshot,is_demo,usdt_rate_id) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13)',
+    const persisted = await client.query<{ usdt_reference_rate_id: string | null }>(
+      'insert into payments(id,client_id,currency,amount,amount_usd,bcv_rate_id,received_at,idempotency_key,method,actor,client_snapshot,is_demo,usdt_rate_id,usdt_reference_rate_id,conversion_rounding_usd) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15) returning usdt_reference_rate_id',
       [
         id,
         customer.id,
@@ -742,8 +804,13 @@ export class CommerceService implements OnModuleDestroy {
         JSON.stringify(snapshot(customer)),
         customer.isDemo,
         conversion.usdtRate?.id ?? null,
+        conversion.usdtReferenceRate?.id ?? null,
+        conversion.roundingUsd,
       ],
     );
+    // An informational quote can expire in the final INSERT boundary. Its
+    // omission by the guard must also be reflected in this operation's audit.
+    if (persisted.rows[0]?.usdt_reference_rate_id === null) conversion.usdtReferenceRate = null;
     for (const application of data.applications) {
       const balance = balances.find((r) => r.sale_id === application.saleId)!.balance_usd;
       await client.query(
@@ -771,6 +838,8 @@ export class CommerceService implements OnModuleDestroy {
         method: data.method,
         settlementBasis: data.currency === 'VES' ? conversion.basis : null,
         rateId: rate?.id ?? null,
+        informationalUsdtRateId: conversion.usdtReferenceRate?.id ?? null,
+        conversionRoundingUsd: conversion.roundingUsd,
       },
       actor,
       key,
@@ -805,6 +874,9 @@ export class CommerceService implements OnModuleDestroy {
           sales.map((sale) => sale.settlement_basis),
           data.currency,
         ),
+        data.applications
+          .reduce((sum, application) => sum.add(application.amountUsd), new Decimal(0))
+          .toFixed(2),
       );
       const id = await this.insertPayment(client, data, conversion, actor, key!, customer);
       return this.paymentDetail(client, id);

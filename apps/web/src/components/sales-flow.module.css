@@ -310,6 +310,42 @@
   font-size: 17px;
   font-variant-numeric: tabular-nums;
 }
+.usdtReference {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  padding-block: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.usdtReference p {
+  margin: 0;
+}
+.usdtEquivalent {
+  display: grid;
+  gap: 2px;
+}
+.usdtEquivalent strong {
+  color: var(--green);
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+}
+.usdtQuoteDetails summary {
+  padding-block: 8px;
+  cursor: pointer;
+  font-weight: 650;
+}
+.usdtQuoteDetails summary:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.usdtQuoteDetails[open] summary {
+  margin-bottom: 6px;
+}
 .dates {
   display: grid;
   gap: 16px;

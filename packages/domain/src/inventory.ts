@@ -204,6 +204,69 @@ export const quickReceiptSchema = z
   );
 export type QuickReceipt = z.infer<typeof quickReceiptSchema>;
 export type QuickReceiptInput = z.input<typeof quickReceiptSchema>;
+// New operations do not collect cost or change price lists. Keep the older
+// parsers unchanged: their normalized payload is part of committed replay hashes.
+export const simpleReceiptPackingSchema = z.lazy(() =>
+  z
+    .object({
+      confirmed: z.literal(true),
+      packingModel: packingFields.packingModel,
+      halfPreparation: packingFields.halfPreparation,
+      allowedPresentations: packingFields.allowedPresentations,
+      blistersPerBox: packingFields.blistersPerBox,
+      boxWeightKg: packingFields.boxWeightKg,
+      commercialUnitLabel: text.min(1).max(80).nullable().optional(),
+    })
+    .strict()
+    .refine(validPacking, 'Revisa el empaque confirmado.')
+    .refine(
+      (value) => confirmedPresentationsReady({ ...value, confirmationStatus: 'confirmed' }),
+      'Confirma únicamente presentaciones con preparación conocida.',
+    )
+    .refine(
+      (value) =>
+        !value.commercialUnitLabel ||
+        (value.packingModel === 'whole' && value.boxWeightKg === null),
+      'La unidad comercial indicada debe ser indivisible y sin peso inferido.',
+    ),
+);
+export const simpleReceiptSchema = z
+  .object({
+    schemaVersion: z.literal(3),
+    supplierId: z.uuid().nullable().default(null),
+    reference: text.min(1).max(80).nullable().default(null),
+    receivedAt: z.iso.datetime({ offset: true }).optional(),
+    notes: optionalText(500),
+    isDemo: z.boolean().default(false),
+    lines: z
+      .array(
+        z
+          .object({
+            product: receiptProductSchema,
+            boxes: z.number().int().min(1).max(1000),
+            packing: simpleReceiptPackingSchema.optional(),
+            blisterOverride: z
+              .object({
+                blistersPerBox: z.number().int().min(1).max(100),
+                confirmed: z.literal(true),
+                reason: reasonSchema,
+              })
+              .strict()
+              .optional(),
+            notes: optionalText(500),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(50),
+  })
+  .strict()
+  .refine(
+    (value) => value.lines.reduce((sum, line) => sum + line.boxes, 0) <= 1000,
+    'Una recepción admite hasta 1.000 unidades comerciales; divide las recepciones mayores.',
+  );
+export type SimpleReceipt = z.infer<typeof simpleReceiptSchema>;
+export type SimpleReceiptInput = z.input<typeof simpleReceiptSchema>;
 export function formatReceiptNumber(value: string | bigint): string {
   const number = String(value);
   if (!/^[1-9]\d*$/.test(number)) throw new Error('Número interno de recepción inválido.');
@@ -305,7 +368,8 @@ export type LotSummary = StockSummary & {
   halfPreparation: HalfPreparation;
   allowedPresentations: Presentation[];
   boxWeightKgSnapshot: string | null;
-  unitCostUsd: string;
+  unitCostUsd: string | null;
+  commercialUnitLabel: string | null;
   notes: string;
   isDemo: boolean;
   version: number;

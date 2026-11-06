@@ -5,14 +5,12 @@ import {
   type HabitualCatalogOption,
 } from '../../packages/domain/src/index';
 import {
-  acceptPreviousCost,
   buildQuickReceipt,
   emptyReceiptDraft,
   productSearchMatches,
   receiptDraftSchema,
   receiptLine,
   receiptOptionChanged,
-  receiptTotal,
   revisePacking,
 } from '../../apps/web/src/lib/receipt-flow';
 import {
@@ -37,51 +35,87 @@ const apple = options.find(
 )!;
 function draftFor(option: HabitualCatalogOption = apple) {
   const draft = emptyReceiptDraft('production:owner-id');
-  draft.lines = [{ ...receiptLine(option), cost: '25,00', boxes: '2' }];
+  draft.lines = [{ ...receiptLine(option), boxes: '2' }];
   return draft;
 }
 
-describe('recepción rápida: revisión y costo explícitos', () => {
-  it('ofrece 100 con cuatro blísteres y costo vacío; revisar no requiere proveedor ni referencia', () => {
+describe('recepción simple: cantidad y revisión explícitas', () => {
+  it('ofrece 100 con cuatro blísteres, una caja y sin importes; no requiere proveedor ni referencia', () => {
     const line = receiptLine(apple);
     expect(line.packing?.blistersPerBox).toBe(4);
-    expect(line.cost).toBe('');
-    expect(line.previousCost).toBeNull();
-    expect(() => buildQuickReceipt({ ...draftFor(), lines: [line] }, options)).toThrow();
+    expect(line.boxes).toBe('1');
     const body = buildQuickReceipt(draftFor(), options);
-    expect(body).toMatchObject({ schemaVersion: 2, supplierId: null, reference: null });
+    expect(body).toMatchObject({ schemaVersion: 3, supplierId: null, reference: null });
     expect(body.receivedAt).toBeUndefined();
-    expect(body.lines[0]).toMatchObject({
-      cost: { kind: 'entered', unitCostUsd: '25.0000', accepted: true },
-      priceAction: 'keep',
-      prices: [],
-    });
+    expect(body.lines[0].boxes).toBe(2);
     expect(body.lines[0].packing).toBeUndefined();
+    expect(JSON.stringify(body)).not.toMatch(/cost|price/i);
   });
-  it('no usa el costo anterior hasta pulsar aceptar y conserva el lote fuente exacto', () => {
-    const previous = {
-      sourceLotId: '20000000-0000-4000-8000-000000000001',
-      unitCostUsd: '27.0000',
-      receivedAt: '2026-11-05T15:00:00.000Z',
+  it('requiere una cantidad entera positiva sin inventar costos ni precios', () => {
+    for (const boxes of ['0', '-1', '1.5', '']) {
+      const draft = draftFor();
+      draft.lines[0].boxes = boxes;
+      expect(() => buildQuickReceipt(draft, options)).toThrow();
+    }
+  });
+  it('migra el borrador editable V2, conservando exactamente un comando anterior pendiente', async () => {
+    const previousBody = {
+      schemaVersion: 2,
+      supplierId: null,
+      reference: null,
+      notes: '',
+      lines: [
+        {
+          product: apple.product,
+          boxes: 2,
+          cost: { kind: 'entered', unitCostUsd: '25.0000', accepted: true },
+          priceAction: 'keep',
+          prices: [],
+        },
+      ],
     };
-    const draft = draftFor();
-    draft.lines[0] = { ...draft.lines[0], cost: '', previousCost: previous };
-    expect(() => buildQuickReceipt(draft, options)).toThrow();
-    draft.lines[0] = acceptPreviousCost(draft.lines[0], previous);
-    expect(buildQuickReceipt(draft, options).lines[0].cost).toEqual({
-      kind: 'previous',
-      ...{ sourceLotId: previous.sourceLotId, unitCostUsd: previous.unitCostUsd },
-      accepted: true,
-    });
-    expect(receiptTotal(draft.lines)).toBe('54.0000');
+    const pending = await createPendingReceipt(previousBody);
+    const legacy = {
+      ...draftFor(),
+      version: 2,
+      pending,
+      lines: [
+        {
+          ...draftFor().lines[0],
+          cost: '25.00',
+          costSource: 'entered',
+          previousCost: null,
+          priceAction: 'replace',
+          prices: [{ presentation: 'box', promoUsd: '40' }],
+        },
+      ],
+    };
+    const reopened = receiptDraftSchema.parse(JSON.parse(JSON.stringify(legacy)));
+    expect(reopened.version).toBe(3);
+    expect(reopened.pending).toEqual(pending);
+    expect(await verifyPendingReceipt(reopened.pending)).toBe(true);
+    expect(JSON.stringify(reopened.lines)).not.toMatch(/cost|price/i);
+    expect(JSON.parse(reopened.pending!.body)).toEqual(previousBody);
   });
-  it('rechaza costo cero y no pierde precisión de cuatro decimales', () => {
-    const draft = draftFor();
-    draft.lines[0].cost = '0';
+  it('exige unidad comercial expresa para alimentos y conserva la etiqueta elegida', () => {
+    const food = options.find((option) => option.templateId === 'raisins')!;
+    const draft = draftFor(food);
+    expect(draft.lines[0].packing).toBeNull();
     expect(() => buildQuickReceipt(draft, options)).toThrow();
-    draft.lines[0].cost = '0,3333';
-    draft.lines[0].boxes = '3';
-    expect(receiptTotal(draft.lines)).toBe('0.9999');
+    draft.lines[0] = revisePacking(draft.lines[0], {
+      packingModel: 'whole',
+      halfPreparation: 'none',
+      allowedPresentations: ['box'],
+      blistersPerBox: null,
+      boxWeightKg: null,
+      commercialUnitLabel: 'Envase sellado 500 g',
+    });
+    draft.lines[0].packingConfirmed = true;
+    expect(buildQuickReceipt(draft, options).lines[0].packing).toMatchObject({
+      confirmed: true,
+      commercialUnitLabel: 'Envase sellado 500 g',
+      packingModel: 'whole',
+    });
   });
   it('no sustituye una versión guardada al reabrir luego de otro cambio de empaque', () => {
     const original: HabitualCatalogOption = {
@@ -106,7 +140,6 @@ describe('recepción rápida: revisión y costo explícitos', () => {
     expect(() => buildQuickReceipt(draft, [changed])).toThrow('empaque del producto 1 cambió');
     expect(draft.lines[0].product).toEqual(original.product);
     expect(draft.lines[0]).toMatchObject({
-      cost: '25,00',
       boxes: '2',
       packing: { blistersPerBox: 4 },
     });
@@ -166,7 +199,10 @@ describe('continuidad local sin autenticación guardada', () => {
     expect(await verifyPendingReceipt(reopened.pending)).toBe(true);
     expect(reopened.pending).toEqual(pending);
     expect(
-      await verifyPendingReceipt({ ...pending, body: pending.body.replace('25.00', '0.01') }),
+      await verifyPendingReceipt({
+        ...pending,
+        body: pending.body.replace('\"boxes\":2', '\"boxes\":3'),
+      }),
     ).toBe(false);
     expect(await receiptFingerprint(pending.body)).toBe(pending.hash);
     expect(JSON.stringify(reopened)).not.toMatch(/password|cookie|token|authorization/i);

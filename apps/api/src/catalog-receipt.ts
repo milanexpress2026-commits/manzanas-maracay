@@ -2,11 +2,11 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import Decimal from 'decimal.js';
 import {
-  CATALOG_TEMPLATES,
+  getHabitualTemplates,
+  getHabitualTemplate,
   catalogNameKey,
   habitualPacking,
   habitualPackingIssue,
-  HABITUAL_CATALOG_VERSION,
   type ReceiptProduct,
   type ReceiptPacking,
 } from '../../../packages/domain/src/index';
@@ -21,6 +21,7 @@ export type ReceiptRule = {
   allowed_presentations: ReceiptPacking['allowedPresentations'];
   blisters_per_box: number | null;
   box_weight_kg: string | null;
+  commercial_unit_label: string | null;
   fruit: string;
   variety: string | null;
   caliber: string | null;
@@ -32,6 +33,7 @@ const selectRule = `select r.*,f.name as fruit,v.name as variety,c.label as cali
 function matches(rule: ReceiptRule, packing: ReceiptPacking) {
   return (
     rule.packing_model === packing.packingModel &&
+    (rule.commercial_unit_label ?? null) === (packing.commercialUnitLabel ?? null) &&
     rule.half_preparation === packing.halfPreparation &&
     rule.blisters_per_box === packing.blistersPerBox &&
     [...rule.allowed_presentations].sort().join(',') ===
@@ -48,6 +50,7 @@ async function audit(
   after: unknown,
   actor: string,
   key: string,
+  templateVersion: 'v4.2' | 'v4.5' = 'v4.2',
 ) {
   await client.query(
     `insert into audit_events(entity_type,entity_id,action,before,after,actor,request_id)
@@ -55,7 +58,7 @@ async function audit(
     [
       id,
       before === null ? null : JSON.stringify(before),
-      JSON.stringify({ ...(after as object), templateVersion: HABITUAL_CATALOG_VERSION }),
+      JSON.stringify({ ...(after as object), templateVersion }),
       actor,
       key,
     ],
@@ -67,20 +70,59 @@ async function confirmPending(
   packing: ReceiptPacking | undefined,
   actor: string,
   key: string,
+  templateVersion: 'v4.2' | 'v4.5' = 'v4.2',
 ) {
+  const template = getHabitualTemplates(templateVersion).find(
+    (t) =>
+      catalogNameKey(t.fruitName) === catalogNameKey(rule.fruit) &&
+      ((t.commercialLine || 'Estándar') === rule.commercial_line || t.requiresCommercialUnit),
+  );
   if (rule.confirmation_status === 'confirmed') {
+    // A missing name may be completed only after explicit review and before the
+    // first lot. Existing lots retain their own immutable commercial identity.
+    if (
+      templateVersion === 'v4.5' &&
+      packing?.commercialUnitLabel &&
+      !rule.commercial_unit_label &&
+      matches(rule, { ...packing, commercialUnitLabel: null })
+    ) {
+      if (
+        (await client.query('select 1 from lots where packing_rule_id=$1 limit 1', [rule.id]))
+          .rowCount
+      )
+        throw new ConflictException(
+          'Este producto ya tiene historia. Revisa su unidad comercial en el catálogo antes de recibir.',
+        );
+      const result = (
+        await client.query(
+          `update packing_rules set commercial_unit_label=$2,version=version+1,updated_at=now() where id=$1 returning *`,
+          [rule.id, packing.commercialUnitLabel],
+        )
+      ).rows[0];
+      const after = { ...rule, ...result } as ReceiptRule;
+      await audit(client, rule.id, rule, after, actor, key, templateVersion);
+      return after;
+    }
     if (packing && !matches(rule, packing))
       throw new ConflictException(
         'El empaque confirmado cambió. Usa una excepción de blíster para este lote o revisa el catálogo por separado.',
       );
+    if (template?.requiresCommercialUnit && !rule.commercial_unit_label)
+      throw new BadRequestException(
+        'Indica y confirma la unidad comercial de este alimento antes de recibir.',
+      );
     return rule;
   }
-  const template = CATALOG_TEMPLATES.find(
-    (t) =>
-      catalogNameKey(t.fruitName) === catalogNameKey(rule.fruit) &&
-      (t.commercialLine || 'Estándar') === rule.commercial_line,
-  );
   const suggested = template ? habitualPacking(template, rule.variety, rule.caliber) : null;
+  if (
+    templateVersion === 'v4.5' &&
+    !packing &&
+    suggested?.packingModel === 'blister' &&
+    suggested.blistersPerBox === null
+  )
+    throw new BadRequestException(
+      'Confirma el empaque de este calibre excepcional antes de recibir.',
+    );
   const selected = packing ?? suggested;
   if (!selected)
     throw new BadRequestException('Confirma la presentación de este producto antes de recibir.');
@@ -100,7 +142,7 @@ async function confirmPending(
     await client.query(
       `update packing_rules set packing_model=$2,half_preparation=$3,
     allowed_presentations=$4,blisters_per_box=$5,box_weight_kg=$6,confirmation_status='confirmed',
-    version=version+1,updated_at=now() where id=$1 returning *`,
+    commercial_unit_label=$7,version=version+1,updated_at=now() where id=$1 returning *`,
       [
         rule.id,
         selected.packingModel,
@@ -108,11 +150,12 @@ async function confirmPending(
         selected.allowedPresentations,
         selected.blistersPerBox,
         selected.boxWeightKg,
+        selected.commercialUnitLabel ?? null,
       ],
     )
   ).rows[0];
   const after = { ...rule, ...result } as ReceiptRule;
-  await audit(client, rule.id, rule, after, actor, key);
+  await audit(client, rule.id, rule, after, actor, key, templateVersion);
   return after;
 }
 
@@ -123,6 +166,7 @@ export async function resolveReceiptProduct(
   packing: ReceiptPacking | undefined,
   actor: string,
   key: string,
+  templateVersion: 'v4.2' | 'v4.5' = 'v4.2',
 ): Promise<ReceiptRule> {
   if ('configurationId' in product) {
     const rule = (
@@ -133,9 +177,11 @@ export async function resolveReceiptProduct(
     if (!rule) throw new BadRequestException('El producto ya no existe. Actualiza el catálogo.');
     if (rule.version !== product.expectedPackingVersion)
       throw new ConflictException('Otra persona cambió el empaque. Revisa la versión actual.');
-    return confirmPending(client, rule, packing, actor, key);
+    return confirmPending(client, rule, packing, actor, key, templateVersion);
   }
-  const template = CATALOG_TEMPLATES.find((t) => t.id === product.templateId)!;
+  const template = getHabitualTemplate(product.templateId, product.templateVersion);
+  if (!template)
+    throw new BadRequestException('La plantilla ya no está disponible. Actualiza el catálogo.');
   const varietyName = product.varietyName ?? null,
     caliberLabel = product.caliberLabel ?? null;
   if (!!varietyName !== template.requiresVariety || !!caliberLabel !== template.requiresCaliber)
@@ -174,10 +220,20 @@ export async function resolveReceiptProduct(
   if (
     caliberLabel &&
     !existingCaliber &&
-    !template.calibers.some((c) => catalogNameKey(c) === catalogNameKey(caliberLabel))
+    !template.calibers.some((c) => catalogNameKey(c) === catalogNameKey(caliberLabel)) &&
+    product.templateVersion !== 'v4.5'
   )
     throw new BadRequestException('Agrega el calibre excepcional al catálogo antes de usarlo.');
   const suggested = habitualPacking(template, varietyName, caliberLabel);
+  if (
+    product.templateVersion === 'v4.5' &&
+    !packing &&
+    suggested?.packingModel === 'blister' &&
+    suggested.blistersPerBox === null
+  )
+    throw new BadRequestException(
+      'Confirma el empaque de este calibre excepcional antes de recibir.',
+    );
   const selected = packing ?? suggested;
   if (!selected)
     throw new BadRequestException('Confirma la presentación de este producto antes de recibir.');
@@ -237,7 +293,7 @@ export async function resolveReceiptProduct(
   const inserted = (
     await client.query(
       `insert into packing_rules(variant_id,packing_model,half_preparation,allowed_presentations,
-    blisters_per_box,box_weight_kg,confirmation_status,notes) values($1,$2,$3,$4,$5,$6,'confirmed',$7)
+    blisters_per_box,box_weight_kg,confirmation_status,notes,commercial_unit_label) values($1,$2,$3,$4,$5,$6,'confirmed',$7,$8)
     on conflict do nothing returning id`,
       [
         variant.id,
@@ -246,7 +302,8 @@ export async function resolveReceiptProduct(
         selected.allowedPresentations,
         selected.blistersPerBox,
         selected.boxWeightKg,
-        'Configuración habitual revisada al guardar la recepción V4.2.',
+        `Configuración habitual revisada al guardar la recepción ${product.templateVersion}.`,
+        selected.commercialUnitLabel ?? null,
       ],
     )
   ).rows[0];
@@ -257,12 +314,8 @@ export async function resolveReceiptProduct(
   ).rows[0]!;
   if (!inserted) {
     // A product materialized by another command is reused only if its packing is the reviewed one.
-    if (rule.confirmation_status === 'confirmed' && !matches(rule, selected))
-      throw new ConflictException(
-        'Este producto ya tiene otro empaque confirmado. Actualiza y revisa la recepción.',
-      );
-    return confirmPending(client, rule, packing, actor, key);
+    return confirmPending(client, rule, selected, actor, key, product.templateVersion);
   }
-  await audit(client, rule.id, null, rule, actor, key);
+  await audit(client, rule.id, null, rule, actor, key, product.templateVersion);
   return rule;
 }

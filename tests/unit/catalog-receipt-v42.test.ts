@@ -17,6 +17,7 @@ const rule: ReceiptRule = {
   allowed_presentations: ['box', 'blister'],
   blisters_per_box: null,
   box_weight_kg: null,
+  commercial_unit_label: null,
   fruit: 'Manzana',
   variety: 'Gala',
   caliber: '100',
@@ -199,7 +200,116 @@ describe('materializador transaccional de recepción V4.2', () => {
       half_preparation: 'pending',
       version: 2,
     });
-    expect(query.mock.calls[1]![1]).toEqual([id, 'blister', 'pending', ['box'], null, null]);
+    expect(query.mock.calls[1]![1]).toEqual([id, 'blister', 'pending', ['box'], null, null, null]);
     expect(query.mock.calls[2]![0]).toContain('insert into audit_events');
   });
+  it('alimento confirmado sin unidad no se recibe por una solicitud manipulada', async () => {
+    const food = {
+      ...rule,
+      fruit: 'Pasas',
+      commercial_line: 'Unidad comercial',
+      variety: null,
+      caliber: null,
+      packing_model: 'whole',
+      half_preparation: 'none',
+      allowed_presentations: ['box'],
+      confirmation_status: 'confirmed',
+    };
+    const query = vi.fn().mockResolvedValueOnce({ rows: [food] });
+    await expect(
+      resolveReceiptProduct({ query } as unknown as PoolClient, product, undefined, id, id, 'v4.5'),
+    ).rejects.toThrow('unidad comercial');
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+  it('pera 130 virtual exige revisión explícita sin crear maestros ni confirmar cantidades inferidas', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    await expect(
+      resolveReceiptProduct(
+        { query } as unknown as PoolClient,
+        {
+          templateId: 'pear',
+          templateVersion: 'v4.5',
+          varietyName: 'Forelle',
+          caliberLabel: '130',
+        },
+        undefined,
+        id,
+        id,
+        'v4.5',
+      ),
+    ).rejects.toThrow('calibre excepcional');
+    expect(query.mock.calls.every(([sql]) => sql.startsWith('select '))).toBe(true);
+  });
+  it('pera 130 pendiente exige revisión; la misma configuración histórica confirmada se conserva', async () => {
+    const pear = {
+      ...rule,
+      fruit: 'Pera',
+      variety: 'Forelle',
+      caliber: '130',
+      allowed_presentations: ['box'],
+    };
+    const query = vi.fn().mockResolvedValueOnce({ rows: [pear] });
+    await expect(
+      resolveReceiptProduct({ query } as unknown as PoolClient, product, undefined, id, id, 'v4.5'),
+    ).rejects.toThrow('calibre excepcional');
+    expect(query).toHaveBeenCalledTimes(1);
+    const historical = { ...pear, confirmation_status: 'confirmed', blisters_per_box: 7 };
+    query.mockResolvedValueOnce({ rows: [historical] });
+    await expect(
+      resolveReceiptProduct({ query } as unknown as PoolClient, product, undefined, id, id, 'v4.5'),
+    ).resolves.toEqual(historical);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls.every(([sql]) => sql.startsWith('select '))).toBe(true);
+  });
+  it.each([false, true])(
+    'completar una etiqueta explícita solo es posible antes de la primera recepción (historia=%s)',
+    async (history) => {
+      const food = {
+        ...rule,
+        fruit: 'Pasas',
+        commercial_line: 'Unidad comercial',
+        variety: null,
+        caliber: null,
+        packing_model: 'whole',
+        half_preparation: 'none',
+        allowed_presentations: ['box'],
+        confirmation_status: 'confirmed',
+      };
+      const selected: ReceiptPacking = {
+        packingModel: 'whole',
+        halfPreparation: 'none',
+        allowedPresentations: ['box'],
+        blistersPerBox: null,
+        boxWeightKg: null,
+        commercialUnitLabel: 'Saco recibido',
+      };
+      const query = vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [food] })
+        .mockResolvedValueOnce({ rows: history ? [{ exists: 1 }] : [], rowCount: history ? 1 : 0 })
+        .mockResolvedValueOnce({
+          rows: [{ ...food, commercial_unit_label: selected.commercialUnitLabel, version: 2 }],
+        })
+        .mockResolvedValueOnce({ rows: [] });
+      const operation = resolveReceiptProduct(
+        { query } as unknown as PoolClient,
+        product,
+        selected,
+        id,
+        id,
+        'v4.5',
+      );
+      if (history) {
+        await expect(operation).rejects.toThrow('ya tiene historia');
+        expect(query).toHaveBeenCalledTimes(2);
+      } else {
+        await expect(operation).resolves.toMatchObject({
+          commercial_unit_label: 'Saco recibido',
+          version: 2,
+        });
+        expect(query.mock.calls[2]![1]).toEqual([id, 'Saco recibido']);
+        expect(query.mock.calls[3]![0]).toContain('insert into audit_events');
+      }
+    },
+  );
 });

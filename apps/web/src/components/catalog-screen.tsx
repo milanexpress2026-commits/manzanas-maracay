@@ -44,7 +44,6 @@ import { CatalogTemplates } from './catalog-templates';
 import { HabitualCatalog } from './habitual-catalog';
 import preparationStyles from './catalog-preparation.module.css';
 import { AppShell, type AppSession } from './app-shell';
-import { CatalogPrices } from './catalog-prices';
 import { packingLabel, productLabel, presentationNames } from '@/lib/commercial-ui';
 import { useCommand } from '@/lib/inventory-api';
 import { FormError, SaveButton } from './operations-ui';
@@ -81,7 +80,6 @@ export function CatalogScreen({ session }: { session: AppSession }) {
   const [rename, setRename] = useState<{ id: string; name: string } | null>(null);
   const [formBusy, setFormBusy] = useState(false);
   const [returnToSale, setReturnToSale] = useState(false);
-  const [priceTarget, setPriceTarget] = useState('');
   const triggerRef = useRef<HTMLElement | null>(null);
   const caliberMemory = useRef<Partial<Record<CatalogFamily, string[]>>>({});
   const [preparing, setPreparing] = useState(false);
@@ -102,7 +100,6 @@ export function CatalogScreen({ session }: { session: AppSession }) {
     const product = params.get('producto');
     if (product) {
       setSelectedId(product);
-      if (params.get('precios') === '1') setPriceTarget(product);
     }
     void reload();
     const update = () => setOffline(!navigator.onLine);
@@ -256,7 +253,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
               </h2>
               <p>
                 Revisa las frutas y opciones ya comunicadas, desmarca lo que no vendas y prepara los
-                borradores. Las cajas, costos y precios se registran después.
+                borradores. Recibe la mercancía cuando llegue al negocio.
               </p>
               <Button
                 variant={catalog.fruits.length ? 'outline' : 'default'}
@@ -570,7 +567,9 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                       {selected.packingModel === 'halves'
                         ? 'Dos mitades comerciales, sin conteo de piezas.'
                         : selected.packingModel === 'whole'
-                          ? 'Se vende únicamente la caja completa.'
+                          ? selected.commercialUnitLabel
+                            ? 'Se vende únicamente la unidad comercial completa.'
+                            : 'Se vende únicamente la caja completa.'
                           : 'Contenido pendiente de confirmar.'}
                     </p>
                   )}
@@ -579,7 +578,13 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                   <div>
                     <dt>Venta permitida</dt>
                     <dd>
-                      {selected.allowedPresentations.map((p) => presentationNames[p]).join(', ')}
+                      {selected.allowedPresentations
+                        .map((p) =>
+                          p === 'box' && selected.commercialUnitLabel
+                            ? selected.commercialUnitLabel
+                            : presentationNames[p],
+                        )
+                        .join(', ')}
                     </dd>
                   </div>
                   <div>
@@ -615,12 +620,6 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                   Editar empaque
                 </Button>
                 {selected.notes ? <p className="packing-notes">{selected.notes}</p> : null}
-                <CatalogPrices
-                  key={selected.id + ':' + selected.version}
-                  configuration={selected}
-                  initialOpen={selected.id === priceTarget}
-                  onSaved={reload}
-                />
               </>
             ) : (
               <div className="detail-empty">

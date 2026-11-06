@@ -10,6 +10,8 @@ import {
   varietySchema,
   confirmedPresentationsReady,
   suggestedBlistersPerBox,
+  getHabitualTemplate,
+  habitualPacking,
   type Catalog,
   type Caliber,
   type Fruit,
@@ -92,13 +94,19 @@ export function ProductForm({
   const suggestions = caliberSuggestions[family];
   const audioSuggestion =
     model === 'blister'
-      ? suggestedBlistersPerBox(
-          currentFruit?.name ?? '',
-          variety?.name ?? null,
-          caliber?.label ?? null,
-          line,
-          model,
-        )
+      ? family === 'pear'
+        ? (habitualPacking(
+            getHabitualTemplate('pear', 'v4.5')!,
+            variety?.name ?? null,
+            caliber?.label ?? null,
+          )?.blistersPerBox ?? null)
+        : suggestedBlistersPerBox(
+            currentFruit?.name ?? '',
+            variety?.name ?? null,
+            caliber?.label ?? null,
+            line,
+            model,
+          )
       : null;
   const productName = [
     currentFruit?.name,
@@ -125,7 +133,7 @@ export function ProductForm({
     setFamily(next);
     setChosenCalibers([...(rememberedCalibers.current[next] ?? caliberSuggestions[next] ?? [])]);
     setLine(
-      next === 'bulk' ? 'Granel' : ['apple', 'pear'].includes(next) ? 'Tradicional' : 'Estándar',
+      next === 'bulk' ? 'A granel' : ['apple', 'pear'].includes(next) ? 'Tradicional' : 'Estándar',
     );
     setConfirmed(false);
   }
@@ -176,7 +184,7 @@ export function ProductForm({
     changeModel(family === 'grape' ? 'whole' : 'halves');
     setWeight(family === 'kiwi' ? '10' : '');
     if (family === 'kiwi') setLine('Caja 10 kg');
-    if (family === 'bulk') setLine('Granel');
+    if (family === 'bulk') setLine('A granel');
     setNotice('Empaque seleccionado. Revisa y confirma las presentaciones antes de guardar.');
   }
   async function command<T>(endpoint: string, data: unknown): Promise<T> {
@@ -347,7 +355,7 @@ export function ProductForm({
           {confirmed
             ? 'Ya puedes registrar la mercancía que recibas.'
             : 'El empaque quedó pendiente. Confírmalo antes de recibir mercancía en producción.'}{' '}
-          No se añadió stock ni precio.
+          Las existencias se registran al recibir la mercancía.
         </p>
         <Button asChild>
           <Link href={productReceiptHref(savedId, returnToSale)}>
@@ -586,7 +594,9 @@ export function ProductForm({
                   />
                   <FieldDescription>
                     {audioSuggestion
-                      ? 'El calibre 100 pertenece al grupo de cuatro; mayores de 100 llevan cinco.'
+                      ? family === 'pear'
+                        ? 'Peras: 70, 80, 90, 100, 110, 120 y 125 llevan cuatro; 135, 150 y 165 llevan cinco.'
+                        : 'El calibre 100 pertenece al grupo de cuatro; mayores de 100 llevan cinco.'
                       : 'Indica la cantidad verificada; si no la conoces, conserva el dato pendiente.'}
                   </FieldDescription>
                 </Field>
@@ -763,8 +773,8 @@ export function ProductForm({
             </dl>
             {notes ? <p>{notes}</p> : null}
             <p className={styles.hint}>
-              Guardar agrega el producto al catálogo. Las cajas, costos y precios se registran
-              después, al recibir mercancía.
+              Guardar agrega el producto al catálogo. Recibe la mercancía para registrar sus
+              existencias.
             </p>
           </div>
         )}

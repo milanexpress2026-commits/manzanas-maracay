@@ -2,10 +2,10 @@
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import {
-  CATALOG_TEMPLATES,
+  HABITUAL_TEMPLATES_V45,
   catalogConfigurationBatchSchema,
   type Catalog,
-  type CatalogTemplate,
+  type HabitualTemplate,
   type CatalogConfigurationBatchResult,
   type Caliber,
 } from '@mm/domain';
@@ -18,6 +18,9 @@ import { Field, FieldLabel } from './ui/field';
 import { FormError } from './operations-ui';
 import { PackingReviewFields, type PackingReviewValue } from './packing-review-fields';
 import styles from './catalog-preparation.module.css';
+const CATALOG_TEMPLATES = HABITUAL_TEMPLATES_V45.filter(
+  (template) => !template.requiresCommercialUnit,
+);
 
 export function CatalogTemplates({
   catalog,
@@ -61,7 +64,7 @@ export function CatalogTemplates({
     (row) => row.fruitId === fruitId && !template.calibers.includes(row.label),
   );
   const selectedFruit = catalog.fruits.find((row) => row.id === fruitId);
-  function changeTemplate(id: CatalogTemplate['id']) {
+  function changeTemplate(id: HabitualTemplate['id']) {
     const next = CATALOG_TEMPLATES.find((item) => item.id === id)!;
     const fruit = catalog.fruits.find(
       (item) => item.name.toLowerCase() === next.fruitName.toLowerCase(),
@@ -181,7 +184,7 @@ export function CatalogTemplates({
             <NativeSelect
               id="template-kind"
               value={templateId}
-              onChange={(event) => changeTemplate(event.target.value as CatalogTemplate['id'])}
+              onChange={(event) => changeTemplate(event.target.value as HabitualTemplate['id'])}
             >
               {CATALOG_TEMPLATES.map((item) => (
                 <option key={item.id} value={item.id}>

@@ -88,16 +88,16 @@ describe('cuatro opciones de cobro conservan moneda y acuerdo', () => {
 });
 
 describe('venta rápida: decisiones explícitas y dinero exacto', () => {
-  it('elige presentación y precio únicos; no inventa la lista que falta', () => {
+  it('elige la presentación única pero exige precio manual aunque haya una lista histórica', () => {
     const product = config([{ presentation: 'box', promoUsd: '40.0000', regularUsd: null }]);
     const line = changeSaleLine(emptySaleLine(1), { configurationId: product.id }, product);
     expect(line).toMatchObject({
       presentation: 'box',
-      priceBasis: 'usd_cash_promo',
-      agreedUnitUsd: '40.0000',
+      priceBasis: '',
+      agreedUnitUsd: '',
     });
   });
-  it('requiere el acuerdo cuando existen ambas listas, incluso si hoy cuestan lo mismo', () => {
+  it('no propone importes de ninguna lista histórica', () => {
     for (const regularUsd of ['45.0000', '40.0000']) {
       const product = config([{ presentation: 'box', promoUsd: '40.0000', regularUsd }]);
       const line = changeSaleLine(emptySaleLine(1), { configurationId: product.id }, product);
@@ -105,7 +105,7 @@ describe('venta rápida: decisiones explícitas y dinero exacto', () => {
       expect(line.agreedUnitUsd).toBe('');
     }
   });
-  it('conserva un precio negociado al seleccionar otro acuerdo de lista', () => {
+  it('conserva el precio manual al cambiar el acuerdo, y lo limpia al cambiar de producto', () => {
     const product = config([{ presentation: 'box', promoUsd: '40.0000', regularUsd: '45.0000' }]);
     const selected = changeSaleLine(emptySaleLine(1), { configurationId: product.id }, product);
     const promotional = changeSaleLine(selected, { priceBasis: 'usd_cash_promo' }, product);
@@ -115,6 +115,10 @@ describe('venta rápida: decisiones explícitas y dinero exacto', () => {
       agreedUnitUsd: '38,50',
       priceEdited: true,
     });
+    expect(changeSaleLine(negotiated, { configurationId: 'another' }, product).agreedUnitUsd).toBe(
+      '',
+    );
+    expect(changeSaleLine(negotiated, { quantity: '3' }, product).agreedUnitUsd).toBe('38,50');
   });
   it('recalcula subtotal con redondeo por línea y nunca conserva un cobro previo', () => {
     const line = { ...emptySaleLine(1), quantity: '3', agreedUnitUsd: '0,3350' };
@@ -133,9 +137,9 @@ describe('fecha de venta al revisar', () => {
     expect(new Date(soldAt).valueOf()).toBeGreaterThan(receivedAt.valueOf());
   });
   it('respeta la fecha manual de Venezuela aunque la revisión ocurra después', () => {
-    expect(
-      saleReviewInstant('2026-11-04T09:35', true, new Date('2026-11-05T16:23:44.830Z')),
-    ).toBe('2026-11-04T13:35:00.000Z');
+    expect(saleReviewInstant('2026-11-04T09:35', true, new Date('2026-11-05T16:23:44.830Z'))).toBe(
+      '2026-11-04T13:35:00.000Z',
+    );
     expect(() => saleReviewInstant('fecha inválida', true)).toThrow('fecha y hora válidas');
   });
 });

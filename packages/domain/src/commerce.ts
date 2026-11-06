@@ -7,6 +7,7 @@ export const presentationSchema = z.enum(['box', 'half_box', 'blister']);
 export const priceBasisSchema = z.enum(['usd_cash_promo', 'ves_regular']);
 export type Presentation = z.infer<typeof presentationSchema>;
 export type PriceBasis = z.infer<typeof priceBasisSchema>;
+export type SalePriceBasis = PriceBasis | 'manual';
 export type SettlementBasis = 'divisa' | 'bcv' | 'legacy_bcv';
 export type PaymentCurrency = 'USD' | 'USDT' | 'VES';
 export const paymentMethodOptions = [
@@ -87,6 +88,29 @@ export function quotedVesToUsd(
     );
   return received.div(value).toFixed(2, Decimal.ROUND_HALF_UP);
 }
+/** Settle the USD amount whose displayed, cent-rounded VES amount was received.
+ * No arbitrary USD tolerance: the forward conversion must match exactly.
+ * The adjustment is persisted separately for an auditable rounding decision.
+ */
+export function settleQuotedVes(
+  amount: string,
+  rate: Parameters<typeof quotedVesToUsd>[1],
+  basis: Exclude<SettlementBasis, 'legacy_bcv'>,
+  at: Date,
+  intendedUsd?: string,
+): { amountUsd: string; roundingUsd: string } {
+  const converted = quotedVesToUsd(amount, rate, basis, at);
+  if (intendedUsd !== undefined) {
+    const target = new Decimal(intendedUsd);
+    if (!target.isFinite() || target.lte(0) || target.decimalPlaces() > 2)
+      throw new Error('El importe USD a liquidar debe ser positivo y tener hasta dos decimales.');
+    if (
+      target.times(rate.rate).toFixed(2, Decimal.ROUND_HALF_UP) === new Decimal(amount).toFixed(2)
+    )
+      return { amountUsd: target.toFixed(2), roundingUsd: target.sub(converted).toFixed(2) };
+  }
+  return { amountUsd: converted, roundingUsd: '0.00' };
+}
 export const commercialPriceSchema = text
   .regex(/^\d{1,11}(\.\d{1,4})?$/, 'Escribe un precio USD con hasta cuatro decimales.')
   .transform((v) => new Decimal(v).toFixed(4));
@@ -149,6 +173,7 @@ export const initialPaymentSchema = z
     method: text.min(2).max(80),
     receivedAt: z.iso.datetime({ offset: true }),
     rateId: z.uuid().optional(),
+    informationalUsdtRateId: z.uuid().optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -170,8 +195,16 @@ export const initialPaymentSchema = z
         path: ['rateId'],
         message: 'Los cobros USD y USDT se aplican 1:1 y no usan una tasa de bolívares.',
       });
+    if (value.currency !== 'USDT' && value.informationalUsdtRateId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['informationalUsdtRateId'],
+        message:
+          'La referencia informativa en bolívares corresponde solo a un pago recibido en USDT.',
+      });
   });
-export const saleSchema = z
+// Keep the previous parsed shape unchanged: committed command hashes depend on it.
+export const legacySaleSchema = z
   .object({
     clientId: z.uuid(),
     condition: z.enum(['cash', 'credit']),
@@ -220,6 +253,56 @@ export const saleSchema = z
     for (const field of ['dueDate', 'reminderDate'] as const)
       if (value[field] !== null) ctx.addIssue({ code: 'custom', path: [field], message: error });
   });
+
+export const manualSaleSchema = z
+  .object({
+    schemaVersion: z.literal(2),
+    clientId: z.uuid(),
+    condition: z.enum(['cash', 'credit']),
+    settlementBasis: z.enum(['divisa', 'bcv']),
+    soldAt: z.iso.datetime({ offset: true }),
+    dueDate: z.iso.date().nullable().default(null),
+    reminderDate: z.iso.date().nullable().default(null),
+    notes: note,
+    lines: z
+      .array(
+        z
+          .object({
+            configurationId: z.uuid(),
+            presentation: presentationSchema,
+            quantity: z.number().int().min(1).max(1000),
+            agreedUnitUsd: commercialPriceSchema.refine(
+              (value) => new Decimal(value).gt(0),
+              'Escribe un precio de venta mayor que cero.',
+            ),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(50),
+    initialPayment: initialPaymentSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (sale) => sale.lines.reduce((sum, line) => sum + line.quantity, 0) <= 1000,
+    'Divide las ventas de más de 1.000 presentaciones.',
+  )
+  .superRefine((sale, ctx) => {
+    const total = totalSaleLines(sale.lines.map((line) => ({ ...line, referenceUnitUsd: null })));
+    if (new Decimal(total.totalUsd).lte(0))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['lines'],
+        message: 'El total de la venta debe alcanzar al menos un centavo USD.',
+      });
+    const paid =
+      sale.initialPayment?.currency !== 'VES' ? (sale.initialPayment?.amount ?? '0') : '0';
+    const error = saleCollectionDatesError(sale, total.totalUsd, paid);
+    if (error)
+      for (const field of ['dueDate', 'reminderDate'] as const)
+        if (sale[field] !== null) ctx.addIssue({ code: 'custom', path: [field], message: error });
+  });
+export const saleSchema = z.union([manualSaleSchema, legacySaleSchema]);
 
 /** Dates are an instruction to collect outstanding credit, never a paid sale. */
 export function saleCollectionDatesError(
@@ -286,7 +369,7 @@ export function receivableStatus(
   return 'pending';
 }
 export function totalSaleLines(
-  lines: { quantity: number; agreedUnitUsd: string; referenceUnitUsd: string }[],
+  lines: { quantity: number; agreedUnitUsd: string; referenceUnitUsd: string | null }[],
 ) {
   let total = new Decimal(0),
     reference = new Decimal(0);
@@ -297,12 +380,17 @@ export function totalSaleLines(
         .toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
     );
     reference = reference.add(
-      new Decimal(line.referenceUnitUsd)
+      new Decimal(line.referenceUnitUsd ?? line.agreedUnitUsd)
         .times(line.quantity)
         .toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
     );
   }
-  return { totalUsd: total.toFixed(2), discountUsd: reference.sub(total).toFixed(2) };
+  return {
+    totalUsd: total.toFixed(2),
+    discountUsd: lines.some((line) => line.referenceUnitUsd === null)
+      ? null
+      : reference.sub(total).toFixed(2),
+  };
 }
 export function collectionWhatsApp(
   phone: string | null,
@@ -346,20 +434,21 @@ export type SaleAllocation = {
   containerId: string;
   movementId: string;
   quantity: number;
-  costUsd: string;
+  costUsd: string | null;
 };
 export type SaleLine = {
   id: string;
   variantId: string;
   configurationId: string;
   description: string;
+  commercialUnitLabel?: string | null;
   presentation: Presentation;
   quantity: number;
-  priceBasis: PriceBasis;
-  referenceUnitUsd: string;
+  priceBasis: SalePriceBasis;
+  referenceUnitUsd: string | null;
   agreedUnitUsd: string;
   totalUsd: string;
-  costUsd: string;
+  costUsd: string | null;
   allocations: SaleAllocation[];
 };
 export type SaleSummary = {
@@ -377,9 +466,9 @@ export type SaleSummary = {
   totalUsd: string;
   paidUsd: string;
   balanceUsd: string;
-  costUsd: string;
-  grossProfitUsd: string;
-  discountUsd: string;
+  costUsd: string | null;
+  grossProfitUsd: string | null;
+  discountUsd: string | null;
   isDemo: boolean;
   dueStatus: ReturnType<typeof receivableStatus>;
 };
@@ -420,6 +509,15 @@ export type PaymentDetail = PaymentSummary & {
     validFrom: string;
     validUntil: string;
   } | null;
+  usdtReferenceRate?: {
+    id: string;
+    rate: string;
+    sourceUrl: string;
+    validFrom: string;
+    validUntil: string;
+    equivalentVes: string;
+  } | null;
+  conversionRoundingUsd?: string;
   applications: PaymentApplication[];
   reversal: { reason: string; actor: string; createdAt: string } | null;
 };

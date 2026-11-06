@@ -35,7 +35,7 @@ export type CostReplayMovement = {
 };
 
 /** Replay phase-2 physical snapshots without rewriting an applied migration or old events. */
-export function replayLegacyCosts(movements: CostReplayMovement[], boxCost: string) {
+export function replayLegacyCosts(movements: CostReplayMovement[], boxCost: string | null) {
   const current = new Map<string, string | null>();
   const beforeEvents = new Map<string, Map<string, string | null>>();
   const knownBasis = new Map<string, { cost: string | null; quantity: number }>();

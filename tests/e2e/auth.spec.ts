@@ -33,6 +33,7 @@ test('sin sesión: pantalla privada redirige y las APIs rechazan lectura y escri
     'suppliers',
     'inventory',
     'auth/me',
+    `sales/${randomUUID()}/delivery-note`,
   ])
     expect((await request.get(`/api/${endpoint}`)).status()).toBe(401);
   expect(

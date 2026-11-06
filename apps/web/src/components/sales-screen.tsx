@@ -14,13 +14,12 @@ import {
   UserPlus,
 } from 'lucide-react';
 import {
-  saleSchema,
+  manualSaleSchema,
   paymentMethodLabel,
   type SaleSummary,
   type SaleDetail,
   type Catalog,
   type Presentation,
-  type PriceBasis,
   type SaleAvailability,
 } from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
@@ -36,11 +35,13 @@ import {
   SaleTable,
   RateNotice,
   RateSnapshot,
+  UsdtReference,
   useQuoteCurrent,
   type RateStatus,
   type RateValue,
 } from './commercial-shared';
-import { useRemote, useCommand, displayMoney } from '@/lib/inventory-api';
+import { useRemote, useCommand, displayMoney, ApiError } from '@/lib/inventory-api';
+import { paymentEquivalent } from '@/lib/payment-equivalent';
 import { useClientDirectory } from '@/lib/use-client-directory';
 import {
   productLabel,
@@ -57,8 +58,6 @@ import {
   type PaymentChoice,
   emptySaleLine,
   salePresentations,
-  salePrices,
-  saleReference,
   changeSaleLine,
   saleLineTotal,
   saleReviewInstant,
@@ -113,10 +112,7 @@ export function SalesScreen({ session }: { session: AppSession }) {
                 <div className="commercial-empty">
                   <ShoppingCart aria-hidden="true" />
                   <h2>{query ? 'No encontramos coincidencias' : 'Registra la primera venta'}</h2>
-                  <p>
-                    Selecciona cliente y productos. El costo y la salida de inventario se asignan
-                    por antigüedad.
-                  </p>
+                  <p>Selecciona cliente y productos e indica el precio de esta venta.</p>
                   <Button asChild variant="outline">
                     <Link href="/ventas/nueva">Registrar venta</Link>
                   </Button>
@@ -139,7 +135,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const clients = useClientDirectory(clientId);
   const [newClient, setNewClient] = useState(false);
   const [condition, setCondition] = useState<'cash' | 'credit'>('cash');
-  const [basis, setBasis] = useState<PriceBasis | ''>('');
+  const [basis, setBasis] = useState<'divisa' | 'bcv' | ''>('');
   const [date, setDate] = useState('');
   const [dateEdited, setDateEdited] = useState(false);
   const [due, setDue] = useState('');
@@ -153,9 +149,11 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const { currency, method } = paymentChoiceDetails(paymentChoice);
   const [restored, setRestored] = useState(false);
   const [reviewQuote, setReviewQuote] = useState<RateValue | null>(null);
+  const [reviewInformation, setReviewInformation] = useState<RateValue | null>(null);
+  const [reviewAttempted, setReviewAttempted] = useState(false);
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
   const [reviewTotals, setReviewTotals] = useState({ total: '0.00', balance: '0.00' });
-  const [review, setReview] = useState<ReturnType<typeof saleSchema.parse> | null>(null);
+  const [review, setReview] = useState<ReturnType<typeof manualSaleSchema.parse> | null>(null);
   const command = useCommand();
   const scope = session.environment + ':' + session.user.id;
   const initialized = useRef(false);
@@ -177,7 +175,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       setAddPayment(draft.addPayment);
       setPaymentChoice(draft.paymentChoice);
       setRestored(true);
-      setBasis(draft.lines.find((line) => line.priceBasis)?.priceBasis ?? '');
+      setBasis(draft.settlementBasis ?? '');
     } else {
       setDate(caracasDateTime());
       const requestedClient = new URL(window.location.href).searchParams.get('cliente');
@@ -191,7 +189,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     ) ?? [];
   const ready = !!catalog.data && !!clients.data && !catalog.error;
   const total = lines.reduce((sum, line) => sum.plus(saleLineTotal(line)), new Decimal(0));
-  const settlement = basis ? (basis === 'usd_cash_promo' ? 'divisa' : 'bcv') : null;
+  const settlement = basis || null;
   const bcvCurrent = useQuoteCurrent(rate.data?.rate);
   const usdtCurrent = useQuoteCurrent(rate.data?.usdt?.rate);
   const quotes = {
@@ -218,7 +216,14 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       if (currency === 'VES')
         paidUsd =
           activeRate && rateAvailable
-            ? paidUsd.div(activeRate.rate).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+            ? new Decimal(
+                paymentEquivalent(
+                  paidUsd.toFixed(2),
+                  activeRate,
+                  quoteBasis ?? 'bcv',
+                  total.gt(0) ? total.toFixed(2) : undefined,
+                ),
+              )
             : new Decimal(0);
     }
   } catch {}
@@ -242,15 +247,22 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     },
     {} as Partial<Record<Presentation, number>>,
   );
-  const quantityText = Object.entries(quantities)
-    .map(
-      ([presentation, count]) =>
-        `${count} ${presentation === 'box' ? (count === 1 ? 'caja' : 'cajas') : presentation === 'half_box' ? (count === 1 ? 'media caja' : 'medias cajas') : count === 1 ? 'blíster' : 'blísteres'}`,
-    )
-    .join(' · ');
+  const hasCommercialUnits = lines.some(
+    (line) =>
+      configurations.find((config) => config.id === line.configurationId)?.commercialUnitLabel,
+  );
+  const quantityText = hasCommercialUnits
+    ? `${Object.values(quantities).reduce((sum, count) => sum + (count ?? 0), 0)} unidades seleccionadas`
+    : Object.entries(quantities)
+        .map(
+          ([presentation, count]) =>
+            `${count} ${presentation === 'box' ? (count === 1 ? 'caja' : 'cajas') : presentation === 'half_box' ? (count === 1 ? 'media caja' : 'medias cajas') : count === 1 ? 'blíster' : 'blísteres'}`,
+        )
+        .join(' · ');
   function preserveDraft() {
     keepSaleDraft(scope, {
       clientId,
+      settlementBasis: basis,
       condition,
       date,
       dateEdited,
@@ -273,17 +285,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     setPaymentChoice('usd_cash');
     command.setError('');
   }
-  function changeBasis(value: PriceBasis | '') {
+  function changeBasis(value: 'divisa' | 'bcv' | '') {
     setBasis(value);
-    setLines((current) =>
-      current.map((line) =>
-        changeSaleLine(
-          line,
-          { priceBasis: value },
-          configurations.find((config) => config.id === line.configurationId),
-        ),
-      ),
-    );
     // The agreement changes only here, never when choosing cash/credit or a payment currency.
   }
   function update(key: number, changes: Partial<SaleDraftLine>) {
@@ -295,26 +298,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     setLines((current) => {
       const updated = current.map((line) => {
         if (line.key !== key) return line;
-        let next = changeSaleLine(line, changes, config);
-        if (changes.configurationId !== undefined || changes.presentation !== undefined) {
-          if (basis) next = changeSaleLine(next, { priceBasis: basis }, config);
-        }
-        return next;
+        return changeSaleLine(line, changes, config);
       });
       return updated;
     });
-    // Derive the sole valid list from the chosen presentation without inferring from payment type.
-    if (
-      !basis &&
-      config &&
-      (changes.configurationId !== undefined || changes.presentation !== undefined)
-    ) {
-      const allowed = salePresentations(config);
-      const presentation = changes.presentation ?? (allowed.length === 1 ? allowed[0] : '');
-      const options = salePrices(config, presentation);
-      if (options.length === 1 && !lines.some((line) => line.key !== key && line.configurationId))
-        changeBasis(options[0].basis);
-    }
   }
   function stockIssue(line: SaleDraftLine) {
     if (!line.configurationId || !line.presentation || !availability.data) return '';
@@ -333,24 +320,28 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     if (requested <= item.availableQuantity) return '';
     return (
       item.blockedReason ||
-      `Hay ${item.availableQuantity} ${presentationNames[line.presentation].toLocaleLowerCase('es')} disponibles. Reduce la cantidad o registra una recepción.`
+      `Hay ${item.availableQuantity} ${line.presentation === 'box' ? (configurations.find((config) => config.id === line.configurationId)?.commercialUnitLabel ?? 'cajas') : presentationNames[line.presentation].toLocaleLowerCase('es')} disponibles. Reduce la cantidad o registra una recepción.`
     );
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
     command.setError('');
     if (review) {
-      if (reviewQuote && !reviewQuoteCurrent) {
+      if (reviewQuote && !reviewQuoteCurrent && !reviewAttempted) {
         command.setError(
           'La cotización venció. Vuelve a editar y actualiza la tasa antes de confirmar.',
         );
         return;
       }
       try {
+        setReviewAttempted(true);
         const result = await command.run<SaleDetail>('/api/sales', review);
         clearSaleDraft();
         router.push('/ventas/' + result.id);
-      } catch {}
+      } catch (error) {
+        if (error instanceof ApiError && [400, 409, 422].includes(error.status))
+          setReviewAttempted(false);
+      }
       return;
     }
     if (
@@ -377,9 +368,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         command.setError('Selecciona el producto que vas a entregar.');
         return;
       }
-      if (!basis || saleReference(config, line) == null) {
+      if (!basis) {
         command.setError(
-          'Elige el precio acordado y define su importe de lista para cada presentación.',
+          'Elige el acuerdo de cobro e indica el precio por unidad de cada producto.',
         );
         return;
       }
@@ -421,7 +412,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       command.setError(error instanceof Error ? error.message : 'Revisa la fecha de venta.');
       return;
     }
-    const parsed = saleSchema.safeParse({
+    const parsed = manualSaleSchema.safeParse({
+      schemaVersion: 2,
+      settlementBasis: basis,
       clientId,
       condition,
       soldAt,
@@ -432,7 +425,6 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         configurationId: line.configurationId,
         presentation: line.presentation,
         quantity: Number(line.quantity),
-        priceBasis: basis,
         agreedUnitUsd: normalizedMoney(line.agreedUnitUsd),
       })),
       ...(positivePayment
@@ -443,6 +435,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               method,
               receivedAt: reviewedAt.toISOString(),
               ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
+              ...(currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
+                ? { informationalUsdtRateId: rate.data.usdt.rate.id }
+                : {}),
             },
           }
         : {}),
@@ -452,12 +447,18 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       return;
     }
     setReviewQuote(currency === 'VES' && activeRate ? { ...activeRate } : null);
+    setReviewInformation(
+      currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
+        ? { ...rate.data.usdt.rate }
+        : null,
+    );
+    setReviewAttempted(false);
     setReviewTotals({ total: total.toFixed(2), balance: balance.toFixed(2) });
     setReview(parsed.data);
   }
   const basisChoices = [
-    { value: 'usd_cash_promo', label: 'Promocional divisa' },
-    { value: 'ves_regular', label: 'Regular · Bs. BCV' },
+    { value: 'divisa', label: 'Promoción / divisa' },
+    { value: 'bcv', label: 'Regular / BCV' },
   ];
   return (
     <AppShell session={session} current="/ventas">
@@ -604,14 +605,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                         (item) => item.id === line.configurationId,
                       );
                       const allowed = config ? salePresentations(config) : [];
-                      const ref = saleReference(config, line);
                       const stock = availability.data?.items.find(
                         (item) =>
                           item.configurationId === line.configurationId &&
                           item.presentation === line.presentation,
                       );
                       const issue = stockIssue(line);
-                      const options = salePrices(config, line.presentation);
                       return (
                         <section
                           key={line.key}
@@ -672,7 +671,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                                 <option value="">Selecciona</option>
                                 {allowed.map((presentation) => (
                                   <option key={presentation} value={presentation}>
-                                    {presentationNames[presentation]}
+                                    {presentation === 'box' && config?.commercialUnitLabel
+                                      ? config.commercialUnitLabel
+                                      : presentationNames[presentation]}
                                     {config?.boxWeightKg && presentation !== 'blister'
                                       ? ' · ' +
                                         new Decimal(config.boxWeightKg)
@@ -739,7 +740,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                             </Field>
                             <Field>
                               <FieldLabel htmlFor={'sale-price-' + line.key}>
-                                Precio unitario (USD)
+                                Precio por unidad (USD)
                               </FieldLabel>
                               <Input
                                 id={'sale-price-' + line.key}
@@ -774,41 +775,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                             <p className={styles.lineHelp}>
                               Disponibles: {stock.availableQuantity}{' '}
                               {line.presentation &&
-                                presentationNames[line.presentation].toLocaleLowerCase('es')}
+                                (line.presentation === 'box' && config?.commercialUnitLabel
+                                  ? config.commercialUnitLabel
+                                  : presentationNames[line.presentation].toLocaleLowerCase('es'))}
                               . Se comprueban de nuevo al confirmar.
-                            </p>
-                          ) : null}
-                          {config &&
-                          line.presentation &&
-                          (!options.length || (basis && ref == null)) ? (
-                            <p className={styles.error}>
-                              Falta el precio de esta presentación.{' '}
-                              <Link
-                                href={
-                                  '/catalogo?producto=' +
-                                  config.id +
-                                  '&precios=1&returnTo=/ventas/nueva'
-                                }
-                                onClick={preserveDraft}
-                              >
-                                Definir precio
-                              </Link>
-                            </p>
-                          ) : null}
-                          {ref !== null &&
-                          line.priceEdited &&
-                          normalizedMoney(line.agreedUnitUsd) &&
-                          /^\d+(\.\d{1,4})?$/.test(normalizedMoney(line.agreedUnitUsd)) &&
-                          !new Decimal(normalizedMoney(line.agreedUnitUsd)).eq(ref) ? (
-                            <p className={styles.lineHelp}>
-                              Precio pactado para esta venta. Lista: {displayMoney(ref)}; diferencia
-                              por unidad:{' '}
-                              {displayMoney(
-                                new Decimal(ref)
-                                  .minus(normalizedMoney(line.agreedUnitUsd))
-                                  .toFixed(4),
-                              )}
-                              .
                             </p>
                           ) : null}
                         </section>
@@ -827,14 +797,14 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                       Agregar producto
                     </Button>
                     <Field className={styles.agreement}>
-                      <FieldLabel htmlFor="sale-basis">Precio acordado</FieldLabel>
+                      <FieldLabel htmlFor="sale-basis">Acuerdo de cobro</FieldLabel>
                       <NativeSelect
                         id="sale-basis"
                         required
                         value={basis}
-                        onChange={(event) => changeBasis(event.target.value as PriceBasis)}
+                        onChange={(event) => changeBasis(event.target.value as 'divisa' | 'bcv')}
                       >
-                        <option value="">Elige el precio acordado con el cliente</option>
+                        <option value="">Elige el acuerdo con el cliente</option>
                         {basisChoices.map((choice) => (
                           <option key={choice.value} value={choice.value}>
                             {choice.label}
@@ -842,7 +812,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                         ))}
                       </NativeSelect>
                       <FieldDescription>
-                        Se conserva al cobrar, aunque el pago sea después.
+                        Se conserva al cobrar, aunque el pago sea después. No cambia los precios que
+                        escribiste.
                       </FieldDescription>
                     </Field>
                   </>
@@ -882,8 +853,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     />
                   </Field>
                   <p className={styles.muted}>
-                    El detalle del comprobante mostrará el costo y el margen de los lotes
-                    entregados. El precio pactado no cambia la lista general.
+                    El comprobante conserva los productos entregados, el precio pactado y los pagos
+                    recibidos.
                   </p>
                 </FieldGroup>
               </details>
@@ -953,6 +924,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                       Actualizar tasa
                     </Button>
                   </>
+                ) : null}
+                {currency === 'USDT' && (condition === 'cash' || addPayment) ? (
+                  <UsdtReference
+                    amount={received}
+                    quote={quotes.usdt ? (rate.data?.usdt?.rate ?? null) : null}
+                  />
                 ) : null}
                 {condition === 'cash' ? (
                   <p className={styles.amountAuto}>
@@ -1081,7 +1058,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         <Dialog
           open={!!review}
           onOpenChange={(open) => {
-            if (!open && !command.busy) setReview(null);
+            if (!open && !command.busy && !reviewAttempted) setReview(null);
           }}
         >
           <DialogContent className="catalog-dialog">
@@ -1112,8 +1089,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                           )}
                         </strong>
                         <small>
-                          {line.quantity} {presentationNames[line.presentation]} ×{' '}
-                          {displayMoney(line.agreedUnitUsd)}
+                          {line.quantity}{' '}
+                          {line.presentation === 'box'
+                            ? (configurations.find((config) => config.id === line.configurationId)
+                                ?.commercialUnitLabel ?? presentationNames.box)
+                            : presentationNames[line.presentation]}{' '}
+                          × {displayMoney(line.agreedUnitUsd)}
                         </small>
                       </span>
                       <strong>
@@ -1173,12 +1154,25 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                 <p className={styles.muted}>
                   Comprobante comercial. No es una factura fiscal SENIAT.
                 </p>
+                {review.initialPayment?.currency === 'USDT' ? (
+                  <UsdtReference
+                    amount={review.initialPayment.amount}
+                    quote={reviewInformation}
+                    frozen
+                  />
+                ) : null}
+                {reviewAttempted && command.error ? (
+                  <p role="status">
+                    La confirmación sigue pendiente. Reintenta con estos mismos datos para consultar
+                    o completar la venta sin duplicarla.
+                  </p>
+                ) : null}
                 <FormError message={command.error} />
                 <div className="form-actions">
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={command.busy}
+                    disabled={command.busy || reviewAttempted}
                     onClick={() => setReview(null)}
                   >
                     Volver a editar

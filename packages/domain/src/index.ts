@@ -108,6 +108,7 @@ export type Configuration = {
   halfPreparation: HalfPreparation;
   allowedPresentations: Presentation[];
   boxWeightKg: string | null;
+  commercialUnitLabel?: string | null;
   confirmationStatus: 'confirmed' | 'pending';
   prices: { presentation: Presentation; promoUsd: string | null; regularUsd: string | null }[];
   notes: string;

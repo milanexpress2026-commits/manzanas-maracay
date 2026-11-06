@@ -5,10 +5,10 @@ import { ZodError } from 'zod';
 import { Plus, ArrowRight, CheckCircle2, RotateCcw } from 'lucide-react';
 import {
   quickReceiptSchema,
+  simpleReceiptSchema,
   type Catalog,
   type HabitualCatalogOption,
   type HabitualCatalogOptions,
-  type ReceiptOptions,
   type ReceiptResult,
   type Supplier,
 } from '@mm/domain';
@@ -23,7 +23,7 @@ import { NativeSelect } from './ui/native-select';
 import { Field, FieldLabel } from './ui/field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { FormError, LoadError, LoadingRows, PageFooter } from './operations-ui';
-import { readApi, useRemote, displayDate, displayMoney } from '@/lib/inventory-api';
+import { readApi, useRemote, displayDate } from '@/lib/inventory-api';
 import { caracasDateTime } from '@/lib/commercial-ui';
 import {
   buildQuickReceipt,
@@ -31,8 +31,6 @@ import {
   pickerOptions,
   receiptDraftSchema,
   receiptLine,
-  receiptTotal,
-  receiptCostsReady,
   type QuickLine,
   type ReceiptDraft,
 } from '@/lib/receipt-flow';
@@ -78,11 +76,7 @@ export function ReceiptScreen({
   const [saved, setSaved] = useState<{ result: ReceiptResult; draft: ReceiptDraft } | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[] | null>(null);
   const [supplierError, setSupplierError] = useState('');
-  const [costState, setCostState] = useState<Record<string, { loading: boolean; error: string }>>(
-    {},
-  );
   const initialApplied = useRef(false);
-  const costsLoaded = useRef(new Set<string>());
   const ready = hydrated && !!options.data && !!catalog.data && !options.error && !catalog.error;
   const locked = busy || !!draft.pending;
   const mutate = (fn: (current: ReceiptDraft) => ReceiptDraft) =>
@@ -140,39 +134,6 @@ export function ReceiptScreen({
       );
     }
   }, [draft, hydrated, storageKey, storageError]);
-  async function loadPrevious(line: QuickLine, option: HabitualCatalogOption) {
-    if (!option.configurationId || draftRef.current.pending) return;
-    setCostState((current) => ({ ...current, [line.key]: { loading: true, error: '' } }));
-    try {
-      const value = await readApi<ReceiptOptions>(
-        `/api/receipts/options?configurationId=${encodeURIComponent(option.configurationId)}`,
-      );
-      mutate((current) =>
-        current.pending
-          ? current
-          : {
-              ...current,
-              lines: current.lines.map((item) => {
-                if (item.key !== line.key || item.optionKey !== option.optionKey) return item;
-                const changed =
-                  item.costSource === 'previous' &&
-                  item.previousCost?.sourceLotId !== value.previousCost?.sourceLotId;
-                return {
-                  ...item,
-                  previousCost: value.previousCost,
-                  ...(changed ? { cost: '', costSource: 'entered' as const } : {}),
-                };
-              }),
-            },
-      );
-      setCostState((current) => ({ ...current, [line.key]: { loading: false, error: '' } }));
-    } catch {
-      setCostState((current) => ({
-        ...current,
-        [line.key]: { loading: false, error: 'No se pudo consultar el costo anterior.' },
-      }));
-    }
-  }
   useEffect(() => {
     if (!ready || !options.data || initialApplied.current) return;
     initialApplied.current = true;
@@ -190,17 +151,6 @@ export function ReceiptScreen({
     } else if ((initialOptionKey || initialConfigurationId) && !selected)
       setError('El producto del enlace ya no está disponible. Elige uno de las opciones actuales.');
   }, [ready, options.data, catalog.data, initialOptionKey, initialConfigurationId]);
-  useEffect(() => {
-    if (!ready || draft.pending) return;
-    for (const line of draft.lines) {
-      const option = options.data?.options.find((item) => item.optionKey === line.optionKey);
-      const key = `${line.key}:${line.optionKey}`;
-      if (option?.configurationId && !costsLoaded.current.has(key)) {
-        costsLoaded.current.add(key);
-        void loadPrevious(line, option);
-      }
-    }
-  }, [ready, draft.lines, draft.pending, options.data]);
   async function loadSuppliers() {
     try {
       setSuppliers(await readApi<Supplier[]>('/api/suppliers'));
@@ -230,12 +180,7 @@ export function ReceiptScreen({
                     boxes: item.boxes,
                     ...(item.optionKey === line.optionKey
                       ? {
-                          cost: item.cost,
-                          costSource: item.costSource,
-                          previousCost: item.previousCost,
                           notes: item.notes,
-                          priceAction: item.priceAction,
-                          prices: item.priceAction === 'update' ? item.prices : line.prices,
                         }
                       : {}),
                   }
@@ -265,7 +210,7 @@ export function ReceiptScreen({
           ? (reason.issues[0]?.message ?? 'Revisa la recepción.')
           : reason instanceof Error
             ? reason.message
-            : 'Revisa los productos y costos.',
+            : 'Revisa los productos y las cantidades.',
       );
     }
   }
@@ -282,7 +227,8 @@ export function ReceiptScreen({
         );
       if (!(await verifyPendingReceipt(pending)))
         throw new Error('No se pudo verificar la recepción pendiente.');
-      quickReceiptSchema.parse(JSON.parse(pending.body));
+      const body = JSON.parse(pending.body);
+      (body.schemaVersion === 3 ? simpleReceiptSchema : quickReceiptSchema).parse(body);
       const submitting = { ...draftRef.current, pending };
       // Persist before sending. A lost response keeps the exact command across a reload.
       localStorage.setItem(storageKey, JSON.stringify(submitting));
@@ -300,7 +246,6 @@ export function ReceiptScreen({
           localStorage.setItem(storageKey, JSON.stringify(editable));
           mutate(() => editable);
           if (response.status === 409) {
-            costsLoaded.current.clear();
             void options.reload();
             void catalog.reload();
           }
@@ -356,13 +301,17 @@ export function ReceiptScreen({
   const title = (line: QuickLine) =>
     options.data?.options.find((option) => option.optionKey === line.optionKey)?.label ??
     'Producto de la recepción';
+  const quantitySummary = (lines: QuickLine[], quantity: number) =>
+    lines.some((line) => line.packing?.commercialUnitLabel)
+      ? `${quantity} unidades recibidas`
+      : `${quantity} ${quantity === 1 ? 'caja recibida' : 'cajas recibidas'}`;
   return (
     <AppShell session={session} current="/recepciones">
       <main id="app-main" className="main-content operations-page">
         <div className="page-heading">
           <div>
-            <h1>Recepción rápida</h1>
-            <p>Elige lo que llegó, indica las cajas y confirma el costo.</p>
+            <h1>Recibir mercancía</h1>
+            <p>Elige lo que llegó, indica la cantidad y guarda.</p>
           </div>
           <Button variant="outline" asChild>
             <Link href="/inventario">
@@ -378,8 +327,8 @@ export function ReceiptScreen({
         ) : null}
         {restored ? (
           <p role="status" className={styles.status}>
-            Recuperamos tu borrador en este dispositivo. Revisa productos, empaques y costos antes
-            de guardar.
+            Recuperamos tu borrador en este dispositivo. Revisa productos, empaques y cantidades
+            antes de guardar.
           </p>
         ) : null}
         {storageError ? <FormError message={storageError} /> : null}
@@ -396,8 +345,11 @@ export function ReceiptScreen({
             <h2>Recepción guardada</h2>
             <p>
               <strong>{saved.result.receiptNumber}</strong> ·{' '}
-              {saved.draft.lines.reduce((sum, line) => sum + Number(line.boxes), 0)} cajas
-              recibidas. Sus lotes conservan el costo y el empaque confirmado.
+              {quantitySummary(
+                saved.draft.lines,
+                saved.draft.lines.reduce((sum, line) => sum + Number(line.boxes), 0),
+              )}
+              . Los lotes conservan su empaque y procedencia.
             </p>
             <ul>
               {saved.result.lots.map((lot) => (
@@ -451,13 +403,6 @@ export function ReceiptScreen({
                       option={options.data!.options.find(
                         (option) => option.optionKey === line.optionKey,
                       )}
-                      configuration={catalog.data!.configurations.find(
-                        (configuration) =>
-                          configuration.id ===
-                          options.data!.options.find(
-                            (option) => option.optionKey === line.optionKey,
-                          )?.configurationId,
-                      )}
                       update={updateLine}
                       remove={() =>
                         mutate((current) => ({
@@ -466,14 +411,6 @@ export function ReceiptScreen({
                         }))
                       }
                       choose={() => setPicker(line.key)}
-                      costLoading={costState[line.key]?.loading ?? false}
-                      costError={costState[line.key]?.error ?? ''}
-                      reloadCost={() => {
-                        const option = options.data!.options.find(
-                          (item) => item.optionKey === line.optionKey,
-                        );
-                        if (option) void loadPrevious(line, option);
-                      }}
                     />
                   ))}
                   <Button
@@ -495,8 +432,7 @@ export function ReceiptScreen({
               >
                 <summary>Más detalles (opcional)</summary>
                 <p className={styles.help}>
-                  Se asignará un número único y la fecha actual de Venezuela al guardar. Los precios
-                  de venta se conservan salvo que elijas actualizarlos.
+                  Se asignará un número único y la fecha actual de Venezuela al guardar.
                 </p>
                 <div className={styles.detailsGrid}>
                   <Field>
@@ -575,20 +511,15 @@ export function ReceiptScreen({
             {draft.lines.length ? (
               <div className={styles.sticky} role="region" aria-label="Resumen y guardado">
                 <div>
-                  <strong>
-                    {totalBoxes} cajas ·{' '}
-                    {receiptCostsReady(draft.lines)
-                      ? displayMoney(receiptTotal(draft.lines))
-                      : 'Costo por confirmar'}
-                  </strong>
-                  <p>Solo costo de mercancía. Se guardará un único ingreso.</p>
+                  <strong>{quantitySummary(draft.lines, totalBoxes)}</strong>
+                  <p>Todos los productos se guardan en una sola recepción.</p>
                 </div>
                 <Button
                   type={draft.pending ? 'button' : 'submit'}
                   onClick={draft.pending ? () => setReview(true) : undefined}
                   disabled={busy || !!storageError}
                 >
-                  {draft.pending ? 'Resolver confirmación pendiente' : 'Revisar recepción'}
+                  {draft.pending ? 'Resolver confirmación pendiente' : 'Revisar y guardar'}
                   <ArrowRight aria-hidden="true" />
                 </Button>
               </div>
@@ -645,7 +576,7 @@ export function ReceiptScreen({
               <DialogDescription>
                 {draft.pending
                   ? 'La respuesta anterior no quedó confirmada. Reintentar conserva la misma recepción y no duplica cajas.'
-                  : 'Confirma productos, costos y empaques. Guardar registrará toda la recepción una sola vez.'}
+                  : 'Confirma productos, cantidades y empaques. Guardar registrará toda la recepción una sola vez.'}
               </DialogDescription>
             </DialogHeader>
             <p>
@@ -661,7 +592,8 @@ export function ReceiptScreen({
                 <li key={line.key}>
                   <strong>{title(line)}</strong>
                   <p>
-                    {line.boxes} cajas × {displayMoney(line.cost.replace(',', '.') || '0')} por caja
+                    Cantidad: {line.boxes} ·{' '}
+                    {line.packing?.commercialUnitLabel ?? (line.boxes === '1' ? 'caja' : 'cajas')}
                   </p>
                   <p>
                     {line.blisterOverride
@@ -670,17 +602,13 @@ export function ReceiptScreen({
                         ? `${line.packing.blistersPerBox} blíster por caja`
                         : line.packing?.packingModel === 'halves'
                           ? 'Caja y media comercial'
-                          : 'Caja completa'}{' '}
-                    ·{' '}
-                    {line.priceAction === 'keep'
-                      ? 'Precios de venta conservados'
-                      : 'Actualizar los precios indicados'}
+                          : (line.packing?.commercialUnitLabel ?? 'Caja completa')}
                   </p>
                 </li>
               ))}
             </ul>
             <p>
-              <strong>Costo total {displayMoney(receiptTotal(draft.lines))}</strong>
+              <strong>{quantitySummary(draft.lines, totalBoxes)}</strong>
             </p>
             <FormError message={error} />
             {authNeeded ? (

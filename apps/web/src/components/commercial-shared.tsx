@@ -22,7 +22,8 @@ import { Textarea } from './ui/textarea';
 import { Field, FieldGroup, FieldLabel, FieldDescription } from './ui/field';
 import { Alert, AlertDescription } from './ui/alert';
 import { FormError, SaveButton, LoadError, LoadingRows } from './operations-ui';
-import { useCommand, useRemote, displayMoney, displayDate } from '@/lib/inventory-api';
+import { useCommand, useRemote, displayMoney, displayDate, ApiError } from '@/lib/inventory-api';
+import { paymentEquivalent } from '@/lib/payment-equivalent';
 import { caracasDateTime, caracasInstant, normalizedMoney } from '@/lib/commercial-ui';
 import { PaymentMethodSelector } from './payment-method-selector';
 import {
@@ -59,6 +60,48 @@ export function useQuoteCurrent(quote: RateValue | null | undefined) {
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [quote?.id, quote?.validFrom, quote?.validUntil]);
   return !!quote && Date.parse(quote.validFrom) <= clock && clock < Date.parse(quote.validUntil);
+}
+
+export function UsdtReference({
+  amount,
+  quote,
+  frozen = false,
+}: {
+  amount: string;
+  quote: RateValue | null;
+  frozen?: boolean;
+}) {
+  const current = useQuoteCurrent(quote);
+  let equivalent: string | null = null;
+  try {
+    if (quote && (current || frozen) && new Decimal(normalizedMoney(amount) || 0).gte(0))
+      equivalent = new Decimal(normalizedMoney(amount) || 0)
+        .times(quote.rate)
+        .toFixed(2, Decimal.ROUND_HALF_UP);
+  } catch {}
+  return (
+    <div className={styles.usdtReference} role="region" aria-label="Referencia informativa USDT">
+      <p>USDT se aplica 1:1 al saldo USD.</p>
+      {equivalent && quote ? (
+        <>
+          <p className={styles.usdtEquivalent}>
+            <span>Equivalencia informativa en Bs.</span>
+            <strong>{displayMoney(equivalent).replace(/^USD /, 'VES ')}</strong>
+          </p>
+          <details className={styles.usdtQuoteDetails}>
+            <summary>Fuente y vigencia de la referencia</summary>
+            <RateSnapshot quote={quote} basis="divisa" />
+          </details>
+          <p className={styles.muted}>
+            Esta referencia no modifica el precio ni el saldo. Si vence antes de guardar, el cobro
+            USDT continúa sin referencia en bolívares.
+          </p>
+        </>
+      ) : (
+        <p>Equivalencia en Bs. no disponible. Puedes cobrar USDT normalmente.</p>
+      )}
+    </div>
+  );
 }
 
 export function RateSnapshot({ quote, basis }: { quote: RateValue; basis: 'divisa' | 'bcv' }) {
@@ -407,6 +450,8 @@ export function PaymentDialog({
   const { currency, method } = paymentChoiceDetails(paymentChoice);
   const [dateEdited, setDateEdited] = useState(false);
   const [reviewQuote, setReviewQuote] = useState<RateValue | null>(null);
+  const [reviewInformation, setReviewInformation] = useState<RateValue | null>(null);
+  const [reviewAttempted, setReviewAttempted] = useState(false);
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
   const [review, setReview] = useState<ReturnType<typeof paymentSchema.parse> | null>(null);
   const command = useCommand();
@@ -471,7 +516,12 @@ export function PaymentDialog({
         currency !== 'VES'
           ? a.toFixed(2)
           : settlement && activeRate
-            ? a.div(activeRate.rate).toFixed(2, Decimal.ROUND_HALF_UP)
+            ? paymentEquivalent(
+                a.toFixed(2),
+                activeRate,
+                settlement,
+                sum.gt(0) ? sum.toFixed(2) : undefined,
+              )
             : null;
   } catch {}
   function setReceived(value: string) {
@@ -480,11 +530,15 @@ export function PaymentDialog({
       let applied = value;
       if (currency === 'VES') {
         try {
-          applied = activeRate
-            ? new Decimal(normalizedMoney(value))
-                .div(activeRate.rate)
-                .toFixed(2, Decimal.ROUND_HALF_UP)
-            : '';
+          applied =
+            activeRate && settlement
+              ? paymentEquivalent(
+                  normalizedMoney(value),
+                  activeRate,
+                  settlement,
+                  invoices.find((invoice) => invoice.id === saleId)?.balanceUsd,
+                )
+              : '';
         } catch {
           applied = '';
         }
@@ -496,16 +550,20 @@ export function PaymentDialog({
     e.preventDefault();
     command.setError('');
     if (review) {
-      if (reviewQuote && !reviewQuoteCurrent) {
+      if (reviewQuote && !reviewQuoteCurrent && !reviewAttempted) {
         command.setError(
           'La cotización venció. Vuelve a editar y actualiza la tasa antes de confirmar.',
         );
         return;
       }
       try {
+        setReviewAttempted(true);
         const result = await command.run<PaymentDetail>('/api/payments', review);
         await onSaved(result);
-      } catch {}
+      } catch (error) {
+        if (error instanceof ApiError && [400, 409, 422].includes(error.status))
+          setReviewAttempted(false);
+      }
       return;
     }
     if (paymentIssue) {
@@ -536,6 +594,9 @@ export function PaymentDialog({
       method,
       receivedAt,
       ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
+      ...(currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
+        ? { informationalUsdtRateId: rate.data.usdt.rate.id }
+        : {}),
       applications: selectedInvoices.map((s) => ({
         saleId: s.id,
         amountUsd: normalizedMoney(applications[s.id]),
@@ -560,13 +621,19 @@ export function PaymentDialog({
       return;
     }
     setReviewQuote(currency === 'VES' && activeRate ? { ...activeRate } : null);
+    setReviewInformation(
+      currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
+        ? { ...rate.data.usdt.rate }
+        : null,
+    );
+    setReviewAttempted(false);
     setReview(parsed.data);
   }
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !command.busy) onClose();
+        if (!open && !command.busy && !reviewAttempted) onClose();
       }}
     >
       <DialogContent className="catalog-dialog">
@@ -596,6 +663,15 @@ export function PaymentDialog({
                     {reviewQuote ? (
                       <p>
                         <RateSnapshot quote={reviewQuote} basis={quoteBasis ?? 'bcv'} />
+                      </p>
+                    ) : null}
+                    {review.currency === 'USDT' ? (
+                      <UsdtReference amount={review.amount} quote={reviewInformation} frozen />
+                    ) : null}
+                    {reviewAttempted && command.error ? (
+                      <p role="status">
+                        La confirmación sigue pendiente. Reintenta con estos mismos datos para
+                        consultar o completar el abono sin duplicarlo.
                       </p>
                     ) : null}
                     <ul>
@@ -680,6 +756,12 @@ export function PaymentDialog({
                         </Field>
                       </details>
                     </div>
+                    {currency === 'USDT' ? (
+                      <UsdtReference
+                        amount={amount}
+                        quote={quotes.usdt ? (rate.data?.usdt?.rate ?? null) : null}
+                      />
+                    ) : null}
                     {currency === 'VES' ? (
                       <>
                         <RateNotice rate={rate.data} basis={quoteBasis ?? undefined} />
@@ -777,6 +859,7 @@ export function PaymentDialog({
                   <Button
                     type="button"
                     variant="outline"
+                    disabled={command.busy || reviewAttempted}
                     onClick={() => (review ? setReview(null) : onClose())}
                   >
                     {review ? 'Volver a editar' : 'Cancelar'}
@@ -799,6 +882,15 @@ export function PaymentSaved({ payment }: { payment: PaymentDetail }) {
       <HandCoins aria-hidden="true" />
       <span>
         Abono {payment.number} registrado.{' '}
+        {payment.usdtReferenceRate ? (
+          <span>
+            Referencia informativa guardada:{' '}
+            {displayMoney(payment.usdtReferenceRate.equivalentVes).replace(/^USD /, 'VES ')} ·
+            Binance P2P compra · {payment.usdtReferenceRate.rate} Bs./USDT.{' '}
+          </span>
+        ) : payment.currency === 'USDT' ? (
+          <span>USDT aplicado 1:1. Sin referencia informativa en Bs. </span>
+        ) : null}
         <a href={'/api/payments/' + payment.id + '/document'} download>
           <Download aria-hidden="true" />
           Descargar recibo PDF

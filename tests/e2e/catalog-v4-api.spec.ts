@@ -1,3 +1,4 @@
+import { historicalLotCost } from './helpers/historical-cost';
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
@@ -259,7 +260,8 @@ test('V4 API confirmar empaque y recibir conserva atomicidad, reintento y snapsh
   const lot = (await (
     await request.get(`/api/inventory/lots/${receipt.lots[0]!.id}`)
   ).json()) as LotDetail;
-  expect(lot.lot).toMatchObject({ closedBoxes: 2, blistersPerBox: 5, unitCostUsd: '25.0000' });
+  expect(lot.lot).toMatchObject({ closedBoxes: 2, blistersPerBox: 5, unitCostUsd: null });
+  await historicalLotCost(lot.lot.id, '25.0000');
   const second = await commercePost<ReceiptResult>(request, '/api/receipts', {
     ...base,
     reference: `DEMO-${randomUUID()}`,

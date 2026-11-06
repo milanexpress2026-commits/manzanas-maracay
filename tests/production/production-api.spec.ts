@@ -368,10 +368,15 @@ test('FIFO REAL aislado conserva costo304 ingreso480 bruto176, respuesta idempot
   expect(sale).toMatchObject({
     isDemo: false,
     totalUsd: '480.00',
-    costUsd: '304.0000',
-    grossProfitUsd: '176.0000',
+    costUsd: null,
+    grossProfitUsd: null,
     paidUsd: '0.00',
     balanceUsd: '480.00',
+  });
+  await database('owner', async (db) => {
+    expect(
+      (await db.query('select cost_usd from sales where id=$1', [sale.id])).rows[0].cost_usd,
+    ).toBe('304.0000');
   });
   expect((await post<SaleDetail>(request, '/api/sales', input, key)).id).toBe(sale.id);
   const remainingInput = saleInput(client, rule, 8);
@@ -454,7 +459,17 @@ test('abono USD, sobrepago concurrente, recibo privado y compensaciones conserva
   });
   const detail = await (await request.get(`/api/inventory/lots/${received.lots[0].id}`)).json();
   expect(detail.lot.closedBoxes).toBe(1);
-  expect(detail.containers.map((c: { costUsd: string }) => c.costUsd)).toEqual(['25.0000']);
+  expect(detail.containers.map((c: { costUsd: string | null }) => c.costUsd)).toEqual([null]);
+  await database('owner', async (db) => {
+    expect(
+      (
+        await db.query(
+          'select s.cost_usd from stock_balances s join containers c on c.id=s.container_id where c.lot_id=$1',
+          [received.lots[0].id],
+        )
+      ).rows.map((row) => row.cost_usd),
+    ).toEqual(['25.0000']);
+  });
   expect((await (await request.get(`/api/sales/${sale.id}`)).json()).status).toBe('cancelled');
   expect((await (await request.get(`/api/payments/${payment.id}`)).json()).reversed).toBe(true);
   expect((await (await request.get('/api/rates/current')).json()).status).toBe('unavailable');

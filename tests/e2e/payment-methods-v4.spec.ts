@@ -38,7 +38,8 @@ for (const agreement of ['divisa', 'bcv'] as const) {
     await page.goto('/ventas/nueva');
     await chooseSaleClient(page, client);
     await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
-    await page.getByLabel('Precio acordado', { exact: true }).selectOption(basis);
+    await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption(agreement);
+    await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill(price);
     const selector = page.getByLabel('Método de cobro', { exact: true });
     await expect(selector.getByRole('option')).toHaveText([
       'Efectivo USD',
@@ -140,8 +141,9 @@ test('cuatro métodos V4: elección explícita, crédito optativo y accesibilida
   await page.goto('/ventas/nueva');
   await chooseSaleClient(page, client);
   await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
-  await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
-  await page.getByLabel('Precio unitario (USD)', { exact: true }).fill('38');
+  await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('38');
   const method = page.getByLabel('Método de cobro', { exact: true });
   await expect(
     method.getByRole('option', { name: 'Bolívares a tasa BCV', exact: true }),
@@ -149,12 +151,12 @@ test('cuatro métodos V4: elección explícita, crédito optativo y accesibilida
   await method.selectOption('usdt_transfer');
   await expect(page.getByLabel('Total de la venta')).toHaveText('USD 38,00');
   await method.selectOption('ves_usdt');
-  await page.getByLabel('Precio acordado', { exact: true }).selectOption('ves_regular');
+  await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('bcv');
   await expect(method).toHaveValue('ves_usdt');
   await expect(
     page.getByRole('alert').filter({ hasText: 'Requiere un acuerdo promocional/divisa' }),
   ).toBeVisible();
-  await expect(page.getByLabel('Precio unitario (USD)', { exact: true })).toHaveValue('38');
+  await expect(page.getByLabel('Precio por unidad (USD)', { exact: true })).toHaveValue('38');
   await method.selectOption('ves_bcv');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   fs.mkdirSync('docs/capturas/v4', { recursive: true });

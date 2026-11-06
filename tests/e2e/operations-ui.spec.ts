@@ -109,12 +109,12 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
     )!.label;
     const line = await chooseReceiptProduct(page, label, i);
     await line.getByLabel('Cajas recibidas', { exact: true }).fill('1');
-    await line.getByLabel('Costo real por caja · USD', { exact: true }).fill('0,10');
+    await expect(line.getByLabel(/Costo|Precio/i)).toHaveCount(0);
     await expect(line.getByText('Confirmar presentación', { exact: true })).toBeVisible();
     await line.getByLabel('Blíster por caja', { exact: true }).fill('4');
     await line.getByLabel('Preparación de media caja', { exact: true }).selectOption('counted');
   }
-  await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('main').getByRole('alert')).toContainText('Confirma la presentación');
   for (let i = 0; i < configs.length; i++) {
@@ -140,7 +140,7 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
       });
     } else await route.continue();
   });
-  await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('USD 0,10');
   await page.getByRole('button', { name: 'Guardar recepción', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
@@ -220,7 +220,7 @@ test('navegación móvil, recuperación de carga y accesibilidad de los nuevos m
   await page.goto('/catalogo');
   for (const [label, path, heading] of [
     ['Inventario', '/inventario', 'Inventario'],
-    ['Recepciones', '/recepciones', 'Recepción rápida'],
+    ['Recepciones', '/recepciones', 'Recibir mercancía'],
     ['Proveedores', '/proveedores', 'Proveedores'],
   ]) {
     await page.getByRole('button', { name: 'Abrir navegación', exact: true }).click();

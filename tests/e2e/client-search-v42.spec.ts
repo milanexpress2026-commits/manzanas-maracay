@@ -91,7 +91,8 @@ test('cliente fuera de los primeros 200: búsqueda, paginación, borrador y enla
   expect(await (await filtered).json()).toEqual([]);
   await expect(page.getByLabel('Cliente', { exact: true })).toHaveValue(target.id);
   await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
-  await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
+  await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
   await page.getByLabel('Cantidad', { exact: true }).fill('2');
   await page.getByRole('link', { name: 'Registrar recepción', exact: true }).click();
   await page.getByRole('link', { name: 'Volver a la venta guardada', exact: true }).click();
@@ -101,7 +102,8 @@ test('cliente fuera de los primeros 200: búsqueda, paginación, borrador y enla
   await page.reload();
   await expect(page.getByLabel('Cliente', { exact: true })).toHaveValue(target.id);
   await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
-  await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
+  await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
   await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText(target.name);
   await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();

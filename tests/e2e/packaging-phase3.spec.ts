@@ -1,3 +1,8 @@
+import {
+  historicalSaleCost,
+  historicalLotCost,
+  historicalContainerCosts,
+} from './helpers/historical-cost';
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { loginRequest } from './helpers/auth';
@@ -86,7 +91,8 @@ test('recepción cuatro modalidades: precios elegidos, rollback de toda la recep
   const unchanged = (await (
     await request.get(`/api/inventory/lots/${receipt.lots[1].id}`)
   ).json()) as LotDetail;
-  expect(unchanged.lot.unitCostUsd).toBe('26.0000');
+  expect(unchanged.lot.unitCostUsd).toBeNull();
+  await historicalLotCost(unchanged.lot.id, '26.0000');
   expect(unchanged.lot.blistersPerBox).toBeNull();
 });
 
@@ -128,13 +134,18 @@ test('fracciones FIFO conservan el último decimal de costo y la mitad comercial
   const sales = [];
   for (let i = 0; i < 3; i++)
     sales.push(await commercialSale(request, customer, rule, 1, '15', 'blister'));
-  expect(sales.map((s) => s.costUsd).sort()).toEqual(['8.3333', '8.3333', '8.3334']);
+  expect(sales.map((s) => s.costUsd)).toEqual([null, null, null]);
+  for (const [index, sale] of sales.entries())
+    await historicalSaleCost(sale.id, ['8.3333', '8.3333', '8.3334'][index]!);
   const lot = (await (
     await request.get(`/api/inventory/lots/${receipt.lots[0].id}`)
   ).json()) as LotDetail;
   expect(lot.lot.closedBoxes).toBe(0);
   expect(lot.lot.intactBlisters).toBe(0);
-  expect(lot.containers.every((c) => c.costUsd === '0.0000')).toBe(true);
+  expect(lot.containers.every((c) => c.costUsd === null)).toBe(true);
+  expect((await historicalContainerCosts(lot.lot.id)).every((cost) => cost === '0.0000')).toBe(
+    true,
+  );
   const halfRule = await commercialProduct(request, 'halves'),
     halfReceipt = await commercialReceipt(request, halfRule, 1, '25');
   const before = (await (
@@ -210,7 +221,9 @@ test('precios repetidos coherentes se consolidan y propuestas conflictivas revie
       async (l) => (await (await request.get(`/api/inventory/lots/${l.id}`)).json()) as LotDetail,
     ),
   );
-  expect(details.map((d) => d.lot.unitCostUsd).sort()).toEqual(['25.0000', '27.0000']);
+  expect(details.map((d) => d.lot.unitCostUsd)).toEqual([null, null]);
+  for (const [index, detail] of details.entries())
+    await historicalLotCost(detail.lot.id, ['25.0000', '27.0000'][index]!);
   expect(
     (await (await request.get('/api/prices')).json()).find(
       (p: { configurationId: string; presentation: string }) =>

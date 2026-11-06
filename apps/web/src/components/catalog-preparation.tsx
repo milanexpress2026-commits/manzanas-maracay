@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { CheckCircle2, ClipboardCheck, Plus } from 'lucide-react';
 import {
   getCatalogPreparationDefaults,
+  HABITUAL_TEMPLATES_V45,
   catalogPreparationInputSchema,
   type CatalogPreparationInput,
   type CatalogPreparationPreview,
@@ -28,8 +29,20 @@ function initialRows(): Row[] {
   return getCatalogPreparationDefaults().fruits.map((fruit) => ({
     ...fruit,
     included: true,
-    varieties: fruit.varieties.map((value) => ({ value, included: true })),
-    calibers: fruit.calibers.map((value) => ({ value, included: true })),
+    varieties: [
+      ...new Set(
+        HABITUAL_TEMPLATES_V45.filter((template) => template.fruitName === fruit.name).flatMap(
+          (template) => template.varieties,
+        ),
+      ),
+    ].map((value) => ({ value, included: true })),
+    calibers: [
+      ...new Set(
+        HABITUAL_TEMPLATES_V45.filter((template) => template.fruitName === fruit.name).flatMap(
+          (template) => template.calibers,
+        ),
+      ),
+    ].map((value) => ({ value, included: true })),
     excludedDrafts: [],
   }));
 }
@@ -155,7 +168,7 @@ export function CatalogPreparation({
         <>
           <p className={styles.status} role="status">
             <CheckCircle2 aria-hidden="true" /> Se guardaron los maestros y borradores
-            seleccionados. No se registraron cajas, costos ni precios.
+            seleccionados. Las existencias se registran al recibir la mercancía.
           </p>
           <p className={styles.help}>
             Ahora elige la variedad y el calibre que vas a recibir. El empaque se verifica con la

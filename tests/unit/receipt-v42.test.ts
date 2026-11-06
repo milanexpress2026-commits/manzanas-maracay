@@ -26,7 +26,7 @@ const request = { schemaVersion: 2, lines: [{ product, boxes: 2, cost }] };
 
 describe('recepción rápida V4.2', () => {
   it('expone catálogo virtual completo sin mutar maestros ni inventar stock/precios', () => {
-    const options = buildHabitualCatalogOptions(empty);
+    const options = buildHabitualCatalogOptions(empty, 'v4.2');
     expect(empty).toEqual({ fruits: [], varieties: [], calibers: [], configurations: [] });
     expect(options.templateVersion).toBe('v4.2');
     expect(
@@ -64,7 +64,7 @@ describe('recepción rápida V4.2', () => {
     expect(JSON.stringify(options)).not.toMatch(/unitCostUsd|promoUsd|regularUsd|receivedBoxes/);
   });
   it('precarga 100=4 y 113=5; no inventa medias ni blíster en otras familias', () => {
-    const options = buildHabitualCatalogOptions(empty).options;
+    const options = buildHabitualCatalogOptions(empty, 'v4.2').options;
     for (const [caliber, count] of [
       ['88', 4],
       ['100', 4],
@@ -128,7 +128,7 @@ describe('recepción rápida V4.2', () => {
       configurations: [config],
     };
     const before = structuredClone(catalog);
-    const options = buildHabitualCatalogOptions(catalog).options;
+    const options = buildHabitualCatalogOptions(catalog, 'v4.2').options;
     const found = options.find((o) => o.configurationId === id)!;
     expect(found.packingDiscrepancy).toBe(true);
     expect(found.currentPacking?.blistersPerBox).toBe(5);
@@ -169,7 +169,7 @@ describe('recepción rápida V4.2', () => {
         configurations: [config],
       };
       const original = structuredClone(catalog);
-      const option = buildHabitualCatalogOptions(catalog).options.find(
+      const option = buildHabitualCatalogOptions(catalog, 'v4.2').options.find(
         (row) => row.configurationId === id,
       )!;
       expect(option.packingDiscrepancy).toBe(true);

@@ -57,19 +57,27 @@ function hasStock(lot: StockSummary) {
 export function StockTotals({
   stock,
   model,
+  commercialUnitLabel,
 }: {
   stock: StockSummary;
   model?: 'blister' | 'halves' | 'whole';
+  commercialUnitLabel?: string | null;
 }) {
   return (
     <div className="stock-totals" aria-label="Existencias físicas">
       <div>
         <Box aria-hidden="true" />
-        <span>Cajas cerradas</span>
+        <span>
+          {commercialUnitLabel
+            ? 'Unidades cerradas'
+            : model
+              ? 'Cajas cerradas'
+              : 'Cajas y unidades cerradas'}
+        </span>
         <strong>{stock.closedBoxes}</strong>
         <small>
           {model === 'whole'
-            ? 'Presentaciones completas'
+            ? (commercialUnitLabel ?? 'Presentaciones completas')
             : model === 'halves'
               ? 'Unidades físicas completas'
               : `${stock.openBoxes} cajas abiertas como contenedores`}
@@ -319,7 +327,7 @@ export function InventoryScreen({
                     <thead>
                       <tr>
                         <th scope="col">Producto y lote</th>
-                        <th scope="col">Cajas cerradas</th>
+                        <th scope="col">Cajas / unidades cerradas</th>
                         <th scope="col">Blíster intactos</th>
                         <th scope="col">Medias cajas</th>
                         <th scope="col">Piezas sueltas</th>
@@ -350,7 +358,12 @@ export function InventoryScreen({
                             </span>
                             {lot.isDemo ? <Badge variant="secondary">DEMO</Badge> : null}
                           </td>
-                          <td data-label="Cajas cerradas">{lot.closedBoxes}</td>
+                          <td data-label={lot.commercialUnitLabel ?? 'Cajas cerradas'}>
+                            {lot.closedBoxes}
+                            {lot.commercialUnitLabel ? (
+                              <small>{lot.commercialUnitLabel}</small>
+                            ) : null}
+                          </td>
                           <td data-label="Blíster intactos">
                             {lot.packingModel === 'blister' ? lot.intactBlisters : 'No aplica'}
                           </td>
@@ -478,26 +491,26 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
             <dd>{displayDate(lot.receivedAt)}</dd>
           </div>
           <div>
-            <dt>Cajas recibidas</dt>
+            <dt>{lot.commercialUnitLabel ? 'Unidades recibidas' : 'Cajas recibidas'}</dt>
             <dd>{lot.receivedBoxes}</dd>
           </div>
           <div>
             <dt>Empaque histórico</dt>
             <dd>{packingLabel({ ...lot, boxWeightKg: lot.boxWeightKgSnapshot })}</dd>
           </div>
-          <div>
-            <dt>Costo histórico por caja</dt>
-            <dd>{displayMoney(lot.unitCostUsd)}</dd>
-          </div>
         </dl>
         {lot.notes ? <p>{lot.notes}</p> : null}
       </div>
-      <StockTotals stock={lot} model={lot.packingModel} />
+      <StockTotals
+        stock={lot}
+        model={lot.packingModel}
+        commercialUnitLabel={lot.commercialUnitLabel}
+      />
       <p className="stock-equivalence">
         <strong>
           {lot.packingModel === 'blister'
             ? `${lot.equivalentIntactBlisters} blíster equivalentes en empaques intactos`
-            : `${lot.equivalentBoxes.toLocaleString('es-VE', { maximumFractionDigits: 4 })} cajas equivalentes comerciales`}
+            : `${lot.equivalentBoxes.toLocaleString('es-VE', { maximumFractionDigits: 4 })} ${lot.commercialUnitLabel ?? 'cajas equivalentes comerciales'}`}
         </strong>
         <span>
           {lot.packingModel === 'blister'
@@ -583,8 +596,12 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                   <div className="container-identity">
                     <Box aria-hidden="true" />
                     <div>
-                      <h4>{containerName(container)}</h4>
-                      <p>{parent ? `Dentro de ${containerName(parent)}` : 'Contenedor del lote'}</p>
+                      <h4>{containerName(container, lot.commercialUnitLabel)}</h4>
+                      <p>
+                        {parent
+                          ? `Dentro de ${containerName(parent, lot.commercialUnitLabel)}`
+                          : 'Contenedor del lote'}
+                      </p>
                     </div>
                   </div>
                   <div className="container-status">
@@ -596,7 +613,7 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                           ? `${container.quantity} media caja${container.countedPieces === null ? ' comercial' : ` · ${container.countedPieces} piezas`}`
                           : container.state === 'open'
                             ? 'Contenedor; el saldo está en su contenido'
-                            : `${container.quantity} ${container.unit === 'sealed_box' ? 'caja cerrada' : 'blíster intacto'}`}
+                            : `${container.quantity} ${container.unit === 'sealed_box' ? (lot.commercialUnitLabel ?? 'caja cerrada') : 'blíster intacto'}`}
                     </span>
                     <small>
                       {lot.packingModel !== 'blister'
@@ -722,7 +739,7 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                           {
                             (
                               {
-                                sealed_box: 'cajas',
+                                sealed_box: lot.commercialUnitLabel ?? 'cajas',
                                 intact_blister: 'blíster',
                                 prepared_half_box: 'medias cajas',
                                 loose_piece: 'piezas',

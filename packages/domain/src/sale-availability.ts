@@ -25,9 +25,7 @@ export function presentationCanUseLot(presentation: Presentation, lot: SaleLotSn
   );
 }
 
-/** Read-only maximum in the same lot/container order used by the sale allocator.
- * An unknown cost stops FIFO rather than silently skipping to newer merchandise.
- */
+/** Read-only physical maximum. Unknown costs do not change FIFO availability. */
 export function countSellablePresentation(
   lots: (SaleLotSnapshot & {
     confirmed: boolean;
@@ -66,12 +64,7 @@ export function countSellablePresentation(
         availableQuantity,
         blockedReason: 'Hay mercancía anterior cuyo empaque necesita confirmación.',
       };
-    for (const { container, quantity } of candidates) {
-      if (container.costUsd == null)
-        return {
-          availableQuantity,
-          blockedReason: 'Hay mercancía anterior cuyo costo necesita revisión.',
-        };
+    for (const { quantity } of candidates) {
       availableQuantity += quantity;
     }
   }

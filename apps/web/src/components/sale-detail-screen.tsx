@@ -89,6 +89,16 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
               <div className="inline-actions">
                 <DueBadge sale={sale} />
                 <Button variant="outline" asChild>
+                  <a
+                    href={'/api/sales/' + id + '/delivery-note'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Printer aria-hidden="true" />
+                    Nota de entrega · Abrir para imprimir
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
                   <a href={'/api/sales/' + id + '/document'} download>
                     <Download aria-hidden="true" />
                     Descargar PDF
@@ -121,7 +131,7 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                       <dd>{sale.condition === 'cash' ? 'Contado' : 'Crédito'}</dd>
                     </div>
                     <div>
-                      <dt>Precio acordado</dt>
+                      <dt>Acuerdo de cobro</dt>
                       <dd>
                         {sale.settlementBasis === 'divisa'
                           ? 'Promocional divisa'
@@ -159,8 +169,7 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                         <tr>
                           <th>Producto</th>
                           <th>Cantidad</th>
-                          <th>Referencia</th>
-                          <th>Pactado</th>
+                          <th>Precio por unidad</th>
                           <th>Total</th>
                         </tr>
                       </thead>
@@ -170,14 +179,12 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                             <td>
                               <strong>{line.description}</strong>
                               <small>
-                                {presentationNames[line.presentation]} ·{' '}
-                                {line.priceBasis === 'usd_cash_promo'
-                                  ? 'Promocional divisa'
-                                  : 'Regular · Bs. BCV'}
+                                {line.presentation === 'box' && line.commercialUnitLabel
+                                  ? line.commercialUnitLabel
+                                  : presentationNames[line.presentation]}
                               </small>
                             </td>
                             <td>{line.quantity}</td>
-                            <td>{displayMoney(line.referenceUnitUsd)}</td>
                             <td>{displayMoney(line.agreedUnitUsd)}</td>
                             <td>
                               <strong>{displayMoney(line.totalUsd)}</strong>
@@ -195,7 +202,7 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                 <section className="operations-panel">
                   <div className="panel-heading">
                     <FileText aria-hidden="true" />
-                    <h2>Costo y asignación FIFO</h2>
+                    <h2>Origen de la mercancía</h2>
                   </div>
                   <ul className="commercial-history">
                     {sale.lines.map((line) => (
@@ -206,24 +213,22 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                             {line.allocations.length} asignaciones a existencias históricas
                           </small>
                           <details>
-                            <summary>Ver origen del costo</summary>
+                            <summary>Ver lotes entregados</summary>
                             {line.allocations.map((a, index) => (
                               <p key={a.containerId + '-' + index}>
                                 <Link href={'/inventario?lote=' + a.lotId}>
                                   Lote {a.lotId.slice(0, 8)}
                                 </Link>{' '}
-                                · {displayMoney(a.costUsd)}
                               </p>
                             ))}
                           </details>
                         </div>
-                        <strong>{displayMoney(line.costUsd)}</strong>
                       </li>
                     ))}
                   </ul>
                   <p className="inline-explanation">
-                    FIFO es la asignación contable por antigüedad. El orden físico de la cava debe
-                    acompañar esa salida.
+                    Se entregan primero las existencias más antiguas. El orden físico de la cava
+                    debe acompañar esa salida.
                   </p>
                 </section>
                 <section className="operations-panel">
@@ -314,18 +319,6 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                     <dd>{displayMoney(sale.totalUsd)}</dd>
                   </div>
                   <div>
-                    <dt>Descuento negociado</dt>
-                    <dd>{displayMoney(sale.discountUsd)}</dd>
-                  </div>
-                  <div>
-                    <dt>Costo histórico</dt>
-                    <dd>{displayMoney(sale.costUsd)}</dd>
-                  </div>
-                  <div>
-                    <dt>Ganancia bruta</dt>
-                    <dd>{displayMoney(sale.grossProfitUsd)}</dd>
-                  </div>
-                  <div>
                     <dt>Abonos aplicados</dt>
                     <dd>{displayMoney(sale.paidUsd)}</dd>
                   </div>
@@ -334,7 +327,6 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
                     <dd>{displayMoney(sale.balanceUsd)}</dd>
                   </div>
                 </dl>
-                <p>Ganancia bruta de mercancía, sin gastos accesorios.</p>
                 {sale.status === 'confirmed' ? (
                   <>
                     <Button

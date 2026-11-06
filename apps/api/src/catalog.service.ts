@@ -109,6 +109,7 @@ export class CatalogService implements OnModuleDestroy {
             halfPreparation: schema.packingRules.halfPreparation,
             allowedPresentations: schema.packingRules.allowedPresentations,
             boxWeightKg: schema.packingRules.boxWeightKg,
+            commercialUnitLabel: schema.packingRules.commercialUnitLabel,
             confirmationStatus: schema.packingRules.confirmationStatus,
             notes: schema.packingRules.notes,
             version: schema.packingRules.version,

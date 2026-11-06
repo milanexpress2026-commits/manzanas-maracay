@@ -1,3 +1,4 @@
+import { historicalSaleCost } from './helpers/historical-cost';
 import { chooseSaleClient } from './helpers/sale-client';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -56,7 +57,8 @@ async function fixture(page: Page) {
   await page.goto('/ventas/nueva');
   await chooseSaleClient(page, client);
   await page.getByLabel('Producto', { exact: true }).selectOption(products[0].id);
-  await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
+  await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
   return { client, products };
 }
 async function stock(page: Page, id: string) {
@@ -110,8 +112,9 @@ for (const width of [390, 800, 1024, 1440]) {
     await expect(page.getByLabel('Total de la venta')).toHaveText('USD 80,00');
     await page.getByRole('button', { name: 'Agregar producto', exact: true }).click();
     await page.getByLabel('Producto', { exact: true }).nth(1).selectOption(products[1].id);
+    await page.getByLabel('Precio por unidad (USD)', { exact: true }).nth(1).fill('20');
     await expect(page.getByLabel('Total de la venta')).toHaveText('USD 100,00');
-    await page.getByLabel('Precio unitario (USD)', { exact: true }).first().fill('38');
+    await page.getByLabel('Precio por unidad (USD)', { exact: true }).first().fill('38');
     await expect(page.getByLabel('Total de la venta')).toHaveText('USD 96,00');
     await page.getByRole('button', { name: 'Quitar producto 2' }).click();
     await expect(page.getByLabel('Total de la venta')).toHaveText('USD 76,00');
@@ -127,7 +130,7 @@ for (const width of [390, 800, 1024, 1440]) {
     expect(due).not.toBe(reminder);
     await page.getByRole('radio', { name: 'Contado', exact: true }).check();
     await expect(page.locator('#sale-due, #sale-reminder')).toHaveCount(0);
-    await expect(page.getByLabel('Precio unitario (USD)')).toHaveValue('38');
+    await expect(page.getByLabel('Precio por unidad (USD)')).toHaveValue('38');
     let payload: Record<string, unknown> | undefined;
     let posts = 0;
     page.on('request', (request) => {
@@ -154,7 +157,8 @@ for (const width of [390, 800, 1024, 1440]) {
     const sale = await (await page.request.get('/api/sales/' + id)).json();
     expect(sale.totalUsd).toBe('76.00');
     expect(sale.balanceUsd).toBe('0.00');
-    expect(Number(sale.costUsd)).toBe(50);
+    expect(sale.costUsd).toBeNull();
+    await historicalSaleCost(sale.id, '50.0000');
     expect(await stock(page, products[0].id)).toBe(8);
     for (let count = 0; count < 2; count++) {
       const pdf = await page.request.get('/api/sales/' + id + '/document');
@@ -276,7 +280,7 @@ test('el borrador vuelve desde recepción sin guardar datos privados en Web Stor
   await page.getByRole('link', { name: 'Volver a la venta guardada', exact: true }).click();
   await expect(page.getByLabel('Cliente', { exact: true })).toHaveValue(client.id);
   await expect(page.getByLabel('Cantidad', { exact: true })).toHaveValue('11');
-  await expect(page.getByLabel('Precio acordado')).toHaveValue('usd_cash_promo');
+  await expect(page.getByLabel('Acuerdo de cobro')).toHaveValue('divisa');
   expect(
     await page.evaluate(() =>
       [...Object.values(sessionStorage), ...Object.values(localStorage)].some(
@@ -323,7 +327,8 @@ test('revisión conserva cotización, vencimiento exige refrescar y API rechaza 
   await chooseSaleClient(page, client);
   const product = products[0];
   await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
-  await page.getByLabel('Precio acordado').selectOption('usd_cash_promo');
+  await page.getByLabel('Acuerdo de cobro').selectOption('divisa');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
   await page.getByLabel('Método de cobro').selectOption('ves_usdt');
   await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
   const dialog = page.getByRole('dialog');

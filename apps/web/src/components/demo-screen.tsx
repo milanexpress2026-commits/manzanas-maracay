@@ -326,7 +326,7 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                       <span>1</span>
                       <div>
                         <strong>Llega la mercancía</strong>
-                        <p>Cajas y costo registrados por recepción.</p>
+                        <p>Productos y cantidades registrados por recepción.</p>
                       </div>
                     </li>
                     <li>
@@ -373,7 +373,7 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                       : section === 'recepciones'
                         ? 'Un camión puede traer varios productos en un solo documento.'
                         : section === 'ventas'
-                          ? 'Precios negociados, costos históricos y comprobantes claros.'
+                          ? 'Precios pactados, pagos registrados y comprobantes claros.'
                           : 'Cada abono se aplica al comprobante elegido por el operador.'}
                 </p>
               </div>
@@ -394,7 +394,12 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                 </div>
                 <span>{filtered.length} productos de ejemplo</span>
               </div>
-              <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabla de ejemplo: desplázate para ver todas las columnas">
+              <div
+                className="table-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label="Tabla de ejemplo: desplázate para ver todas las columnas"
+              >
                 <table className="commercial-table demo-table">
                   <caption className="sr-only">Productos sintéticos de la demostración</caption>
                   <thead>
@@ -481,23 +486,26 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                     Documento<strong>Recepción ilustrativa</strong>
                   </span>
                 </div>
-                <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabla de ejemplo: desplázate para ver todas las columnas">
+                <div
+                  className="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Tabla de ejemplo: desplázate para ver todas las columnas"
+                >
                   <table className="commercial-table">
                     <caption className="sr-only">Recepción multiproducto de ejemplo</caption>
                     <thead>
                       <tr>
                         <th>Producto</th>
                         <th>Cajas</th>
-                        <th>Costo / caja</th>
-                        <th>Total costo</th>
                       </tr>
                     </thead>
                     <tbody>
                       {[
-                        ['Manzana Gala · Calibre 100', '20', '25,00', '500,00'],
-                        ['Pera FORELLE · Calibre 110', '10', '28,00', '280,00'],
-                        ['Uva roja', '2', '30,00', '60,00'],
-                        ['Kiwi · Caja 10 kg', '1', '24,00', '24,00'],
+                        ['Manzana Gala · Calibre 100', '20'],
+                        ['Pera Forelle · Calibre 110', '10'],
+                        ['Uva roja', '2'],
+                        ['Kiwi · Caja 10 kg', '1'],
                       ].map((row) => (
                         <tr key={row[0]}>
                           {row.map((cell, i) => (
@@ -509,8 +517,8 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                   </table>
                 </div>
                 <p className="inline-explanation">
-                  Los costos de este documento son ejemplos. Cada recepción conserva sus propios
-                  costos históricos.
+                  Cada recepción registra los productos y cantidades que llegaron, con su empaque
+                  confirmado.
                 </p>
               </section>
               <aside className="commercial-summary">
@@ -520,18 +528,10 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                     <dt>Cajas recibidas</dt>
                     <dd>33</dd>
                   </div>
-                  <div>
-                    <dt>Costo de mercancía</dt>
-                    <dd>USD 864,00</dd>
-                  </div>
-                  <div>
-                    <dt>Precios comerciales</dt>
-                    <dd>Conservar o actualizar</dd>
-                  </div>
                 </dl>
                 <p>
-                  El costo de compra y el precio de venta se definen por separado. Confirmar
-                  registra todas las líneas juntas.
+                  Confirmar registra todas las líneas juntas. El precio por unidad se escribe al
+                  realizar la venta.
                 </p>
                 <Badge variant="secondary">Solo lectura · No se guarda</Badge>
               </aside>
@@ -553,9 +553,14 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                     Condición<strong>Contado</strong>
                   </span>
                 </div>
-                <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabla de ejemplo: desplázate para ver todas las columnas">
+                <div
+                  className="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Tabla de ejemplo: desplázate para ver todas las columnas"
+                >
                   <table className="commercial-table">
-                    <caption className="sr-only">Venta sintética con costo FIFO</caption>
+                    <caption className="sr-only">Venta de ejemplo con precio por unidad</caption>
                     <thead>
                       <tr>
                         <th>Producto</th>
@@ -578,19 +583,17 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                   </table>
                 </div>
                 <div className="demo-fifo">
-                  <h3>El costo sigue la antigüedad</h3>
+                  <h3>Primero sale la mercancía más antigua</h3>
                   <div>
                     <span>Primera recepción</span>
-                    <strong>10 cajas × USD 25,00</strong>
-                    <span>USD 250,00</span>
+                    <strong>10 cajas</strong>
                   </div>
                   <div>
                     <span>Segunda recepción</span>
-                    <strong>2 cajas × USD 27,00</strong>
-                    <span>USD 54,00</span>
+                    <strong>2 cajas</strong>
                   </div>
                   <p>
-                    Quedan 8 cajas de la segunda recepción. La asignación contable se hace
+                    Quedan 8 cajas de la segunda recepción. La salida de inventario se registra
                     automáticamente.
                   </p>
                 </div>
@@ -602,16 +605,12 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                     <dt>Ingreso</dt>
                     <dd>USD 480,00</dd>
                   </div>
-                  <div>
-                    <dt>Costo FIFO</dt>
-                    <dd>USD 304,00</dd>
-                  </div>
                   <div className="summary-total">
-                    <dt>Ganancia bruta</dt>
-                    <dd>USD 176,00</dd>
+                    <dt>Saldo pendiente</dt>
+                    <dd>USD 0,00</dd>
                   </div>
                 </dl>
-                <p>Estimación de mercancía, sin gastos accesorios.</p>
+                <p>Venta de contado cobrada por completo.</p>
                 <Button
                   variant="outline"
                   onClick={() =>
@@ -652,7 +651,12 @@ export function DemoScreen({ section }: { section: DemoSection }) {
                   <HandCoins aria-hidden="true" />
                   <h2>Cuenta del cliente de ejemplo A</h2>
                 </div>
-                <div className="table-scroll" tabIndex={0} role="region" aria-label="Tabla de ejemplo: desplázate para ver todas las columnas">
+                <div
+                  className="table-scroll"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Tabla de ejemplo: desplázate para ver todas las columnas"
+                >
                   <table className="commercial-table">
                     <caption className="sr-only">Saldos sintéticos por comprobante</caption>
                     <thead>

@@ -35,42 +35,12 @@ export function OperationsHome({ session }: { session: AppSession }) {
   const steps = data
     ? [
         {
-          title: 'Registra el proveedor',
-          description: 'Identifica quién entrega la mercancía.',
-          href: '/proveedores',
-          action: 'Ir a proveedores',
-          done: data.counts.suppliers > 0,
-        },
-        {
-          title: 'Agrega la fruta',
-          description: 'Usa el nombre comercial que reconoce tu negocio.',
-          href: '/catalogo',
-          action: 'Ir al catálogo',
-          done: data.counts.fruits > 0,
-        },
-        {
-          title: 'Confirma el empaque',
-          description:
-            'Define caja, media o blíster según el producto. Deja pendiente lo que aún no conoces.',
-          href: '/catalogo',
-          action: 'Definir empaque',
-          done: data.counts.confirmedConfigurations > 0,
-        },
-        {
           title: 'Recibe la mercancía',
           description:
-            'Registra cajas y costo de compra. Puedes cargar los precios en la misma recepción.',
+            'Elige los productos habituales, indica la cantidad y confirma la recepción.',
           href: '/recepciones',
           action: 'Registrar recepción',
           done: data.counts.receipts > 0,
-        },
-        {
-          title: 'Revisa los precios de venta',
-          description:
-            'Completa las listas promocional y normal para cada presentación que vas a vender.',
-          href: '/catalogo',
-          action: 'Revisar precios',
-          done: data.counts.pricedPresentations > 0,
         },
         {
           title: 'Registra el cliente',
@@ -240,16 +210,16 @@ export function OperationsHome({ session }: { session: AppSession }) {
                     <h2>El inventario comienza vacío</h2>
                     <p>
                       Las existencias aparecen después de confirmar una recepción. Registrar una
-                      fruta o un precio no agrega cajas al almacén.
+                      fruta no agrega existencias al almacén.
                     </p>
                   </section>
                 ) : (
                   <section>
                     <Truck aria-hidden="true" />
-                    <h2>Cada ingreso conserva su costo</h2>
+                    <h2>Cada ingreso conserva su empaque</h2>
                     <p>
-                      Registra una nueva recepción para la mercancía que llegue. Cambiar un precio
-                      de venta no cambia el costo de los lotes anteriores.
+                      Registra una nueva recepción para la mercancía que llegue. Los lotes
+                      anteriores conservan la presentación con la que fueron recibidos.
                     </p>
                   </section>
                 )}

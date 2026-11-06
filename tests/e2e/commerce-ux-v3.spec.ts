@@ -1,3 +1,4 @@
+import { historicalSaleCost } from './helpers/historical-cost';
 import { test, expect } from '@playwright/test';
 import { randomUUID, createHash } from 'node:crypto';
 import { Client } from 'pg';
@@ -81,9 +82,10 @@ test('contado rechaza fechas manipuladas sin movimiento ni documento y reintento
     dueDate: null,
     reminderDate: null,
     balanceUsd: '0.00',
-    costUsd: '25.0000',
+    costUsd: null,
     dueStatus: 'paid',
   });
+  await historicalSaleCost(sale.id, '25.0000');
   const after: LotDetail = await (await request.get(lotPath)).json();
   expect(after.lot.closedBoxes).toBe(1);
   expect(after.movements).toHaveLength(before.movements.length + 1);
