@@ -103,7 +103,26 @@ test('base nueva vacía, preparación privada y accesible en cuatro anchos', asy
     await expect(page.getByRole('heading', { name: 'Prepara tu primera operación' })).toBeVisible();
     await expect(page.getByText('Operación en preparación', { exact: true })).toBeVisible();
     await expect(page.getByText('El inventario comienza vacío', { exact: true })).toBeVisible();
-    await expect(page.locator('.operation-checklist li')).toHaveCount(7);
+    const steps = page.locator('.operation-checklist li');
+    await expect(steps).toHaveCount(3);
+    const expectedSteps = [
+      ['Recibe la mercancía', 'Registrar recepción', '/recepciones'],
+      ['Registra el cliente', 'Ir a clientes', '/clientes'],
+      ['Registra la primera venta', 'Crear venta', '/ventas/nueva'],
+    ] as const;
+    for (const [index, [title, action, href]] of expectedSteps.entries()) {
+      const step = steps.nth(index);
+      await expect(step).toHaveAttribute('data-complete', 'false');
+      await expect(step.getByRole('heading', { level: 3 })).toContainText(title);
+      await expect(step.getByText('Pendiente', { exact: true })).toBeVisible();
+      await expect(step.getByRole('link', { name: action, exact: true })).toHaveAttribute(
+        'href',
+        href,
+      );
+    }
+    await expect(page.locator('.operation-readiness')).toContainText(
+      'todavía no se registran operaciones comerciales',
+    );
     await expect(page.locator('body')).not.toContainText(/DEMO|ENTORNO DE PRUEBAS|Vista previa/);
     await expect(page.getByRole('button', { name: 'Actualizar resumen' })).toBeDisabled();
     await assertNoDocumentOverflow(page);

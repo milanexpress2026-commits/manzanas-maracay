@@ -141,7 +141,11 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
     } else await route.continue();
   });
   await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText('USD 0,10');
+  await expect(page.getByRole('dialog')).toContainText('2 cajas recibidas');
+  await expect(
+    page.getByRole('dialog').getByText('Cantidad: 1 · caja', { exact: true }),
+  ).toHaveCount(2);
+  await expect(page.getByRole('dialog')).not.toContainText(/USD|costo|precio/i);
   await page.getByRole('button', { name: 'Guardar recepción', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
     'Se perdió la confirmación de prueba',

@@ -202,7 +202,7 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
     page.getByRole('option', { name: 'Bolívares a tasa BCV', exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole('option', { name: 'Bolívares a tasa USDT compra', exact: true }),
+    page.getByRole('option', { name: 'Bolívares a tasa Binance/USDT compra', exact: true }),
   ).toBeDisabled();
   await page.getByRole('button', { name: 'Revisar abono', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar abono', exact: true }).click();
@@ -230,7 +230,22 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await page.screenshot({ path: 'docs/capturas/fase4/venta-qa-390.png', fullPage: true });
   await page.goto('/inicio');
   await expect(page.getByRole('heading', { name: 'Continúa con tu negocio' })).toBeVisible();
-  await expect(page.locator('.operation-checklist li[data-complete="true"]')).toHaveCount(7);
+  const completedSteps = page.locator('.operation-checklist li');
+  await expect(completedSteps).toHaveCount(3);
+  const expectedSteps = [
+    ['Recibe la mercancía', 'Registrar recepción', '/recepciones'],
+    ['Registra el cliente', 'Ir a clientes', '/clientes'],
+    ['Registra la primera venta', 'Crear venta', '/ventas/nueva'],
+  ] as const;
+  for (const [index, [title, action, href]] of expectedSteps.entries()) {
+    const step = completedSteps.nth(index);
+    await expect(step).toHaveAttribute('data-complete', 'true');
+    await expect(step.getByRole('heading', { level: 3, includeHidden: true })).toContainText(title);
+    await expect(step.getByText('Registrado', { exact: true })).toHaveCount(1);
+    await expect(
+      step.getByRole('link', { name: action, exact: true, includeHidden: true }),
+    ).toHaveAttribute('href', href);
+  }
   await expect(page.locator('.operation-overview')).toContainText('USD 50,00');
   await expect(page.locator('body')).not.toContainText(/DEMO|ENTORNO DE PRUEBAS|Vista previa/);
   await page.screenshot({ path: 'docs/capturas/fase4/inicio-qa-390.png', fullPage: true });

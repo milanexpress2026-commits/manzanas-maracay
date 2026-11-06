@@ -45,7 +45,7 @@ for (const agreement of ['divisa', 'bcv'] as const) {
       'Efectivo USD',
       'Bolívares a tasa BCV',
       'USDT',
-      'Bolívares a tasa USDT compra',
+      'Bolívares a tasa Binance/USDT compra',
     ]);
     await expect(page.locator('#sale-currency')).toHaveCount(0);
     await selector.selectOption(method);

@@ -254,7 +254,7 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
     page.getByRole('option', { name: 'Bolívares a tasa BCV', exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole('option', { name: 'Bolívares a tasa USDT compra', exact: true }),
+    page.getByRole('option', { name: 'Bolívares a tasa Binance/USDT compra', exact: true }),
   ).toBeDisabled();
   const paymentKeys: string[] = [];
   let recordedPaymentId = '';
