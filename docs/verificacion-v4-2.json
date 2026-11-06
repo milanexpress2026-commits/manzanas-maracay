@@ -3,7 +3,7 @@
   "candidateCommit": "80b186f22b58b77a94a849c32d1d09f342478fd7",
   "status": "ready_for_production_approval",
   "productionApproval": {
-    "status": "not_requested",
+    "status": "requested",
     "granted": false
   },
   "localVerification": {
