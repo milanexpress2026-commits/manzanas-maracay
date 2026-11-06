@@ -27,7 +27,9 @@ Las lecturas de lotes usan LEFT JOIN con proveedores para conservar filas sin pr
 
 ## Verificación y promoción
 
-El ensayo local de migraciones del 5 de noviembre pasó con base nueva de 15 migraciones y actualización11→13→14→15: 35 tablas históricas, referencias, proveedores, costos, acuerdos y hashes anteriores preservados. Los números internos de documentos anteriores permanecen NULL. Se retiraron las dos bases temporales. Las pruebas de aplicación y navegador se registrarán al cerrar la validación integrada.
+El ensayo local de migraciones del 5 de noviembre pasó con base nueva de 15 migraciones y actualización 11→13→14→15: 35 tablas históricas, referencias, proveedores, costos, acuerdos y hashes anteriores preservados. Los números internos de documentos anteriores permanecen NULL. Se retiraron las dos bases temporales.
+
+El código `07dcef8f3770d8790d9e0261785c2bea68da2969` pasó tipos, compilación de API/web y 247 pruebas unitarias. Las 13 pruebas dirigidas de V4.2 comprobaron materialización atómica, costos, concurrencia, numeración, FIFO, historial y recuperación de la misma recepción tras pérdida de respuesta, recarga y cierre de sesión; las vistas 390/800/1366 pasaron accesibilidad y límites de pantalla. El recorrido posterior de producción aislada pasó 13/13 el 6 de noviembre: base vacía, tres productos sin proveedor, venta inmediata, crédito, abonos y PDF; la base temporal fue retirada. La venta automática conserva ahora segundos y milisegundos, mientras la fecha manual sigue siendo explícita. La suite completa y la validación del candidato en VPS siguen pendientes al redactar esta evidencia.
 
 La inspección real encontró datos cargados nuevamente por el propietario y ningún maestro llamado «Manzana Gala». No hay corrección ni borrado pendiente sobre ese nombre. Antes de promover se vuelve a verificar el estado; esta observación no presupone que la base siga igual.
 
