@@ -1,6 +1,6 @@
 # Recepción rápida y catálogo habitual · V4.2
 
-Implementación en validación, rama `feature/recepcion-rapida-v4-2`, desde `476816f` de V4. No acredita todavía una publicación real. Producción observada el 5 de noviembre de 2026 conserva `phase4-2a81817fe2c1`; staging V4 conserva `hotfix-53aeff14b981`. [Brief corregido](referencias/brief-recepcion-rapida-v4-2.txt).
+Implementación en validación, rama `feature/recepcion-rapida-v4-2`, desde `476816f` de V4. No acredita todavía una publicación real. Producción conserva `phase4-2a81817fe2c1`; staging V4.2 ya pasó a `hotfix-5de04234c40f`. La corrección posterior de búsqueda de clientes está en validación. [Brief corregido](referencias/brief-recepcion-rapida-v4-2.txt).
 
 ## Operación
 
@@ -32,6 +32,10 @@ El ensayo local de migraciones del 5 de noviembre pasó con base nueva de 15 mig
 El código `07dcef8f3770d8790d9e0261785c2bea68da2969` pasó tipos, compilación de API/web y 247 pruebas unitarias. Las 13 pruebas dirigidas de V4.2 comprobaron materialización atómica, costos, concurrencia, numeración, FIFO, historial y recuperación de la misma recepción tras pérdida de respuesta, recarga y cierre de sesión; las vistas 390/800/1366 pasaron accesibilidad y límites de pantalla. El recorrido posterior de producción aislada pasó 13/13 el 6 de noviembre: base vacía, tres productos sin proveedor, venta inmediata, crédito, abonos y PDF; la base temporal fue retirada. La venta automática conserva ahora segundos y milisegundos, mientras la fecha manual sigue siendo explícita. La suite completa y la validación del candidato en VPS siguen pendientes al redactar esta evidencia.
 
 La inspección real encontró datos cargados nuevamente por el propietario y ningún maestro llamado «Manzana Gala». No hay corrección ni borrado pendiente sobre ese nombre. Antes de promover se vuelve a verificar el estado; esta observación no presupone que la base siga igual.
+
+Staging `5de04234c40f` pasó la actualización 14→15, conservación del historial, recuperación de respaldos antes/después y 16 comprobaciones autenticadas, incluidas ambas tasas vigentes. Una copia real de producción se restauró y migró 13→15 en aislamiento: 36 tablas preservadas, permisos comprobados y recursos temporales retirados. La base real no recibió esas pruebas.
+
+La repetición general con datos acumulados detectó el límite anterior de 200 clientes en el selector: algunos clientes nuevos quedaban fuera de la primera página. La corrección usa búsqueda en servidor, carga de más resultados y recuperación del seleccionado por ID, conservándolo al cambiar de búsqueda o volver al borrador. Mantiene búsqueda por nombre, teléfono y RIF. Este cambio se verifica con un cliente situado después de los primeros 200 y necesita un nuevo candidato; no cambia las quince migraciones.
 
 La promoción requiere candidato exacto, imágenes, respaldo externo cifrado y recuperación aislada, comprobación13→15 sobre copia del respaldo y aprobación expresa del apartado 8. Después se detienen solo los escritores propios durante la nueva copia y migración; se conserva PostgreSQL, volumen, acceso y alias. No se modifica DNS, Caddy ni otros proyectos. Si falla, se conserva el bloqueo para inspección; no se arranca código de 13 migraciones sobre esquema de 15 ni se restaura por cuenta propia sobre nuevas operaciones.
 

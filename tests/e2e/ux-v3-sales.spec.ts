@@ -1,3 +1,4 @@
+import { chooseSaleClient } from './helpers/sale-client';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import fs from 'node:fs';
@@ -53,7 +54,7 @@ async function fixture(page: Page) {
     products.push(product);
   }
   await page.goto('/ventas/nueva');
-  await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
+  await chooseSaleClient(page, client);
   await page.getByLabel('Producto', { exact: true }).selectOption(products[0].id);
   await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
   return { client, products };
@@ -319,7 +320,7 @@ test('revisión conserva cotización, vencimiento exige refrescar y API rechaza 
     });
   });
   await page.reload();
-  await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
+  await chooseSaleClient(page, client);
   const product = products[0];
   await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
   await page.getByLabel('Precio acordado').selectOption('usd_cash_promo');

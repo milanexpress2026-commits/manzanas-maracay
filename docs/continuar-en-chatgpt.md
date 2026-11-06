@@ -5,9 +5,9 @@ Repositorio público: [Manzanas Maracay](https://github.com/milanexpress2026-com
 ## Estado comprobado
 
 - Producción activa: `phase4-2a81817fe2c1`, código `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0`, operación interna en USD con acceso de dueños. No suponer que sigue vacía: los propietarios volvieron a cargar datos después del reinicio autorizado.
-- Staging V4 verificado: `hotfix-53aeff14b981`, código `53aeff14b981c52417d97c257f5be3ba1dd9d45f`, catorce migraciones. [Evidencia V4](catalogo-tasas-v4.md).
+- Staging V4.2 verificado: `hotfix-5de04234c40f`, código `5de04234c40fe3953015bef6803f2cb5b0b8000b`, quince migraciones y 16 comprobaciones de acceso/lectura/tasas aprobadas. La corrección posterior de búsqueda de clientes está en validación y aún no está desplegada.
 - V4 cerrada documentalmente en `476816f`, [PR #5](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/5). Conserva PR #1–4, sin merges ni force push.
-- Trabajo vigente: `feature/recepcion-rapida-v4-2`, desde V4. La continuación corregida está autorizada para implementación y pruebas; preparar toda la promoción antes de solicitar aprobación expresa del cambio real.
+- Trabajo vigente: `feature/recepcion-rapida-v4-2`, desde V4, [PR #6](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/6). La continuación corregida está autorizada para implementación y pruebas; preparar toda la promoción antes de solicitar aprobación expresa del cambio real.
 
 Verificar siempre HEAD, release, estado del PR y evidencia más reciente. Un commit de documentación no equivale a un despliegue.
 

@@ -1,3 +1,4 @@
+import { chooseSaleClient } from '../e2e/helpers/sale-client';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
@@ -169,7 +170,7 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   expect(client.isDemo).toBe(false);
 
   await page.goto('/ventas/nueva');
-  await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
+  await chooseSaleClient(page, client);
   await page.getByRole('radio', { name: 'Crédito', exact: true }).check();
   await page.getByRole('button', { name: '7 días', exact: true }).click();
   await expect(page.getByLabel('Fecha acordada (opcional)', { exact: true })).not.toHaveValue('');

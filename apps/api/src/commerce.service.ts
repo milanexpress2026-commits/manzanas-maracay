@@ -144,7 +144,7 @@ export class CommerceService implements OnModuleDestroy {
       async (client) =>
         (
           await client.query(
-            `${clientSelect} where ($1::text is null or c.name ilike '%'||$1||'%' or c.phone ilike '%'||$1||'%') order by c.name,c.id limit $2 offset $3`,
+            `${clientSelect} where ($1::text is null or c.name ilike '%'||$1||'%' or c.phone ilike '%'||$1||'%' or c.tax_id ilike '%'||$1||'%') order by c.name,c.id limit $2 offset $3`,
             [filter.search ?? null, filter.limit, filter.offset],
           )
         ).rows,

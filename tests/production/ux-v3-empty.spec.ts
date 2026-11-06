@@ -1,3 +1,4 @@
+import { chooseSaleClient } from '../e2e/helpers/sale-client';
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -226,9 +227,7 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.goto('/ventas/nueva');
     await expect(page.getByRole('radio', { name: 'Contado', exact: true })).toBeChecked();
-    await page
-      .getByLabel('Cliente', { exact: true })
-      .selectOption({ label: 'Cliente QA contado vacío' });
+    await chooseSaleClient(page, { name: 'Cliente QA contado vacío' });
     await page.getByLabel('Producto', { exact: true }).selectOption(apple.id);
     await page.getByLabel('Presentación', { exact: true }).selectOption('box');
     await page.getByLabel('Cantidad', { exact: true }).fill('1');
@@ -274,9 +273,7 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
       1,
     );
     await page.goto('/ventas/nueva');
-    await page
-      .getByLabel('Cliente', { exact: true })
-      .selectOption({ label: 'Cliente QA contado vacío' });
+    await chooseSaleClient(page, { name: 'Cliente QA contado vacío' });
     await page.getByLabel('Producto', { exact: true }).selectOption(apple.id);
     await page.getByLabel('Presentación', { exact: true }).selectOption('box');
     await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');

@@ -1,3 +1,4 @@
+import { chooseSaleClient } from './helpers/sale-client';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
@@ -192,7 +193,7 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ventas/nueva');
-  await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
+  await chooseSaleClient(page, client);
   await page.getByRole('radio', { name: 'Crédito', exact: true }).check();
   await page.getByLabel('Producto', { exact: true }).selectOption(config.id);
   await expect(page.getByLabel('Presentación', { exact: true })).toBeDisabled();
