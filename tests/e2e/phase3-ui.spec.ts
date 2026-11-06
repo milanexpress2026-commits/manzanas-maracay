@@ -1,3 +1,4 @@
+import { chooseSaleClient } from './helpers/sale-client';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { randomUUID } from 'node:crypto';
@@ -192,7 +193,7 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ventas/nueva');
-  await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
+  await chooseSaleClient(page, client);
   await page.getByRole('radio', { name: 'Crédito', exact: true }).check();
   await page.getByLabel('Producto', { exact: true }).selectOption(config.id);
   await expect(page.getByLabel('Presentación', { exact: true })).toBeDisabled();
@@ -342,14 +343,18 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
           p.promoUsd === null && p.regularUsd === null,
       ),
   ).toBe(true);
-  await page.goto('/recepciones');
-  await page.getByLabel('Proveedor', { exact: true }).selectOption(supplier.id);
-  await page.getByLabel('Referencia del documento').fill('DEMO precios ' + suffix);
-  await page.getByLabel('Fruta, variedad y calibre').selectOption(config.id);
-  await page.getByLabel('Cajas cerradas recibidas').fill('1');
-  await page.getByLabel('Costo por caja (USD)').fill('25');
+  await page.goto('/recepciones?producto=' + config.id);
+  await expect(page.getByRole('region', { name: 'Producto 1', exact: true })).toBeVisible();
+  await page.getByText('Más detalles (opcional)', { exact: true }).click();
+  await page.getByLabel('Proveedor (opcional)', { exact: true }).selectOption(supplier.id);
+  await page
+    .getByLabel('Documento del proveedor (opcional)', { exact: true })
+    .fill('DEMO precios ' + suffix);
+  await page.getByLabel('Cajas recibidas', { exact: true }).fill('1');
+  await page.getByLabel('Costo real por caja · USD', { exact: true }).fill('25');
   await page.getByLabel('Blíster por caja', { exact: true }).fill('4');
   await page.getByLabel('Preparación de media caja', { exact: true }).selectOption('counted');
+  await page.getByText('Notas y precios de este producto', { exact: true }).click();
   await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
   await page.getByLabel('Promocional divisa', { exact: true }).first().fill('42');
   const receiptKeys: string[] = [];
@@ -369,13 +374,13 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
     }
     return route.continue();
   });
-  await expect(page.getByLabel('Fecha y hora de recepción')).not.toHaveValue('');
+  await expect(
+    page.getByLabel('Fecha y hora de recepción (opcional)', { exact: true }),
+  ).toHaveValue('');
   await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('main').getByRole('alert')).toContainText(
-    'Revisa y confirma el empaque pendiente',
-  );
-  await page.getByRole('checkbox', { name: /Verifiqué este empaque/ }).check();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Confirma la presentación');
+  await page.getByRole('checkbox', { name: /Verifiqué esta presentación/ }).check();
   await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   const received = page.waitForRequest(
@@ -383,16 +388,18 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
   );
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: 'Confirmar recepción', exact: true })
+    .getByRole('button', { name: 'Guardar recepción', exact: true })
     .click();
   expect((await received).postDataJSON().lines[0].prices).toHaveLength(1);
-  await expect(page.getByRole('alert')).toContainText('Confirmación de recepción perdida');
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
+    'Confirmación de recepción perdida',
+  );
   await page
     .getByRole('dialog')
-    .getByRole('button', { name: 'Confirmar recepción', exact: true })
+    .getByRole('button', { name: 'Reintentar misma recepción', exact: true })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Mercancía recibida', exact: true }),
+    page.getByRole('heading', { name: 'Recepción guardada', exact: true }),
   ).toBeVisible();
   expect(receiptKeys).toHaveLength(2);
   expect(receiptKeys[1]).toBe(receiptKeys[0]);

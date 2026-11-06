@@ -41,6 +41,7 @@ import { fetchCatalog } from '@/lib/catalog-api';
 import { CatalogForm, type FormKind } from './catalog-form';
 import { CatalogPreparation } from './catalog-preparation';
 import { CatalogTemplates } from './catalog-templates';
+import { HabitualCatalog } from './habitual-catalog';
 import preparationStyles from './catalog-preparation.module.css';
 import { AppShell, type AppSession } from './app-shell';
 import { CatalogPrices } from './catalog-prices';
@@ -241,42 +242,46 @@ export function CatalogScreen({ session }: { session: AppSession }) {
             </AlertDescription>
           </Alert>
         ) : null}
-        {preparing ? (
-          <CatalogPreparation onDone={reload} onCancel={() => setPreparing(false)} />
-        ) : !loading && !error ? (
-          <section className={preparationStyles.entry} aria-label="Preparar productos habituales">
-            <h2>
-              {catalog.fruits.length
-                ? 'Productos habituales, listos para revisar'
-                : 'Empieza con el catálogo del negocio'}
-            </h2>
-            <p>
-              Revisa las frutas y opciones ya comunicadas, desmarca lo que no vendas y prepara los
-              borradores. Las cajas, costos y precios se registran después.
-            </p>
-            <Button
-              variant={catalog.fruits.length ? 'outline' : 'default'}
-              disabled={offline}
-              onClick={() => setPreparing(true)}
-            >
-              Preparar catálogo de Manzanas Maracay
-            </Button>
-          </section>
-        ) : null}
-        {!preparing && catalog.fruits.length > 0 ? (
-          <CatalogTemplates
-            catalog={catalog}
-            onReload={reload}
-            returnToSale={returnToSale}
-            onSaved={async (id) => {
-              setSelectedId(id);
-              setTab('configurations');
-              setSearch('');
-              setFruitFilter('all');
-              await reload();
-            }}
-          />
-        ) : null}
+        <HabitualCatalog session={session} returnToSale={returnToSale} />
+        <details className={preparationStyles.draft}>
+          <summary className={preparationStyles.option}>Preparar y editar maestros</summary>
+          {preparing ? (
+            <CatalogPreparation onDone={reload} onCancel={() => setPreparing(false)} />
+          ) : !loading && !error ? (
+            <section className={preparationStyles.entry} aria-label="Preparar productos habituales">
+              <h2>
+                {catalog.fruits.length
+                  ? 'Productos habituales, listos para revisar'
+                  : 'Empieza con el catálogo del negocio'}
+              </h2>
+              <p>
+                Revisa las frutas y opciones ya comunicadas, desmarca lo que no vendas y prepara los
+                borradores. Las cajas, costos y precios se registran después.
+              </p>
+              <Button
+                variant={catalog.fruits.length ? 'outline' : 'default'}
+                disabled={offline}
+                onClick={() => setPreparing(true)}
+              >
+                Preparar catálogo de Manzanas Maracay
+              </Button>
+            </section>
+          ) : null}
+          {!preparing && catalog.fruits.length > 0 ? (
+            <CatalogTemplates
+              catalog={catalog}
+              onReload={reload}
+              returnToSale={returnToSale}
+              onSaved={async (id) => {
+                setSelectedId(id);
+                setTab('configurations');
+                setSearch('');
+                setFruitFilter('all');
+                await reload();
+              }}
+            />
+          ) : null}
+        </details>
         <div className="workspace-grid">
           <section className="catalog-panel" aria-label="Registros del catálogo">
             <Tabs value={tab} onValueChange={changeTab}>
@@ -365,7 +370,7 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                       {search || fruitFilter !== 'all'
                         ? 'Prueba otro nombre o quita el filtro.'
                         : !catalog.fruits.length
-                          ? 'Pulsa Agregar producto: podrás crear fruta, variedad y calibre aquí mismo, y después definir su empaque.'
+                          ? 'Las opciones habituales están disponibles arriba. Solo se guardarán los productos que recibas; también puedes agregar uno excepcional.'
                           : tab === 'configurations'
                             ? 'Pulsa Agregar producto para definir lo que vas a recibir y vender.'
                             : `Agrega tu primer registro para organizar el catálogo.`}

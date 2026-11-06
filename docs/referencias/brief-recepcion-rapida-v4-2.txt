@@ -1,0 +1,136 @@
+MANZANAS MARACAY — INSTRUCCIÓN MAESTRA COMPLEMENTARIA V4.2 (CORREGIDA)
+CATÁLOGO COMERCIAL PREPARADO + RECEPCIÓN RÁPIDA SIN PROVEEDOR OBLIGATORIO
+Fecha: 05/11/2026
+ACLARACIÓN POSTERIOR CONFIRMADA: el calibre 100 corresponde al grupo de 4 blísteres, no al de 5. Esta versión reemplaza la V4.2 anterior y contiene la misma lógica de catálogo y recepción rápida, salvo la corrección de este límite.
+
+PARA CODEX — LEER ANTES DE MODIFICAR CÓDIGO
+
+El propietario acaba de confirmar que no quiere introducir manualmente decenas de frutas, variedades, calibres y empaques, ni seleccionar proveedor en cada recepción. Quiere abrir el sistema, escoger qué mercancía llegó, seleccionar calibre/presentación, escribir la cantidad de cajas y guardar. Tu misión es adaptar a esa operación REAL todo lo desarrollado, sin perder integridad de lotes, costos, FIFO, historial, saldos y seguridad. No entregues otra DEMO; implementa, prueba y entrega mejoras verificables en la rama actual, promoviendo a producción solo mediante el procedimiento y autorización específica correspondientes.
+
+ESTADO DE GITHUB COMPROBADO EN ESTA SOLICITUD
+- Repositorio: https://github.com/milanexpress2026-commits/manzanas-maracay
+- Rama de trabajo más reciente: feature/catalogo-tasas-v4 (PR #5), basada en hotfix/ux-ventas-catalogo-v3 (PR #4); verificar HEAD nuevo antes de comenzar y no sobreescribir cambios concurrentes.
+- La interfaz V4 ya incorpora ProductForm y la opción de preparar catálogo, pero el catálogo todavía exige preparación individual de combinaciones y algunos calibres faltan respecto de la nota real proporcionada.
+- En el código V4, ReceiptScreen exige proveedor activo, reference y unitCostUsd. `canReceive` depende de que exista proveedor. `receiptSchema.supplierId` es UUID obligatorio; `purchases.supplier_id` y `lots.supplier_id` son NOT NULL; el backend busca proveedor activo. Modificar SOLO la interfaz no basta.
+- La última producción observada continúa en fase4-2a81817fe2c1; el PR #5 estaba en desarrollo/validación y no había sido promovido. Verificar de nuevo: no asumir que lo anterior sigue vigente.
+- No sobrescribir migraciones aplicadas ni provocar cambios en otros contenedores del VPS.
+
+1. OBJETIVO OPERATIVO INNEGOCIABLE
+El sistema debe arrancar con las opciones comerciales habituales disponibles, pero con inventario CERO, precios NO INVENTADOS y sin atribuir compras ficticias. El operador NO debe crear primero cada fruta, luego cada variedad, luego cada calibre y finalmente cada empaque. Tampoco debe registrar proveedor en una recepción normal.
+
+Recorrido objetivo (tablet/teléfono y PC):
+A) Entrar a Recepciones -> botón grande «Recibir mercancía».
+B) Buscar/seleccionar por nombre fruta + variedad + calibre de listas listas para usar (p. ej. «Manzana → Gala → 113»), con búsqueda y favoritos/recientes. Permitir varios productos en la misma recepción.
+C) Mostrar unidad automáticamente según producto (caja, media caja o blíster donde corresponda) y solicitar cantidad. El ingreso inicial habitual son cajas recibidas; la media/blíster se gestionan con reglas físicas existentes, sin falsa equivalencia.
+D) Fecha y hora: automáticamente America/Caracas, editable solamente en «Más detalles». Número/referencia de recepción: generado automáticamente, único, sin pedir que se escriba. Proveedor: OPCIONAL, oculto por defecto en «Más detalles», se puede seleccionar si se conoce.
+E) Costo: ver política de integridad en sección 4, NO inventar ni copiar silenciosamente. Lista de precios: conservar los precios confirmados, proponer actualización en sección avanzada solo cuando corresponda.
+F) Revisar resumen compacto y Guardar UNA VEZ; registrar atomicamente y mostrar «Recepción guardada» con cantidad/stock.
+G) Para otra recepción: no volver a cargar los maestros ni campos redundantes.
+
+Criterio UX: permitir registrar, por ejemplo, 10 cajas Gala calibre 113 + 6 cajas manzana roja calibre 88 + 3 cajas kiwi en una sola operación. El usuario nunca debe navegar cuatro pestañas ni escribir proveedor o referencia.
+
+2. PREPARAR EL CATÁLOGO COMERCIAL REAL, EN FORMA IDEMPOTENTE
+Incorporar un catálogo inicial configurable, visible desde primer uso o mediante un único botón claro «Preparar catálogo habitual», diseñado para trabajar sobre datos de producción EXISTENTES sin duplicar, borrar o fusionar registros. El usuario no debe seleccionar manualmente decenas de calibres repetidos.
+
+2.1 MANZANA — fruta maestra «Manzana»; variedades:
+- Amarilla (NO confundir con Gala; mantener separada)
+- Roja normal (mostrar comercialmente «Roja» si así se usa)
+- Verde
+- Gala
+- Pink Lady (no fusionar con «Lady» histórico sin confirmación)
+Calibres impresos en la nota de entrega REAL del propietario: 80, 88, 100, 113, 125, 150, 175, 198, 216.
+Calibres adicionales comunicados en conversaciones anteriores: 135 y 163.
+Conjunto de opciones habituales CONOCIDAS a incluir: 80, 88, 100, 113, 125, 135, 150, 163, 175, 198, 216. Un calibre listado no afirma que todas las variedades lo tengan en stock. Permitir habilitar/ocultar combinaciones sin borrarlas y agregar un calibre excepcional manualmente.
+Tradicional con blíster: caja, media caja y blíster según configuración/operativa real. No vender manzanas individualmente.
+
+2.2 MANZANA A GRANEL: ES LÍNEA COMERCIAL, NO VARIEDAD NUEVA. Calibres 150, 163, 175, 198, 216, 232. Presentaciones SOLO caja o media caja comercial; sin blíster y SIN contar manzanas individuales. No imponer gramajes ni piezas.
+
+2.3 PERA: fruta «Pera»; variedades «Forelle» y «Packcam» (respetar ortografía comunicada, sin corrección automática). La nota de entrega REAL enumera calibres 70, 80, 90, 100, 110, 120; anteriormente se indicó 135. Preparar opciones 70, 80, 90, 100, 110, 120, 135. Caja, media caja y blíster; cantidades de blíster/operación de media caja que NO fueron confirmadas deben permanecer pendientes/editables y no inventarse.
+
+2.4 KIWI: variedad y calibre no obligatorios; caja 10 kg o media caja comercial 5 kg. Nunca pesar cada venta ni contar individualmente. No confundir 5 kg con 5 unidades.
+
+2.5 UVA: variedades Roja y Morada comunicadas previamente, y Verde que aparece explícitamente en la nota aportada. Prepararlas como opciones comerciales diferenciadas para revisión, solo por CAJA; sin peso, media caja, blíster ni conteo de gajos. Si la nomenclatura «Morada» de la línea previa presenta conflicto con «Roja/Verde», conservar las tres y dejar que el propietario active/desactive, no fusionar.
+
+2.6 PRODUCTOS ADICIONALES IMPRESOS EN LA NOTA REAL:
+- Ciruela
+- Nectarina
+- Naranja
+- Mandarina
+Incluirlas como tipos de fruta predefinidos, seleccionables, pero NO inventar presentaciones/calibres/blíster/gramos ni precios. Donde falte configuración, mostrar «Confirmar presentación» con una acción breve, sin bloquear todo el catálogo ni impedir que se registren otros productos conocidos.
+
+2.7 El catálogo predefinido NO crea inventario, costos, compras, ventas, saldos, clientes, tasas ni proveedores. Catálogo y opciones ≠ existencias. Debe ser idempotente, transaccional, compatible con datos previos y trazable. Permitir excepciones/edición posterior y conservar snapshots de lotes anteriores. Evitar crear centenares de combinaciones físicas sin uso si la UI puede resolver opciones predefinidas y materializar solo las activas; no obstante, el operador debe ver inmediatamente las combinaciones habituales sin capturarlas manualmente.
+
+2.8 El sistema real ya contiene un registro comercial «Manzana Gala» como FRUTA. No borrarlo, renombrarlo ni migrarlo silenciosamente. Realizar diagnóstico de dependencias (ventas, recepciones, lotes, precios y movimientos), plan de corrección segura y, si hace falta intervención, solicitar autorización específica. Catalogar correctamente nuevas operaciones como Fruta=Manzana, Variedad=Gala. Prevenir duplicados por normalización, preservando relaciones históricas.
+
+3. REGLA DE BLÍSTERES — ACLARACIÓN EXPRESA DEL PROPIETARIO (DEFINITIVA PARA EL LÍMITE 100)
+El propietario ya resolvió la duda anterior: «El calibre cien trae cuatro [blísteres]. Ya de ahí para adelante son cinco». La referencia verbal a «litros» es un error de transcripción en este contexto de empaque. Por tanto, la regla para MANZANAS TRADICIONALES EN CAJA CON BLÍSTER, en las combinaciones a las que aplique, es inequívoca:
+  * calibre MENOR O IGUAL A 100: 4 blísteres por caja. Incluye exactamente el calibre 100. Ejemplos: 80, 88 y 100.
+  * calibre MAYOR A 100: 5 blísteres por caja. Ejemplos: 113, 125, 135, 150, 163, 175, 198 y 216.
+  * El calibre 100 NO está pendiente: NO solicitar confirmación adicional de si son 4 o 5; su valor habitual es 4.
+Sugerir/precargar automáticamente esa regla por calibre, para ahorrar tecleo. Permitir EXCEPCIONES cuando una variedad o lote real venga empaquetado de otra forma, con confirmación de cambio y snapshot histórico. No aplicarla a manzanas A GRANEL (sin blíster), ni a pera, kiwi, uva, ciruela, nectarina, naranja o mandarina. No interpretar calibre como número de frutas.
+Si existen configuraciones ya confirmadas distintas que afectan stock/movimientos, NO reescribirlas ni recostear lotes: mostrar la discrepancia para corrección segura en operaciones futuras y preservar el pasado.
+
+4. COSTO HISTÓRICO: SIMPLIFICAR SIN INVENTAR GANANCIAS
+El propietario pide idealmente introducir SOLO cantidades. Pero el software debe conservar costo de compra POR RECEPCIÓN para cálculo correcto de FIFO y margen cuando el costo cambie. Resolver así:
+- Primer ingreso de cada producto/calibre sin costo histórico confirmado: pedir costo por caja UNA VEZ en un campo pequeño y claro, o permitir «Registrar llegada pendiente de costo» con estado PROVISIONAL explícito, SIN inventar $0 como costo real, SIN permitir vender ese stock hasta conciliar costo real, y con ledger/auditoría intactos. Preferir la alternativa mínima segura que permita operar. Jamás mostrar margen falso.
+- Ingresos posteriores: precargar/proponer último costo real conocido, con rótulo claro «Costo anterior: USD X — confirma si sigue igual». Permitir aceptar con un toque o editar cuando haya cambiado. NO asumir automáticamente que compra nueva cuesta igual.
+- Mantener NUMERIC/Decimal, costos inmutables por lote, contabilidad FIFO, costos fragmentados y control de concurrencia.
+- Precio de venta habitual se conserva hasta que el dueño decida editarlo. NO cambiar precios del catálogo al registrar recepción, ni copiar costo como precio.
+- Si la implementación actual no permite inventario provisional sin costo, NO meter una conversión a cero ni migración improvisada: usar costo confirmado como paso de primera recepción y explicar por qué es obligatorio; dejar cantidad como única entrada habitual cuando existan datos válidos confirmados.
+- Resumen compacto siempre debe mostrar qué costo se aplicará y permitir corregirlo ANTES de guardar.
+
+5. PROVEEDOR DEBE SER REALMENTE OPCIONAL, NO UN REGISTRO FICTICIO
+Modificar de forma coherente frontend + dominio + API + persistencia + migraciones + consultas + reportes:
+- Recepciones nuevas: `supplierId` opcional/nullable. Si existe, validar que corresponda a proveedor real activo; si es NULL, NO crear automáticamente «Proveedor genérico» o «Sin proveedor» en tabla de proveedores.
+- `purchases.supplier_id`, `lots.supplier_id` y las claves/joins relacionadas deben manejar NULL correctamente mediante migración NUEVA compatible con las 14 migraciones existentes; NO reescribir antiguas.
+- En las consultas de lotes y compras usar LEFT JOIN cuando corresponda; mostrar «Sin proveedor indicado» si es NULL. No desaparecer registros por INNER JOIN.
+- Revisar claves únicas `(supplier_id, reference)` cuando supplierId es NULL: usar número interno de recepción único generado por servidor, índice de unicidad global adecuado, idempotencia y pruebas anti-duplicación. No basar la identidad de la recepción en un proveedor opcional.
+- La fecha actual y referencia interna se autocompletan. Opción de seleccionar proveedor, introducir factura/documento o notas queda en «Más detalles», colapsada y completamente opcional.
+- Permitir varias líneas heterogéneas de fruta y variedad, cada una con su costo de compra correcto; stock y documentos deben reflejar número interno y fecha.
+- Preservar y restaurar correctamente todas las compras/lotes existentes con supplierId NO NULL. No alterar proveedores existentes ni otras apps del VPS.
+- NO desactivar validaciones, RLS, auditoría, idempotencia ni restricciones críticas solo para simplificar el formulario.
+
+6. PANTALLAS Y EXPERIENCIA DE USO
+- «Catálogo habitual listo»: iniciar con manzana, pera, kiwi, uvas y demás frutas, con calibres listos; mostrar SOLO un asistente opcional para dudas de empaque, no obligar a crear decenas de registros por separado.
+- «Recepción rápida»: campo Buscar producto, calibre, número de cajas; botón «+ Otra fruta»; guardar/resumen. Fecha, referencia, proveedor, notas, precios en detalle opcional. En tablet, controles grandes, teclado numérico cuando proceda.
+- «Nueva venta»: conservar simplificación UX V3/V4 y métodos confirmados de USD efectivo, USDT, VES a BCV según acuerdo regular, VES según USDT compra cuando pactado divisa. No volver a mostrar recordatorio en contado. No obligar al operador a teclear método de cobro. Los valores y tasas solo se activan si las fuentes verificadas están vigentes.
+- Notas de entrega futuras: no es objetivo fiscal de este cambio; conservar PDFs comerciales sin etiquetarlos como facturas fiscales.
+- Si el operador quiere agregar calibre excepcional, botón «+ Nuevo calibre», sin perder borrador; validar pertenencia a fruta y evitar duplicados.
+- Priorizar aplicación real de negocio, evitar animaciones que bloqueen pulsaciones, controles difíciles o formularios interminables.
+
+7. QA OBLIGATORIA ANTES DE PROPONER PUBLICACIÓN
+Crear tests E2E de navegador (390px móvil, 800px tablet, 1366px escritorio), unitarios, integración SQL y regresión. Usar exclusivamente BD aislada y datos sintéticos, nunca producción para crear transacciones de ensayo:
+A. La primera entrada del dueño muestra catálogo habitual sin haber dado de alta manualmente Manzana/Gala/80/etc.; cero stock y cero precios ficticios.
+B. Manzana->Gala calibre 88 sugiere 4 blíster y Manzana->Roja calibre 113 sugiere 5; la regla es editable; granel, kiwi y uva no reciben blísteres.
+C. Calibre 100 PRESELECCIONA 4 blísteres/caja; calibre 88 también 4; calibre 113 preselecciona 5. No pide escoger entre 4 y 5 para calibre 100. Permite excepción por lote confirmada y conserva el histórico.
+D. Pera calibres 70 y 80 disponibles, 135 también; manzana tradicional 80 y 216, y los anteriores 135/163; granel 232.
+E. Uva verde, roja y morada separadas; ciruela, nectarina, naranja, mandarina disponibles como fruta sin inventar empacado.
+F. Registrar recepción SIN proveedor registrado en BD. Sin referencia manual. Dos o más líneas. Verificar que `purchases`/`lots` y pantallas no fallen al consultar NULL, ni desaparezcan filas.
+G. Verificar que referencias autogeneradas y reintentos simultáneos no duplican caja, lote, costo o movimiento.
+H. Primera recepción sin costo previo exige registrar costo real o queda explícitamente pendiente/no vendible; segunda propone último costo y permite corregirlo. Lotes de $25 y $27 preservan FIFO y márgenes exactos.
+I. Venta y cobranza no cambian precios pactados; contado no genera deuda ni recordatorio; crédito/abonos continúan correctos; recibos PDF e historial sobreviven reimpresión.
+J. Migración desde producción existente: conserva recibos, compras, lotes, proveedores, catalogación, códigos y restricciones; identificar «Manzana Gala» heredada sin alterar datos sin permiso.
+K. Simular error 500, doble pulsación, pérdida de red, interacciones rápidas, pantalla pequeña y cierre/reapertura del borrador. Nunca mostrar éxito sin confirmación servidor.
+L. Pruebas de costos y reportes: LEFT JOIN proveedores nulos, estadísticas y exportación, sin pérdida de registros.
+
+8. DESPLIEGUE RESPONSABLE, SIN TOCAR OTROS PROYECTOS
+- Primero verificar estado real PR #5, rama, commit, release en staging y producción; integrar con V4, NO crear otra implementación paralela ni deshacer el recolector BCV/USDT.
+- Guardar plan/patch/commits en nueva rama derivada del HEAD de V4 o continuación autorizada, con PR y evidencia. No realizar merges destructivos de PRs #1-5.
+- Actualizar docs/domain-rules.md y un checklist de uso real con capturas/video móvil y tablet.
+- Ejecutar typecheck, unit, build, E2E full, regresiones financieras, migración fresh y upgrade desde base con datos reales sintéticos; restauración aislada antes de promover.
+- Las tasas BCV y Binance son lecturas externas y pueden dejar de estar vigentes. No sustituirlas por valores sintéticos en producción ni prometer disponibilidad continua. Comparar servicio del recolector antes/después.
+- NO usar el VPS de producción para pruebas con datos inventados, no purgar registros y no alterar otros contenedores, DNS, proxy, firewall o cron ajenos. Guardar copia de seguridad verificable. Presentar diff de migración, hash de release y plan de rollback/restore.
+- Promover a producción SOLO tras pruebas y aprobación expresa, manteniendo un bloqueo seguro si hay fallas. No declarar «oficial» hasta confirmar desde teléfono/tablet la versión exacta y la operación real autorizada.
+- Reportar al propietario en español, de forma no técnica: «qué ya funciona», «qué sigue pendiente» y «cómo hacer la primera recepción de forma rápida»; nunca esconder datos imprescindibles o inconsistencias.
+
+CRITERIOS DE ACEPTACIÓN DEL PROPIETARIO
+1. Desde catálogo inicial vacío en producción, aparecen frutas/variedades/calibres habituales sin cargar todas una a una; inventario sigue vacío.
+2. Recepción habitual no exige proveedor, ni referencia, ni fecha manual; permite seleccionar productos y escribir cantidades de cajas en pocos toques.
+3. No sacrifica costos reales: nueva compra no hereda costo anterior sin confirmación y FIFO permanece exacto.
+4. Manzanas tradicionales con blíster aplican 4 para calibre <=100 (INCLUYE 100) y 5 para calibre >100, sin pregunta repetitiva; se puede ajustar una excepción real y se preservan configuraciones/lotes históricos.
+5. Otros productos no reciben reglas de blíster no confirmadas; todo es modificable por variedad/calibre/lote con auditoría.
+6. No rompe la versión oficial ni afecta otros servicios del servidor.
+
+NOTA PARA CODEX: el propietario YA ACLARÓ de forma inequívoca el límite: el calibre 100 lleva 4 blísteres; superior a 100 lleva 5. NO volver a preguntar por el calibre 100 ni dejarlo pendiente. Las excepciones reales siguen siendo editables. Si falta un dato REAL para costo inicial, solicitarlo en pantalla, nunca inventarlo.
+
+ENTREGABLE: código funcional, pruebas y evidencias, migración segura, checklist, PR y plan/pasos concretos para publicación aprobada, no solo una explicación ni una maqueta.

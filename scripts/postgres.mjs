@@ -5,8 +5,11 @@ import net from 'node:net';
 import { Client } from 'pg';
 import { root, loadLocalEnv } from './local-env.mjs';
 import { stopOwnedDatabase } from './stop-db.mjs';
+import { assertLegacyDatabaseStopped, resolveDatabaseDirectory } from './e2e-database.mjs';
 loadLocalEnv();
 export async function startPostgres() {
+  const databaseDir = resolveDatabaseDirectory(root);
+  if (process.env.MM_E2E_PG_RUN_ID !== undefined) assertLegacyDatabaseStopped(root);
   await new Promise((resolve, reject) => {
     const probe = net.createServer();
     probe.once('error', () =>
@@ -16,7 +19,6 @@ export async function startPostgres() {
     );
     probe.listen(55432, '127.0.0.1', () => probe.close(resolve));
   });
-  const databaseDir = path.join(root, '.local', 'postgres');
   const pg = new EmbeddedPostgres({
     databaseDir,
     user: 'mm_owner',

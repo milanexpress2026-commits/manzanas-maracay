@@ -39,7 +39,9 @@ test('lectura del catálogo recupera un 503, limita fallos persistentes y permit
     });
   });
   await page.reload();
-  await expect(page.getByRole('main').getByRole('alert')).toContainText('Conexión de QA aún no disponible.');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'Conexión de QA aún no disponible.',
+  );
   await expect(page.getByRole('button', { name: 'Agregar producto', exact: true })).toBeDisabled();
   expect(requests).toBe(2);
   await page.unroute('**/api/catalog');
@@ -192,10 +194,10 @@ test('alta contextual de dos frutas, tres pasos, reintento estable y recepción 
     confirmationStatus: 'confirmed',
   });
   await dialog.getByRole('link', { name: 'Registrar entrada de mercancía' }).click();
-  await expect(page.getByLabel('Fruta, variedad y calibre', { exact: true })).toHaveValue(
-    created[0].id,
-  );
-  await expect(page.getByLabel('Costo por caja (USD)')).toHaveValue('');
+  await expect(page).toHaveURL(new RegExp(`producto=${created[0].id}`));
+  const receivedProduct = page.getByRole('region', { name: 'Producto 1', exact: true });
+  await expect(receivedProduct.getByRole('heading')).toContainText(fruit);
+  await expect(receivedProduct.getByLabel('Costo real por caja · USD')).toHaveValue('');
   await expect(page.getByRole('link', { name: 'Volver a la venta guardada' })).toHaveAttribute(
     'href',
     '/ventas/nueva',
@@ -231,9 +233,9 @@ test('sugerencias separadas por familia y alta sin desplazamiento horizontal en 
   await dialog.getByLabel('Fruta', { exact: true }).selectOption({ label: 'Manzana' });
   await dialog.getByLabel('Variedad', { exact: true }).selectOption({ label: 'Gala' });
   for (const [family, expected] of [
-    ['apple', ['88', '100', '113', '125', '135', '150', '163', '175', '198']],
+    ['apple', ['80', '88', '100', '113', '125', '135', '150', '163', '175', '198', '216']],
     ['bulk', ['150', '163', '175', '198', '216', '232']],
-    ['pear', ['90', '100', '110', '120', '135']],
+    ['pear', ['70', '80', '90', '100', '110', '120', '135']],
   ] as const) {
     await dialog.getByLabel('Tipo de producto', { exact: true }).selectOption(family);
     await dialog.locator('summary').filter({ hasText: 'Calibres habituales' }).click();
@@ -290,8 +292,15 @@ test('vídeo QA del alta y llegada a recepción con el producto elegido', async 
     await dialog.getByRole('button', { name: 'Revisar producto' }).click();
     await dialog.getByRole('button', { name: 'Guardar producto', exact: true }).click();
     await dialog.getByRole('link', { name: 'Registrar entrada de mercancía' }).click();
-    await expect(page.getByLabel('Fruta, variedad y calibre', { exact: true })).not.toHaveValue('');
-    await expect(page.getByRole('heading', { name: 'Recepción de mercancía' })).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: 'Producto 1', exact: true }).getByRole('heading'),
+    ).toContainText('Fruta vídeo QA');
+    await expect(
+      page
+        .getByRole('region', { name: 'Producto 1', exact: true })
+        .getByLabel('Costo real por caja · USD'),
+    ).toHaveValue('');
+    await expect(page.getByRole('heading', { name: 'Recepción rápida' })).toBeVisible();
   } finally {
     await context.close();
   }

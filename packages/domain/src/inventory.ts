@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js';
+import { receiptProductSchema } from './catalog-options';
 import {
   packingFields,
   validPacking,
@@ -112,6 +113,103 @@ export const receiptSchema = z
     (value) => value.lines.reduce((total, line) => total + line.boxes, 0) <= 1000,
     'Una recepción admite hasta 1.000 cajas; divide las recepciones mayores.',
   );
+// The V4 parser above stays byte-for-byte compatible with historical command hashes.
+export const positiveReceiptCostSchema = costSchema.refine(
+  (value) => new Decimal(value).gt(0),
+  'Indica el costo real por caja, mayor que cero.',
+);
+export const reviewedReceiptPackingSchema = z.lazy(() =>
+  z
+    .object({
+      confirmed: z.literal(true),
+      packingModel: packingFields.packingModel,
+      halfPreparation: packingFields.halfPreparation,
+      allowedPresentations: packingFields.allowedPresentations,
+      blistersPerBox: packingFields.blistersPerBox,
+      boxWeightKg: packingFields.boxWeightKg,
+    })
+    .strict()
+    .refine(validPacking, 'Revisa el empaque confirmado.')
+    .refine(
+      (value) => confirmedPresentationsReady({ ...value, confirmationStatus: 'confirmed' }),
+      'Confirma únicamente presentaciones con preparación conocida.',
+    ),
+);
+export const receiptCostConfirmationSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('entered'),
+      unitCostUsd: positiveReceiptCostSchema,
+      accepted: z.literal(true),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('previous'),
+      sourceLotId: z.uuid(),
+      unitCostUsd: positiveReceiptCostSchema,
+      accepted: z.literal(true),
+    })
+    .strict(),
+]);
+export const quickReceiptSchema = z
+  .object({
+    schemaVersion: z.literal(2),
+    supplierId: z.uuid().nullable().default(null),
+    reference: text.min(1).max(80).nullable().default(null),
+    receivedAt: z.iso.datetime({ offset: true }).optional(),
+    notes: optionalText(500),
+    isDemo: z.boolean().default(false),
+    lines: z
+      .array(
+        z
+          .object({
+            product: receiptProductSchema,
+            boxes: z.number().int().min(1).max(1000),
+            cost: receiptCostConfirmationSchema,
+            // Required only for an unknown presentation or an explicitly reviewed pending configuration.
+            packing: reviewedReceiptPackingSchema.optional(),
+            blisterOverride: z
+              .object({
+                blistersPerBox: z.number().int().min(1).max(100),
+                confirmed: z.literal(true),
+                reason: reasonSchema,
+              })
+              .strict()
+              .optional(),
+            priceAction: z.enum(['keep', 'update']).default('keep'),
+            prices: z
+              .array(
+                z
+                  .object({
+                    presentation: z.enum(['box', 'half_box', 'blister']),
+                    promoUsd: costSchema,
+                    regularUsd: costSchema,
+                  })
+                  .strict(),
+              )
+              .max(3)
+              .default([]),
+            notes: optionalText(500),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(50),
+  })
+  .strict()
+  .refine(
+    (value) => value.lines.reduce((sum, line) => sum + line.boxes, 0) <= 1000,
+    'Una recepción admite hasta 1.000 cajas; divide las recepciones mayores.',
+  );
+export type QuickReceipt = z.infer<typeof quickReceiptSchema>;
+export type QuickReceiptInput = z.input<typeof quickReceiptSchema>;
+export function formatReceiptNumber(value: string | bigint): string {
+  const number = String(value);
+  if (!/^[1-9]\d*$/.test(number)) throw new Error('Número interno de recepción inválido.');
+  return `R-${number.padStart(8, '0')}`;
+}
+
 export const openBoxSchema = z.object({ containerId: z.uuid(), reason: reasonSchema }).strict();
 export const withdrawBlistersSchema = z
   .object({ quantity: z.number().int().min(1).max(1000), reason: reasonSchema })
@@ -198,8 +296,8 @@ export type LotSummary = StockSummary & {
   variety: string | null;
   caliber: string | null;
   commercialLine: string;
-  supplierId: string;
-  supplier: string;
+  supplierId: string | null;
+  supplier: string | null;
   receivedAt: string;
   receivedBoxes: number;
   blistersPerBox: number | null;
@@ -259,6 +357,8 @@ export type InventoryCommandResult = {
 };
 export type ReceiptResult = {
   purchaseId: string;
+  receiptNumber?: string;
+  receivedAt?: string;
   movementId: string;
   lots: { id: string; code: string; movementId: string }[];
 };

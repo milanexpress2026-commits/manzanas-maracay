@@ -1,9 +1,9 @@
 // Suggestions guide an explicit choice; they never create catalog rows or packing data.
 export type CatalogFamily = 'apple' | 'bulk' | 'pear' | 'kiwi' | 'grape' | 'other';
 export const caliberSuggestions: Partial<Record<CatalogFamily, readonly string[]>> = {
-  apple: ['88', '100', '113', '125', '135', '150', '163', '175', '198'],
+  apple: ['80', '88', '100', '113', '125', '135', '150', '163', '175', '198', '216'],
   bulk: ['150', '163', '175', '198', '216', '232'],
-  pear: ['90', '100', '110', '120', '135'],
+  pear: ['70', '80', '90', '100', '110', '120', '135'],
 };
 export function catalogFamilyFor(name: string): CatalogFamily {
   const normalized = name.trim().toLocaleLowerCase('es');

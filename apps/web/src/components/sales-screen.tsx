@@ -19,7 +19,6 @@ import {
   type SaleSummary,
   type SaleDetail,
   type Catalog,
-  type ClientSummary,
   type Presentation,
   type PriceBasis,
   type SaleAvailability,
@@ -42,12 +41,12 @@ import {
   type RateValue,
 } from './commercial-shared';
 import { useRemote, useCommand, displayMoney } from '@/lib/inventory-api';
+import { useClientDirectory } from '@/lib/use-client-directory';
 import {
   productLabel,
   presentationNames,
   normalizedMoney,
   caracasDateTime,
-  caracasInstant,
   caracasDate,
   addCaracasDays,
 } from '@/lib/commercial-ui';
@@ -62,6 +61,7 @@ import {
   saleReference,
   changeSaleLine,
   saleLineTotal,
+  saleReviewInstant,
   keepSaleDraft,
   takeSaleDraft,
   clearSaleDraft,
@@ -133,14 +133,15 @@ export function SalesScreen({ session }: { session: AppSession }) {
 export function NewSaleScreen({ session }: { session: AppSession }) {
   const router = useRouter();
   const catalog = useRemote<Catalog>('/api/catalog');
-  const clients = useRemote<ClientSummary[]>('/api/clients?limit=200');
   const availability = useRemote<SaleAvailability>('/api/inventory/sale-availability');
   const rate = useRemote<RateStatus>('/api/rates/current');
   const [clientId, setClientId] = useState('');
+  const clients = useClientDirectory(clientId);
   const [newClient, setNewClient] = useState(false);
   const [condition, setCondition] = useState<'cash' | 'credit'>('cash');
   const [basis, setBasis] = useState<PriceBasis | ''>('');
   const [date, setDate] = useState('');
+  const [dateEdited, setDateEdited] = useState(false);
   const [due, setDue] = useState('');
   const [reminder, setReminder] = useState('');
   const [notes, setNotes] = useState('');
@@ -166,6 +167,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       setClientId(draft.clientId);
       setCondition(draft.condition);
       setDate(draft.date);
+      setDateEdited(draft.dateEdited);
       setDue(draft.due);
       setReminder(draft.reminder);
       setNotes(draft.notes);
@@ -182,12 +184,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       if (requestedClient && /^[a-f0-9-]{36}$/i.test(requestedClient)) setClientId(requestedClient);
     }
   }, [scope]);
-  const activeClients = clients.data?.filter((client) => client.active) ?? [];
+  const activeClients = clients.options.filter((client) => client.active);
   const configurations =
     catalog.data?.configurations.filter(
       (config) => session.environment !== 'production' || config.confirmationStatus === 'confirmed',
     ) ?? [];
-  const ready = !!catalog.data && !!clients.data && !catalog.error && !clients.error;
+  const ready = !!catalog.data && !!clients.data && !catalog.error;
   const total = lines.reduce((sum, line) => sum.plus(saleLineTotal(line)), new Decimal(0));
   const settlement = basis ? (basis === 'usd_cash_promo' ? 'divisa' : 'bcv') : null;
   const bcvCurrent = useQuoteCurrent(rate.data?.rate);
@@ -251,6 +253,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       clientId,
       condition,
       date,
+      dateEdited,
       due,
       reminder,
       notes,
@@ -411,8 +414,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       return;
     }
     let soldAt: string;
+    const reviewedAt = new Date();
     try {
-      soldAt = caracasInstant(date);
+      soldAt = saleReviewInstant(date, dateEdited, reviewedAt);
     } catch (error) {
       command.setError(error instanceof Error ? error.message : 'Revisa la fecha de venta.');
       return;
@@ -437,7 +441,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               currency,
               amount: normalizedMoney(received),
               method,
-              receivedAt: new Date().toISOString(),
+              receivedAt: reviewedAt.toISOString(),
               ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
             },
           }
@@ -490,6 +494,21 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
           <form onSubmit={submit} className={styles.layout}>
             <fieldset disabled={command.busy} className={styles.main}>
               <section className={styles.surface} aria-label="Cliente y condición de venta">
+                <Field className={styles.customerSearch}>
+                  <FieldLabel htmlFor="sale-client-search">Buscar cliente</FieldLabel>
+                  <Input
+                    id="sale-client-search"
+                    type="search"
+                    maxLength={120}
+                    placeholder="Nombre, teléfono o RIF…"
+                    value={clients.search}
+                    onChange={(event) => clients.setSearch(event.target.value)}
+                  />
+                  <FieldDescription>
+                    Busca en todos tus clientes. El cliente elegido se conserva al cambiar la
+                    búsqueda.
+                  </FieldDescription>
+                </Field>
                 <div className={styles.customer}>
                   <Field>
                     <FieldLabel htmlFor="sale-client">Cliente</FieldLabel>
@@ -512,9 +531,29 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     Nuevo cliente
                   </Button>
                 </div>
+                {clients.loading ? (
+                  <p role="status" className={styles.lineHelp}>
+                    Buscando clientes…
+                  </p>
+                ) : null}
+                {clients.hasMore ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={clients.loading}
+                    onClick={() => void clients.loadMore()}
+                  >
+                    Cargar más clientes
+                  </Button>
+                ) : null}
+                {clients.selectedError ? (
+                  <LoadError error={clients.selectedError} retry={clients.retrySelection} />
+                ) : null}
                 {!activeClients.length ? (
                   <p className={styles.lineHelp}>
-                    Crea el primer cliente con su nombre. WhatsApp es opcional.
+                    {clients.search || clients.hasMore
+                      ? 'No hay clientes activos entre estos resultados. Cambia la búsqueda o carga más clientes.'
+                      : 'Crea el primer cliente con su nombre. WhatsApp es opcional.'}
                   </p>
                 ) : null}
                 <FieldSet className={styles.condition}>
@@ -822,8 +861,16 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                       required
                       type="datetime-local"
                       value={date}
-                      onChange={(event) => setDate(event.target.value)}
+                      onChange={(event) => {
+                        setDate(event.target.value);
+                        setDateEdited(true);
+                      }}
                     />
+                    <FieldDescription>
+                      {dateEdited
+                        ? 'Se usará la fecha y hora que indicaste.'
+                        : 'Se usará la hora actual al revisar la venta.'}
+                    </FieldDescription>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="sale-notes">Observaciones de la venta</FieldLabel>
@@ -1024,9 +1071,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
           <ClientDialog
             onClose={() => setNewClient(false)}
             onSaved={async (client) => {
-              await clients.reload();
+              clients.remember(client);
               setClientId(client.id);
               setNewClient(false);
+              await clients.reload();
             }}
           />
         ) : null}

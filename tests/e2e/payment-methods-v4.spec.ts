@@ -1,3 +1,4 @@
+import { chooseSaleClient } from './helpers/sale-client';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import fs from 'node:fs';
@@ -35,7 +36,7 @@ for (const agreement of ['divisa', 'bcv'] as const) {
     const basis = agreement === 'divisa' ? 'usd_cash_promo' : 'ves_regular';
     const method = agreement === 'divisa' ? 'ves_usdt' : 'ves_bcv';
     await page.goto('/ventas/nueva');
-    await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
+    await chooseSaleClient(page, client);
     await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
     await page.getByLabel('Precio acordado', { exact: true }).selectOption(basis);
     const selector = page.getByLabel('Método de cobro', { exact: true });
@@ -137,7 +138,7 @@ test('cuatro métodos V4: elección explícita, crédito optativo y accesibilida
   const rates = await syntheticPaymentRates();
   await page.route('**/api/rates/current', (route) => route.fulfill({ json: rates.status }));
   await page.goto('/ventas/nueva');
-  await page.getByLabel('Cliente', { exact: true }).selectOption(client.id);
+  await chooseSaleClient(page, client);
   await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
   await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
   await page.getByLabel('Precio unitario (USD)', { exact: true }).fill('38');

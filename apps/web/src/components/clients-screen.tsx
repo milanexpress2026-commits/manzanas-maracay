@@ -15,19 +15,14 @@ import { Input } from './ui/input';
 import { LoadError, LoadingRows, PageFooter, SavedNotice } from './operations-ui';
 import { ClientDialog, PaymentDialog, PaymentSaved, SaleTable } from './commercial-shared';
 import { useRemote, displayMoney, displayDate } from '@/lib/inventory-api';
+import { useClientDirectory } from '@/lib/use-client-directory';
 export function ClientsScreen({ session }: { session: AppSession }) {
-  const clients = useRemote<ClientSummary[]>('/api/clients?limit=200');
-  const [query, setQuery] = useState(''),
-    [showInactive, setShowInactive] = useState(false),
+  const clients = useClientDirectory();
+  const query = clients.search;
+  const [showInactive, setShowInactive] = useState(false),
     [editing, setEditing] = useState<ClientSummary | null | undefined>(undefined),
     [saved, setSaved] = useState('');
-  const rows = (clients.data ?? []).filter(
-    (c) =>
-      (showInactive || c.active) &&
-      `${c.name} ${c.phone ?? ''} ${c.taxId ?? ''}`
-        .toLocaleLowerCase('es')
-        .includes(query.toLocaleLowerCase('es').trim()),
-  );
+  const rows = (clients.data ?? []).filter((c) => showInactive || c.active);
   const total = (clients.data ?? []).reduce((n, c) => n.plus(c.balanceUsd), new Decimal(0));
   return (
     <AppShell session={session} current="/clientes">
@@ -69,8 +64,10 @@ export function ClientsScreen({ session }: { session: AppSession }) {
                 <Input
                   aria-label="Buscar clientes"
                   placeholder="Buscar nombre, teléfono o RIF…"
+                  type="search"
+                  maxLength={120}
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => clients.setSearch(e.target.value)}
                 />
               </div>
               <label className="inline-check">
@@ -153,6 +150,17 @@ export function ClientsScreen({ session }: { session: AppSession }) {
                 </div>
               )}
             </section>
+            {clients.loading ? <p role="status">Buscando clientes…</p> : null}
+            {clients.hasMore ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={clients.loading}
+                onClick={() => void clients.loadMore()}
+              >
+                Cargar más clientes
+              </Button>
+            ) : null}
           </>
         ) : null}
         <PageFooter />

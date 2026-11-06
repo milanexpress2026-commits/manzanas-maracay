@@ -96,7 +96,7 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
   await page.getByRole('dialog').getByLabel('Blíster por caja').fill('6');
   await page.getByText('Más opciones', { exact: true }).click();
   await page.getByLabel('Notas del empaque').fill('Prueba aislada; conteo de fruta pendiente.');
-  await page.screenshot({ path: 'docs/capturas/formulario-movil.png', fullPage: true });
+  await page.screenshot({ path: 'docs/capturas/formulario-movil.png' });
   await page.getByRole('button', { name: 'Revisar producto' }).click();
   await page.getByRole('button', { name: 'Guardar producto', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Producto guardado', exact: true })).toBeVisible();

@@ -84,7 +84,7 @@ test('V4 API preparación concurrente y reintento conservan Lady sin crear opera
     '/api/catalog/preparation/preview',
     input,
   );
-  expect(preview.created).toEqual({ fruits: 4, varieties: 9, calibers: 16, configurations: 3 });
+  expect(preview.created).toEqual({ fruits: 7, varieties: 10, calibers: 19, configurations: 4 });
   expect(
     ((await (await request.get('/api/catalog')).json()) as Catalog).fruits.filter((f) =>
       f.name.endsWith(suffix),
@@ -99,16 +99,16 @@ test('V4 API preparación concurrente y reintento conservan Lady sin crear opera
     commercePost<CatalogPreparationResult>(request, '/api/catalog/preparation', body),
   ]);
   expect(retry).toEqual(first);
-  expect(first.created.fruits + concurrent.created.fruits).toBe(4);
-  expect(first.created.configurations + concurrent.created.configurations).toBe(3);
+  expect(first.created.fruits + concurrent.created.fruits).toBe(7);
+  expect(first.created.configurations + concurrent.created.configurations).toBe(4);
   const after = (await (await request.get('/api/catalog')).json()) as Catalog;
-  expect(after.fruits.filter((f) => f.name.endsWith(suffix))).toHaveLength(5);
+  expect(after.fruits.filter((f) => f.name.endsWith(suffix))).toHaveLength(8);
   expect(after.varieties.find((v) => v.id === lady.id)?.name).toBe('Lady');
   expect(
     after.varieties.filter((v) => v.fruitId === existing.id && v.name === 'Pink Lady'),
   ).toHaveLength(1);
   const configurations = after.configurations.filter((c) => c.fruit.endsWith(suffix));
-  expect(configurations).toHaveLength(3);
+  expect(configurations).toHaveLength(4);
   expect(configurations.every((c) => c.confirmationStatus === 'pending')).toBe(true);
   expect(await operationalCounts()).toEqual(before);
   await database(async (db) => {

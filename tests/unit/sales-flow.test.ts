@@ -4,6 +4,7 @@ import {
   emptySaleLine,
   changeSaleLine,
   saleLineTotal,
+  saleReviewInstant,
   keepSaleDraft,
   takeSaleDraft,
   clearSaleDraft,
@@ -123,11 +124,28 @@ describe('venta rápida: decisiones explícitas y dinero exacto', () => {
   });
 });
 
+describe('fecha de venta al revisar', () => {
+  it('conserva segundos y milisegundos para vender después de una recepción del mismo minuto', () => {
+    const receivedAt = new Date('2026-11-05T16:23:41.250Z');
+    const reviewedAt = new Date('2026-11-05T16:23:44.830Z');
+    const soldAt = saleReviewInstant('2026-11-05T12:23', false, reviewedAt);
+    expect(soldAt).toBe('2026-11-05T16:23:44.830Z');
+    expect(new Date(soldAt).valueOf()).toBeGreaterThan(receivedAt.valueOf());
+  });
+  it('respeta la fecha manual de Venezuela aunque la revisión ocurra después', () => {
+    expect(
+      saleReviewInstant('2026-11-04T09:35', true, new Date('2026-11-05T16:23:44.830Z')),
+    ).toBe('2026-11-04T13:35:00.000Z');
+    expect(() => saleReviewInstant('fecha inválida', true)).toThrow('fecha y hora válidas');
+  });
+});
+
 describe('borrador temporal de navegación', () => {
   const draft: SaleFormDraft = {
     clientId: 'client',
     condition: 'cash',
     date: '2026-11-05T12:00',
+    dateEdited: true,
     due: '',
     reminder: '',
     notes: '',

@@ -71,6 +71,9 @@
   height: auto;
   white-space: normal;
 }
+.customerSearch {
+  margin-bottom: 16px;
+}
 .customer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

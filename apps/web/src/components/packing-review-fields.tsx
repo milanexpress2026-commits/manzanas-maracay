@@ -16,11 +16,17 @@ export function PackingReviewFields({
   value,
   onChange,
   suggestion = null,
+  fixedBlisters = null,
+  fixedModel = false,
+  fixedWeight = false,
 }: {
   id: string;
   value: PackingReviewValue;
   onChange: (value: PackingReviewValue) => void;
   suggestion?: number | null;
+  fixedBlisters?: number | null;
+  fixedModel?: boolean;
+  fixedWeight?: boolean;
 }) {
   function model(packingModel: PackingModel) {
     onChange({
@@ -40,6 +46,7 @@ export function PackingReviewFields({
         <NativeSelect
           id={`${id}-model`}
           value={value.packingModel}
+          disabled={fixedModel}
           onChange={(event) => model(event.target.value as PackingModel)}
         >
           <option value="blister">Caja con blíster</option>
@@ -65,6 +72,7 @@ export function PackingReviewFields({
               inputMode="numeric"
               placeholder="Pendiente de verificar"
               value={value.blistersPerBox ?? ''}
+              readOnly={fixedBlisters !== null}
               onChange={(event) =>
                 onChange({
                   ...value,
@@ -72,6 +80,12 @@ export function PackingReviewFields({
                 })
               }
             />
+            {fixedBlisters !== null ? (
+              <FieldDescription>
+                Empaque habitual confirmado. Para una cantidad distinta, usa la excepción de este
+                lote.
+              </FieldDescription>
+            ) : null}
           </Field>
           <fieldset className={styles.choices}>
             <legend>Presentaciones que se podrán vender</legend>
@@ -131,12 +145,15 @@ export function PackingReviewFields({
             inputMode="decimal"
             placeholder="Sin peso definido"
             value={value.boxWeightKg ?? ''}
+            readOnly={fixedWeight}
             onChange={(event) =>
               onChange({ ...value, boxWeightKg: event.target.value.trim() || null })
             }
           />
           <FieldDescription>
-            Es la referencia comercial de la caja; no se pesa cada venta.
+            {fixedWeight
+              ? 'Se conserva el peso de la presentación habitual; no se pesa cada venta.'
+              : 'Es la referencia comercial de la caja; no se pesa cada venta.'}
           </FieldDescription>
         </Field>
       ) : null}

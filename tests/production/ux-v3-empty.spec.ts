@@ -1,17 +1,24 @@
-import { test, expect, type Page } from '@playwright/test';
+import { chooseSaleClient } from '../e2e/helpers/sale-client';
+import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import Decimal from 'decimal.js';
 import { Client } from 'pg';
-import type { Catalog, SaleDetail } from '../../packages/domain/src/index';
+import type { Catalog, HabitualCatalogOptions, SaleDetail } from '../../packages/domain/src/index';
 import { databaseTarget } from '../../packages/database/src/environment';
 import { assertIsolatedProduction, assertNoDocumentOverflow, loginProduction } from './ui-helpers';
+import { chooseReceiptProduct, setReceiptPrice } from '../e2e/helpers/quick-receipt-ui';
 
 // Run after the closed-gate empty checks and the LOCAL activation fixture, before other writes.
 // The harness owns creation/activation/cleanup of the unique production_regression database.
 test.beforeEach(async ({}, testInfo) => assertIsolatedProduction(testInfo));
 
-async function assertNoPersistedPrices() {
+async function assertOperationalCounts(expected: {
+  prices: number;
+  suppliers: number;
+  purchases: number;
+  lots: number;
+}) {
   const fixture = JSON.parse(
     fs.readFileSync(
       process.env.MM_PRODUCTION_QA_STATE_FILE ?? path.resolve('.local/production-qa/current.json'),
@@ -53,27 +60,24 @@ async function assertNoPersistedPrices() {
     )
       throw new Error('El binding no coincide con el ensayo aislado.');
     expect(
-      (await client.query('select count(*)::int as total from price_items')).rows[0].total,
-    ).toBe(0);
+      (
+        await client.query(`select
+      (select count(*)::int from price_items) prices,
+      (select count(*)::int from suppliers) suppliers,
+      (select count(*)::int from purchases) purchases,
+      (select count(*)::int from lots) lots`)
+      ).rows[0],
+    ).toEqual(expected);
   } finally {
     await client.end();
   }
 }
 
-async function activateProduct(page: Page, template: string, caliber: string) {
-  const panel = page.getByRole('region', { name: 'Plantillas de productos habituales' });
-  await panel.getByLabel('Plantilla de empaque').selectOption(template);
-  await panel.getByRole('checkbox', { name: caliber, exact: true }).check();
-  await panel.getByRole('button', { name: 'Agregar productos seleccionados', exact: true }).click();
-  await expect(panel.getByRole('status')).toContainText('Productos disponibles');
-  return (await (await page.request.get('/api/catalog')).json()) as Catalog;
-}
-
-test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera venta sin otra salida', async ({
+test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, contado y crédito liquidado', async ({
   browser,
 }) => {
   test.setTimeout(240000);
-  fs.mkdirSync('docs/capturas/catalogo-v4', { recursive: true });
+  fs.mkdirSync('docs/capturas/recepcion-v4-2', { recursive: true });
   // Authenticate before recording. The session remains in RAM, never in an output artifact.
   const loginContext = await browser.newContext({
     baseURL: 'https://localhost:3143',
@@ -89,7 +93,7 @@ test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera
     storageState: state,
     viewport: { width: 390, height: 844 },
     recordVideo: {
-      dir: '.local/production-qa/catalogo-v4-videos',
+      dir: '.local/production-qa/recepcion-v4-2-videos',
       size: { width: 390, height: 844 },
     },
   });
@@ -105,130 +109,117 @@ test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera
     expect(catalog).toEqual({ fruits: [], varieties: [], calibers: [], configurations: [] });
     const overview = await (await page.request.get('/api/operations/overview')).json();
     expect(Object.values(overview.counts)).toEqual(Array(8).fill(0));
+    const options: HabitualCatalogOptions = await (
+      await page.request.get('/api/catalog/options')
+    ).json();
+    expect(options.options.length).toBeGreaterThan(60);
+    expect(await (await page.request.get('/api/catalog')).json()).toEqual(catalog);
+    await assertOperationalCounts({ prices: 0, suppliers: 0, purchases: 0, lots: 0 });
     await page.goto('/catalogo');
     await expect(page.getByRole('button', { name: 'Agregar producto', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Buscar producto', { exact: true })).toBeVisible();
+    await page.getByLabel('Buscar producto', { exact: true }).fill('Gala 100');
+    await expect(
+      page.getByRole('button', { name: 'Recibir Manzana · Gala · 100', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Agregar producto', exact: true })).toBeEnabled();
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: 'docs/capturas/catalogo-v4/catalogo-vacio-real.png',
+      path: 'docs/capturas/recepcion-v4-2/catalogo-virtual-vacio-390.png',
       fullPage: true,
     });
-    await page
-      .getByRole('button', { name: 'Preparar catálogo de Manzanas Maracay', exact: true })
-      .click();
-    await page.getByRole('button', { name: 'Revisar catálogo seleccionado', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Revisa lo que se guardará' })).toBeVisible();
-    const prepare = page.getByRole('region', { name: 'Preparación del catálogo' });
-    await expect(
-      prepare.getByRole('button', { name: 'Confirmar y preparar catálogo' }),
-    ).toBeDisabled();
-    expect(await (await page.request.get('/api/catalog')).json()).toEqual(catalog);
-    await prepare.getByRole('checkbox', { name: /Confirmo los nombres y borradores/ }).check();
-    await prepare.getByRole('button', { name: 'Confirmar y preparar catálogo' }).click();
-    await expect(prepare.getByRole('heading', { name: 'Catálogo preparado' })).toBeVisible();
-    const prepared: Catalog = await (await page.request.get('/api/catalog')).json();
-    expect(prepared.fruits.map((row) => row.name).sort()).toEqual([
-      'Kiwi',
-      'Mandarina',
-      'Manzana',
-      'Pera',
-      'Uva',
-    ]);
-    expect(prepared.configurations).toHaveLength(3);
-    for (const row of prepared.configurations) {
-      expect(row.confirmationStatus).toBe('pending');
-      expect(row.prices.map((price) => price.presentation)).toEqual(row.allowedPresentations);
-      for (const price of row.prices) {
-        expect(price.promoUsd).toBeNull();
-        expect(price.regularUsd).toBeNull();
-      }
-    }
-    await assertNoPersistedPrices();
-    expect(prepared.varieties.filter((row) => row.name === 'Amarilla')).toHaveLength(1);
-    expect(prepared.varieties.filter((row) => row.name === 'Gala')).toHaveLength(1);
-    expect(prepared.configurations.find((row) => row.fruit === 'Kiwi')).toMatchObject({
-      varietyId: null,
-      caliberId: null,
+    const chosen = [
+      options.options.find(
+        (row) =>
+          row.templateId === 'apple_traditional' &&
+          row.varietyName === 'Gala' &&
+          row.caliberLabel === '100',
+      )!,
+      options.options.find(
+        (row) =>
+          row.templateId === 'apple_traditional' &&
+          row.varietyName === 'Roja normal' &&
+          row.caliberLabel === '113',
+      )!,
+      options.options.find((row) => row.templateId === 'kiwi')!,
+    ];
+    expect(chosen[0]!.suggestedPacking?.blistersPerBox).toBe(4);
+    expect(chosen[1]!.suggestedPacking?.blistersPerBox).toBe(5);
+    expect(chosen[2]!.suggestedPacking).toMatchObject({
+      blistersPerBox: null,
       allowedPresentations: ['box', 'half_box'],
     });
-    expect(
-      new Decimal(prepared.configurations.find((row) => row.fruit === 'Kiwi')!.boxWeightKg!).eq(
-        '10',
-      ),
-    ).toBe(true);
-    expect(
-      prepared.configurations
-        .filter((row) => row.fruit === 'Uva')
-        .every(
-          (row) =>
-            row.packingModel === 'whole' &&
-            row.allowedPresentations.join() === 'box' &&
-            row.boxWeightKg === null,
-        ),
-    ).toBe(true);
-    await prepare.getByRole('button', { name: 'Elegir mi primer producto' }).click();
-    const afterApple = await activateProduct(page, 'apple_traditional', '100');
-    const apple = afterApple.configurations.find(
+    expect(new Decimal(chosen[2]!.suggestedPacking!.boxWeightKg!).eq('10')).toBe(true);
+    expect(chosen.every((row) => row.configurationId === null)).toBe(true);
+    await page.goto('/recepciones');
+    await expect(page.getByLabel('Proveedor (opcional)', { exact: true })).not.toBeVisible();
+    await expect(
+      page.getByLabel('Documento del proveedor (opcional)', { exact: true }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByLabel('Fecha y hora de recepción (opcional)', { exact: true }),
+    ).not.toBeVisible();
+    for (let index = 0; index < chosen.length; index++) {
+      const line = await chooseReceiptProduct(
+        page,
+        chosen[index]!.label,
+        index,
+        ['Gala 100', 'Roja 113', 'Kiwi'][index],
+      );
+      await line.getByLabel('Cajas recibidas', { exact: true }).fill(['2', '6', '3'][index]!);
+      await line
+        .getByLabel('Costo real por caja · USD', { exact: true })
+        .fill(['25', '27', '30'][index]!);
+      if (index < 2)
+        await expect(
+          line.getByText(`${index === 0 ? 4 : 5} blíster por caja`, { exact: true }),
+        ).toBeVisible();
+      await expect(line.getByRole('checkbox', { name: /Verifiqué esta presentación/ })).toHaveCount(
+        0,
+      );
+    }
+    await setReceiptPrice(page, 0, '40', '48');
+    await assertNoDocumentOverflow(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: 'docs/capturas/recepcion-v4-2/vacio-tres-lineas-390.png',
+      fullPage: true,
+    });
+    await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Sin proveedor indicado');
+    await expect(page.getByRole('dialog')).toContainText('USD 302,00');
+    await page.getByRole('button', { name: 'Guardar recepción', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Recepción guardada', exact: true }),
+    ).toBeVisible();
+    await assertOperationalCounts({ prices: 2, suppliers: 0, purchases: 1, lots: 3 });
+    expect(await (await page.request.get('/api/suppliers')).json()).toEqual([]);
+    const confirmedCatalog: Catalog = await (await page.request.get('/api/catalog')).json();
+    expect(confirmedCatalog.configurations).toHaveLength(3);
+    const apple = confirmedCatalog.configurations.find(
       (row) => row.fruit === 'Manzana' && row.variety === 'Gala' && row.caliber === '100',
     )!;
-    expect(apple.confirmationStatus).toBe('pending');
-    expect(apple.blistersPerBox).toBeNull();
-    const afterPear = await activateProduct(page, 'pear', '110');
-    const pear = afterPear.configurations.find(
-      (row) => row.fruit === 'Pera' && row.variety === 'Forelle' && row.caliber === '110',
-    )!;
-    expect(pear.confirmationStatus).toBe('pending');
-    expect(pear.blistersPerBox).toBeNull();
-    const afterCatalog = await (await page.request.get('/api/operations/overview')).json();
-    expect(afterCatalog.inventory.sealedBoxes).toBe(0);
-    await page.screenshot({
-      path: 'docs/capturas/catalogo-v4/catalogo-preparado.png',
-      fullPage: false,
-    });
-
-    await page.goto('/proveedores');
-    await page.getByRole('button', { name: 'Nuevo proveedor', exact: true }).click();
-    await page.getByLabel('Nombre del proveedor').fill('Proveedor QA catálogo vacío');
-    await page.getByRole('button', { name: 'Guardar proveedor', exact: true }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await page.goto('/recepciones?producto=' + apple.id);
-    await page
-      .getByLabel('Proveedor', { exact: true })
-      .selectOption({ label: 'Proveedor QA catálogo vacío' });
-    await expect(page.getByLabel('Fruta, variedad y calibre', { exact: true })).toHaveValue(
-      apple.id,
-    );
-    await page.getByLabel('Referencia del documento').fill('QA vacío · entrada 2 cajas');
-    await page.getByLabel('Cajas cerradas recibidas').fill('2');
-    await page.getByLabel('Costo por caja (USD)').fill('25');
-    await expect(page.getByText('Confirmar el empaque pendiente', { exact: true })).toBeVisible();
-    await expect(
-      page.getByText('Cantidad sugerida según audio: 5; verificar.', { exact: false }),
-    ).toBeVisible();
-    await page.getByLabel('Blíster por caja', { exact: true }).fill('5');
-    await page.getByRole('checkbox', { name: 'Media caja', exact: true }).uncheck();
-    await expect(page.getByRole('checkbox', { name: 'Blíster', exact: true })).toBeChecked();
-    await page.getByRole('checkbox', { name: /Verifiqué este empaque/ }).check();
-    await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
-    await page.getByLabel('Promocional divisa', { exact: true }).first().fill('40');
-    await page.getByLabel('Regular · Bs. BCV', { exact: true }).first().fill('48');
-    await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
-    await page.getByRole('button', { name: 'Confirmar recepción', exact: true }).click();
-    await expect(
-      page.getByRole('heading', { name: 'Mercancía recibida', exact: true }),
-    ).toBeVisible();
-    const confirmedCatalog: Catalog = await (await page.request.get('/api/catalog')).json();
-    expect(confirmedCatalog.configurations.find((row) => row.id === apple.id)).toMatchObject({
+    expect(apple).toMatchObject({
       confirmationStatus: 'confirmed',
-      blistersPerBox: 5,
+      blistersPerBox: 4,
       allowedPresentations: ['box', 'blister'],
-      version: apple.version + 1,
     });
+    expect(
+      confirmedCatalog.configurations.find((row) => row.variety === 'Roja normal')?.blistersPerBox,
+    ).toBe(5);
     const inventoryBefore = await (await page.request.get('/api/inventory')).json();
+    expect(inventoryBefore.lots).toHaveLength(3);
+    expect(
+      inventoryBefore.lots.every(
+        (row: { supplierId: string | null; supplier: string | null; isDemo: boolean }) =>
+          row.supplierId === null && row.supplier === null && !row.isDemo,
+      ),
+    ).toBe(true);
     const lot = inventoryBefore.lots.find(
       (row: { configurationId: string }) => row.configurationId === apple.id,
     );
     expect(lot.closedBoxes).toBe(2);
-    expect(lot.isDemo).toBe(false);
-
+    expect(lot.unitCostUsd).toBe('25.0000');
     await page.goto('/clientes');
     await page.getByRole('button', { name: 'Nuevo cliente', exact: true }).click();
     await page.getByLabel('Nombre del cliente').fill('Cliente QA contado vacío');
@@ -236,9 +227,7 @@ test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.goto('/ventas/nueva');
     await expect(page.getByRole('radio', { name: 'Contado', exact: true })).toBeChecked();
-    await page
-      .getByLabel('Cliente', { exact: true })
-      .selectOption({ label: 'Cliente QA contado vacío' });
+    await chooseSaleClient(page, { name: 'Cliente QA contado vacío' });
     await page.getByLabel('Producto', { exact: true }).selectOption(apple.id);
     await page.getByLabel('Presentación', { exact: true }).selectOption('box');
     await page.getByLabel('Cantidad', { exact: true }).fill('1');
@@ -251,8 +240,9 @@ test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera
     await expect(page.getByLabel('Método de cobro', { exact: true })).toHaveValue('usd_cash');
     await expect(page.getByLabel('Total de la venta', { exact: true })).toHaveText('USD 40,00');
     await assertNoDocumentOverflow(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: 'docs/capturas/catalogo-v4/vacio-primera-venta-contado.png',
+      path: 'docs/capturas/recepcion-v4-2/vacio-primera-venta-contado.png',
       fullPage: true,
     });
     await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
@@ -265,6 +255,9 @@ test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera
     expect(sale.totalUsd).toBe('40.00');
     expect(sale.paidUsd).toBe('40.00');
     expect(sale.balanceUsd).toBe('0.00');
+    expect(new Date(sale.soldAt).getTime()).toBeGreaterThanOrEqual(
+      new Date(lot.receivedAt).getTime(),
+    );
     expect(new Decimal(sale.costUsd).eq('25')).toBe(true);
     expect(sale.dueDate).toBeNull();
     expect(sale.reminderDate).toBeNull();
@@ -280,9 +273,7 @@ test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera
       1,
     );
     await page.goto('/ventas/nueva');
-    await page
-      .getByLabel('Cliente', { exact: true })
-      .selectOption({ label: 'Cliente QA contado vacío' });
+    await chooseSaleClient(page, { name: 'Cliente QA contado vacío' });
     await page.getByLabel('Producto', { exact: true }).selectOption(apple.id);
     await page.getByLabel('Presentación', { exact: true }).selectOption('box');
     await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
@@ -330,5 +321,5 @@ test('QA V4 vacía real: preparar catálogo, confirmar lote al recibir y primera
   } finally {
     await context.close();
   }
-  await video?.saveAs('docs/capturas/catalogo-v4/catalogo-vacio-y-venta-qa.webm');
+  await video?.saveAs('docs/capturas/recepcion-v4-2/vacio-recepcion-venta-credito-qa.webm');
 });

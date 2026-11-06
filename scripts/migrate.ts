@@ -51,6 +51,7 @@ export async function migrateDatabase(url: string) {
       grant select on receivables to mm_app;
       grant select,insert,update on push_devices,push_notices to mm_app;
       grant usage,select on sequence mm_sale_number_seq,mm_payment_number_seq,sale_date_events_event_order_seq to mm_app;
+      grant usage,select on sequence mm_receipt_number_seq to mm_app;
       grant usage,select on sequence inventory_entries_entry_order_seq to mm_app;
       revoke all on app_users,auth_sessions,auth_login_buckets from public;
       grant select on app_users to mm_app;

@@ -33,10 +33,10 @@ const confirmation = {
 };
 
 describe('preparación comercial explícita V4', () => {
-  it('prepara cinco maestros compartidos y solo tres borradores concretos, sin combinaciones cartesianas', () => {
+  it('prepara ocho maestros compartidos y solo cuatro borradores concretos, sin combinaciones cartesianas', () => {
     const input = catalogPreparationInputSchema.parse(getCatalogPreparationDefaults());
     const preview = previewCatalogPreparation(input, empty);
-    expect(preview.created).toEqual({ fruits: 5, varieties: 9, calibers: 16, configurations: 3 });
+    expect(preview.created).toEqual({ fruits: 8, varieties: 10, calibers: 19, configurations: 4 });
     const apple = input.fruits.find((f) => f.name === 'Manzana')!;
     expect(apple.varieties).toEqual(['Gala', 'Roja normal', 'Verde', 'Pink Lady', 'Amarilla']);
     expect(apple.calibers).toContain('216');
@@ -63,7 +63,7 @@ describe('preparación comercial explícita V4', () => {
     });
     expect(
       input.fruits.find((f) => f.name === 'Uva')!.drafts.map((d) => d.allowedPresentations),
-    ).toEqual([['box'], ['box']]);
+    ).toEqual([['box'], ['box'], ['box']]);
   });
   it('ediciones y exclusiones se reflejan sin modificar futuras vistas por defecto', () => {
     const input = getCatalogPreparationDefaults();
@@ -164,15 +164,15 @@ describe('preparación comercial explícita V4', () => {
       }).success,
     ).toBe(false);
   });
-  it('el audio solo sugiere correspondencias conocidas y conserva conflictos/amarilla/Lady desconocidos', () => {
-    expect(suggestedBlistersPerBox('Manzana', 'Gala', '88')).toBe(4);
-    expect(suggestedBlistersPerBox('Manzana', 'Verde', '100')).toBe(5);
-    for (const caliber of ['80', '90', '180', '88/100'])
-      expect(suggestedBlistersPerBox('Manzana', 'Gala', caliber)).toBeNull();
-    expect(suggestedBlistersPerBox('Manzana', 'Lady', '100')).toBeNull();
-    expect(suggestedBlistersPerBox('Manzana', 'Amarilla', '100')).toBeNull();
-    expect(suggestedBlistersPerBox('Manzana', 'Pink Lady', '110')).toBe(4);
-    expect(suggestedBlistersPerBox('Pera', 'Packcam', '135')).toBe(5);
+  it('aplica la aclaración V4.2 solo a manzana tradicional y no fusiona identidades', () => {
+    for (const variety of ['Gala', 'Verde', 'Amarilla', 'Pink Lady', 'Lady']) {
+      expect(suggestedBlistersPerBox('Manzana', variety, '80')).toBe(4);
+      expect(suggestedBlistersPerBox('Manzana', variety, '100')).toBe(4);
+      expect(suggestedBlistersPerBox('Manzana', variety, '113')).toBe(5);
+    }
+    expect(suggestedBlistersPerBox('Pera', 'Packcam', '135')).toBeNull();
+    expect(suggestedBlistersPerBox('Manzana', 'Gala', '88/100')).toBeNull();
+    expect(suggestedBlistersPerBox('Manzana', 'Gala', '100', 'Granel', 'halves')).toBeNull();
   });
 });
 

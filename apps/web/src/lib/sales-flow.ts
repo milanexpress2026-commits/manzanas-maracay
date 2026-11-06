@@ -1,6 +1,6 @@
 import Decimal from 'decimal.js';
 import type { Configuration, Presentation, PriceBasis, SettlementBasis } from '@mm/domain';
-import { normalizedMoney } from './commercial-ui';
+import { caracasInstant, normalizedMoney } from './commercial-ui';
 
 export const paymentChoices = [
   { id: 'usd_cash', label: 'Efectivo USD', currency: 'USD', method: 'usd_cash', basis: null },
@@ -115,10 +115,15 @@ export function saleLineTotal(line: SaleDraftLine) {
   return new Decimal(amount).times(line.quantity).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 }
 
+export function saleReviewInstant(date: string, dateEdited: boolean, now = new Date()) {
+  return dateEdited ? caracasInstant(date) : now.toISOString();
+}
+
 export type SaleFormDraft = {
   clientId: string;
   condition: 'cash' | 'credit';
   date: string;
+  dateEdited: boolean;
   due: string;
   reminder: string;
   notes: string;

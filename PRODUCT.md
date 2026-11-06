@@ -18,7 +18,7 @@ Distribuidora venezolana de frutas importadas. Los propietarios y operadores reg
 
 La fase 4 está activa en producción con acceso privado, base separada y operación en USD. El código publicado de referencia es `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0`; su evidencia está en la documentación de fase 4. La demo sintética permanece fuera de las rutas de producción. El acceso compartido de los propietarios ofrece «Mantener sesión activa» durante 30 días y cierre de sesión revocable.
 
-El hotfix UX V3 se desarrolla en `hotfix/ux-ventas-catalogo-v3` para QA y staging. Simplifica el alta de productos y la venta cotidiana, separa contado de crédito, evita recordatorios sin deuda y añade disponibilidad vendible por presentación. Su implementación, pruebas o capturas locales no significan que esta versión esté desplegada en producción. No incluye regularizar automáticamente la fruta «Manzana Gala» del propietario.
+V4 quedó verificada en staging con código `53aeff14b981c52417d97c257f5be3ba1dd9d45f`. La continuación V4.2 se desarrolla en `feature/recepcion-rapida-v4-2`: permite escoger mercancía habitual sin crear decenas de combinaciones, recibe varias líneas con proveedor opcional y número automático, y exige costo real o aceptación explícita del anterior. La regla confirmada de manzana tradicional es cuatro blísteres hasta calibre100 inclusive y cinco a partir de los superiores; no se aplica a otros productos. Su implementación o pruebas no significan publicación real. No incluye regularizar automáticamente registros históricos.
 
 ## Operación e integridad
 

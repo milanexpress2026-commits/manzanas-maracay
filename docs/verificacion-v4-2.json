@@ -1,0 +1,142 @@
+{
+  "format": 1,
+  "candidateCommit": "80b186f22b58b77a94a849c32d1d09f342478fd7",
+  "status": "ready_for_production_approval",
+  "productionApproval": {
+    "status": "requested",
+    "granted": false
+  },
+  "localVerification": {
+    "typecheck": "passed",
+    "build": "passed",
+    "unitTests": {
+      "status": "passed",
+      "passed": 247
+    },
+    "isolatedProductionQa": {
+      "status": "passed",
+      "passed": 13,
+      "runId": "650863411bd5aa9d160f7268",
+      "timeWindowUtc": {
+        "from": "2026-11-06 03:51 UTC",
+        "to": "2026-11-06 03:53 UTC",
+        "precision": "minute"
+      },
+      "liveProductionUsed": false
+    },
+    "targetedBrowserRegression": {
+      "status": "passed",
+      "passed": 4
+    },
+    "privateOperatorTests": {
+      "status": "passed",
+      "passed": 70,
+      "remoteExecution": false
+    },
+    "fullBrowserRegression": {
+      "freshIsolatedDatabase": true,
+      "startedAt": "2026-11-06T04:54:56.173Z",
+      "status": "passed",
+      "expectedTests": 98,
+      "finishedAt": "2026-11-06T05:03:01.832Z",
+      "postgresStopped": true,
+      "freshPidGone": true,
+      "passed": 98,
+      "previousLocalDatabasePreserved": true
+    },
+    "freshDatabaseGuardTests": {
+      "passed": 8,
+      "status": "passed"
+    },
+    "localMigrationRegression": {
+      "upgradePath": [11, 13, 14, 15],
+      "finishedAt": "2026-11-05T23:08:50.603Z",
+      "temporaryDatabasesRemoved": 2,
+      "status": "passed",
+      "historicalSqlUnchanged": true,
+      "historicalTablesPreserved": 35,
+      "freshMigrations": 15
+    }
+  },
+  "staging": {
+    "commit": "80b186f22b58b77a94a849c32d1d09f342478fd7",
+    "release": "hotfix-80b186f22b58",
+    "migrations": 15,
+    "healthy": true,
+    "authenticatedReadSmoke": {
+      "checkedAt": "2026-11-06T01:39:44.534191-03:00",
+      "passed": true,
+      "checkCount": 16,
+      "businessWrites": false,
+      "checks": {
+        "exactRelease": true,
+        "healthyStaging": true,
+        "anonymousDenied": true,
+        "loginAccepted": true,
+        "secureCookie": true,
+        "authenticatedStaging": true,
+        "catalogReadable": true,
+        "habitualCatalogReadable": true,
+        "inventoryReadable": true,
+        "salesReadable": true,
+        "paymentsReadable": true,
+        "collectionsReadable": true,
+        "bcvAvailableVerified": true,
+        "usdtAvailableVerified": true,
+        "logoutAccepted": true,
+        "oldCookieRejected": true
+      },
+      "rateAvailabilityScope": "verified_at_smoke_time_only"
+    }
+  },
+  "liveProduction": {
+    "commit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
+    "release": "phase4-2a81817fe2c1",
+    "migrations": 13,
+    "candidateDeployed": false
+  },
+  "preparedProductionCandidate": {
+    "release": "phase4-80b186f22b58",
+    "stage": "built",
+    "images": {
+      "node": "sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20",
+      "postgres": "sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5",
+      "tools": "sha256:a636317b42bd483e03b0d188fec3516a46b7dadb36585747410a8411563ed868",
+      "api": "sha256:9e27ba8554a87c27af13f2960ca106cc28e90e1a5c91d4bc12cb441a58458e02",
+      "web": "sha256:d3201b8f2e4a4d659018356bb023fa6d39a38d2ffc1cfe763f44a1a6168217f4"
+    }
+  },
+  "prePromotionBackup": {
+    "verifiedAt": "2026-11-06T04:39:54.429395Z",
+    "sourceMigrations": 13,
+    "externalCopyEncrypted": true,
+    "encryption": "AES-256-GCM",
+    "restoredFromExternalCopy": true,
+    "externalPlaintextRetained": false
+  },
+  "isolatedRealBackupRehearsal": {
+    "commit": "80b186f22b58b77a94a849c32d1d09f342478fd7",
+    "checkedAt": "2026-11-06T01:46:26.086487-03:00",
+    "passed": true,
+    "migrationsBefore": 13,
+    "migrationsAfter": 15,
+    "tablesPreserved": 36,
+    "historicalRowsPreserved": true,
+    "legacyAgreementsPreserved": true,
+    "rateCacheInitiallyEmpty": true,
+    "collectorNoLogin": true,
+    "isolatedRestore13Verified": true,
+    "isolatedIntegrity15Verified": true,
+    "collectorPrivilegesVerified": true,
+    "temporaryResourcesCleaned": true,
+    "liveDatabaseTouched": false,
+    "preexistingContainersPreserved": true,
+    "acl15RoundtripRestored": false,
+    "acl15RoundtripStatus": "pending_post_promotion_backup_and_restore"
+  },
+  "pending": [
+    "explicit_production_promotion_approval_for_exact_candidate",
+    "post_promotion_encrypted_external_backup_and_isolated_restore_of_15_migrations",
+    "physical_android_tablet_verification"
+  ]
+}

@@ -192,7 +192,11 @@ async function main() {
     entries: currentJournal.entries.filter((entry) => entry.idx <= 12),
   };
   assert.equal(phase4Journal.entries.length, 13);
-  assert.equal(currentJournal.entries.length, 14, 'La prueba está fijada al hotfix aditivo 0013.');
+  assert.equal(
+    currentJournal.entries.length,
+    15,
+    'La prueba está fijada a V4.2 con migración aditiva 0014.',
+  );
   const phase4Migrations = path.join(scratch, 'phase4-13-migrations');
   await fs.mkdir(path.join(phase4Migrations, 'meta'), { recursive: true });
   await fs.writeFile(
@@ -203,6 +207,15 @@ async function main() {
     await fs.copyFile(
       path.join(currentMigrations, `${entry.tag}.sql`),
       path.join(phase4Migrations, `${entry.tag}.sql`),
+    );
+  const v4Journal = { ...currentJournal, entries: currentJournal.entries.slice(0, 14) };
+  const v4Migrations = path.join(scratch, 'v4-14-migrations');
+  await fs.mkdir(path.join(v4Migrations, 'meta'), { recursive: true });
+  await fs.writeFile(path.join(v4Migrations, 'meta/_journal.json'), JSON.stringify(v4Journal));
+  for (const entry of v4Journal.entries)
+    await fs.copyFile(
+      path.join(currentMigrations, `${entry.tag}.sql`),
+      path.join(v4Migrations, `${entry.tag}.sql`),
     );
   const adminUrl = new URL(base);
   adminUrl.pathname = '/postgres';
@@ -254,6 +267,34 @@ async function main() {
         (await fresh.query("select has_table_privilege('mm_app','sales','insert') as allowed"))
           .rows[0].allowed,
         true,
+      );
+      assert.equal(
+        (
+          await fresh.query(
+            "select has_sequence_privilege('mm_app','mm_receipt_number_seq','USAGE') as allowed",
+          )
+        ).rows[0].allowed,
+        true,
+      );
+      assert.equal(
+        (
+          await fresh.query(
+            "select has_sequence_privilege('mm_app','mm_receipt_number_seq','UPDATE') as allowed",
+          )
+        ).rows[0].allowed,
+        false,
+      );
+      assert.deepEqual(
+        (
+          await fresh.query(
+            "select table_name,column_name,is_nullable from information_schema.columns where table_schema='public' and ((table_name in ('purchases','lots') and column_name='supplier_id') or (table_name='purchases' and column_name='reference')) order by table_name,column_name",
+          )
+        ).rows,
+        [
+          { table_name: 'lots', column_name: 'supplier_id', is_nullable: 'YES' },
+          { table_name: 'purchases', column_name: 'reference', is_nullable: 'YES' },
+          { table_name: 'purchases', column_name: 'supplier_id', is_nullable: 'YES' },
+        ],
       );
       report.fresh = {
         migrationCount: expected,
@@ -426,10 +467,74 @@ async function main() {
     } finally {
       await phase4Pool.end();
     }
+    const v4Pool = new Pool({ connectionString: upgradeUrl, max: 1 });
+    let v4Before: Snapshot;
+    let v4Rates: unknown;
+    try {
+      await migrate(drizzle(v4Pool), { migrationsFolder: v4Migrations });
+      const v4Read = await v4Pool.connect();
+      try {
+        v4Before = await snapshot(v4Read as unknown as Client);
+        assert.equal(v4Before.hashes.length, 14);
+        v4Rates = (await v4Read.query('select to_jsonb(t) as value from usdt_rates t order by id'))
+          .rows;
+      } finally {
+        v4Read.release();
+      }
+    } finally {
+      await v4Pool.end();
+    }
     await migrateDatabase(upgradeUrl);
     const updated = new Client({ connectionString: upgradeUrl });
     await updated.connect();
     try {
+      const v4After = await snapshot(updated, v4Before!.columns);
+      assert.deepEqual(
+        v4After.rows,
+        v4Before!.rows,
+        '0014 alteró una identidad, proveedor, referencia, costo o snapshot histórico.',
+      );
+      assert.deepEqual(
+        v4After.hashes.slice(0, 14),
+        v4Before!.hashes,
+        'Cambió una de las catorce migraciones previas.',
+      );
+      assert.deepEqual(
+        (await updated.query('select to_jsonb(t) as value from usdt_rates t order by id')).rows,
+        v4Rates,
+      );
+      assert.equal(
+        (
+          await updated.query(
+            'select count(*)::int n from purchases where receipt_number is not null',
+          )
+        ).rows[0].n,
+        0,
+        'La migración no debe renumerar documentos históricos.',
+      );
+      assert.equal(
+        (
+          await updated.query(
+            'select count(*)::int n from purchases where supplier_id is null or reference is null',
+          )
+        ).rows[0].n,
+        0,
+        'Proveedor y referencia históricos deben conservarse.',
+      );
+      assert.equal(
+        (await updated.query('select count(*)::int n from lots where supplier_id is null')).rows[0]
+          .n,
+        0,
+      );
+      report.v42Upgrade = {
+        fromMigrationCount: 14,
+        toMigrationCount: v4After.hashes.length,
+        historicalRowsPreserved: true,
+        historicalReferencesAndSuppliersPreserved: true,
+        historicalReceiptNumbersRemainNull: true,
+        preservedMigrationHashes: 14,
+        rateCachePreserved: true,
+      };
       const phase4After = await snapshot(updated, phase4Before!.columns);
       assert.deepEqual(
         phase4After.rows,
