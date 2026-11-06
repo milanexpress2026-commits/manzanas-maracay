@@ -47,7 +47,6 @@ import {
   presentationNames,
   normalizedMoney,
   caracasDateTime,
-  caracasInstant,
   caracasDate,
   addCaracasDays,
 } from '@/lib/commercial-ui';
@@ -62,6 +61,7 @@ import {
   saleReference,
   changeSaleLine,
   saleLineTotal,
+  saleReviewInstant,
   keepSaleDraft,
   takeSaleDraft,
   clearSaleDraft,
@@ -141,6 +141,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const [condition, setCondition] = useState<'cash' | 'credit'>('cash');
   const [basis, setBasis] = useState<PriceBasis | ''>('');
   const [date, setDate] = useState('');
+  const [dateEdited, setDateEdited] = useState(false);
   const [due, setDue] = useState('');
   const [reminder, setReminder] = useState('');
   const [notes, setNotes] = useState('');
@@ -166,6 +167,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       setClientId(draft.clientId);
       setCondition(draft.condition);
       setDate(draft.date);
+      setDateEdited(draft.dateEdited);
       setDue(draft.due);
       setReminder(draft.reminder);
       setNotes(draft.notes);
@@ -251,6 +253,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       clientId,
       condition,
       date,
+      dateEdited,
       due,
       reminder,
       notes,
@@ -411,8 +414,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       return;
     }
     let soldAt: string;
+    const reviewedAt = new Date();
     try {
-      soldAt = caracasInstant(date);
+      soldAt = saleReviewInstant(date, dateEdited, reviewedAt);
     } catch (error) {
       command.setError(error instanceof Error ? error.message : 'Revisa la fecha de venta.');
       return;
@@ -437,7 +441,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               currency,
               amount: normalizedMoney(received),
               method,
-              receivedAt: new Date().toISOString(),
+              receivedAt: reviewedAt.toISOString(),
               ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
             },
           }
@@ -822,8 +826,16 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                       required
                       type="datetime-local"
                       value={date}
-                      onChange={(event) => setDate(event.target.value)}
+                      onChange={(event) => {
+                        setDate(event.target.value);
+                        setDateEdited(true);
+                      }}
                     />
+                    <FieldDescription>
+                      {dateEdited
+                        ? 'Se usará la fecha y hora que indicaste.'
+                        : 'Se usará la hora actual al revisar la venta.'}
+                    </FieldDescription>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="sale-notes">Observaciones de la venta</FieldLabel>

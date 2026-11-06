@@ -121,6 +121,8 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     await expect(
       page.getByRole('button', { name: 'Recibir Manzana · Gala · 100', exact: true }),
     ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Agregar producto', exact: true })).toBeEnabled();
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: 'docs/capturas/recepcion-v4-2/catalogo-virtual-vacio-390.png',
       fullPage: true,
@@ -177,6 +179,7 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     }
     await setReceiptPrice(page, 0, '40', '48');
     await assertNoDocumentOverflow(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: 'docs/capturas/recepcion-v4-2/vacio-tres-lineas-390.png',
       fullPage: true,
@@ -238,6 +241,7 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     await expect(page.getByLabel('Método de cobro', { exact: true })).toHaveValue('usd_cash');
     await expect(page.getByLabel('Total de la venta', { exact: true })).toHaveText('USD 40,00');
     await assertNoDocumentOverflow(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: 'docs/capturas/recepcion-v4-2/vacio-primera-venta-contado.png',
       fullPage: true,
@@ -252,6 +256,9 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     expect(sale.totalUsd).toBe('40.00');
     expect(sale.paidUsd).toBe('40.00');
     expect(sale.balanceUsd).toBe('0.00');
+    expect(new Date(sale.soldAt).getTime()).toBeGreaterThanOrEqual(
+      new Date(lot.receivedAt).getTime(),
+    );
     expect(new Decimal(sale.costUsd).eq('25')).toBe(true);
     expect(sale.dueDate).toBeNull();
     expect(sale.reminderDate).toBeNull();
