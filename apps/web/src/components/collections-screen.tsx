@@ -9,6 +9,7 @@ import {
   SaleTable,
   PaymentDialog,
   PaymentSaved,
+  PendingPaymentRecovery,
   RateNotice,
   type RateStatus,
 } from './commercial-shared';
@@ -41,6 +42,13 @@ export function CollectionsScreen({ session }: { session: AppSession }) {
           <span className="commercial-help">Venezuela · {data?.today ?? 'Consultando fecha…'}</span>
         </div>
         {payment ? <PaymentSaved payment={payment} /> : null}
+        <PendingPaymentRecovery
+          session={session}
+          onSaved={async (value) => {
+            setPayment(value);
+            await collections.reload();
+          }}
+        />
         {collections.error ? (
           <LoadError error={collections.error} retry={() => void collections.reload()} />
         ) : null}
@@ -102,6 +110,7 @@ export function CollectionsScreen({ session }: { session: AppSession }) {
       </main>
       {selected ? (
         <PaymentDialog
+          session={session}
           clientId={selected.clientId}
           saleId={selected.id}
           onClose={() => setSelected(null)}

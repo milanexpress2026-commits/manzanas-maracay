@@ -145,7 +145,7 @@ for (const width of [390, 800, 1024, 1440]) {
       .getByRole('dialog')
       .getByRole('button', { name: 'Confirmar venta', exact: true })
       .click();
-    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
+    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
     expect(posts).toBe(1);
     expect(payload).toMatchObject({
       condition: 'cash',
@@ -153,7 +153,7 @@ for (const width of [390, 800, 1024, 1440]) {
       reminderDate: null,
       initialPayment: { currency: 'USD', amount: '76.00', method: 'usd_cash' },
     });
-    const id = page.url().split('/').at(-1);
+    const id = new URL(page.url()).pathname.split('/').at(-1);
     const sale = await (await page.request.get('/api/sales/' + id)).json();
     expect(sale.totalUsd).toBe('76.00');
     expect(sale.balanceUsd).toBe('0.00');
@@ -187,8 +187,8 @@ test('crédito cero y abono completo conservan acuerdo, fechas independientes y 
   await expect(page.locator('#sale-currency, #sale-method')).toHaveCount(0);
   await page.getByRole('button', { name: 'Revisar y registrar crédito', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
-  const id = page.url().split('/').at(-1);
+  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
+  const id = new URL(page.url()).pathname.split('/').at(-1);
   const before = await (await page.request.get('/api/sales/' + id)).json();
   expect(before).toMatchObject({
     balanceUsd: '40.00',
@@ -245,8 +245,8 @@ test('crédito con abono inicial registra saldo real y no recupera fechas borrad
   await page.getByRole('button', { name: 'Revisar y registrar crédito', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('USD 30,00');
   await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
-  const id = page.url().split('/').at(-1);
+  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
+  const id = new URL(page.url()).pathname.split('/').at(-1);
   const sale = await (await page.request.get('/api/sales/' + id)).json();
   expect(sale).toMatchObject({
     condition: 'credit',
@@ -376,8 +376,11 @@ test('vídeo QA de venta de contado desde cliente y producto hasta comprobante',
     await page.getByRole('button', { name: 'Aumentar cantidad del producto 1' }).click();
     await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
     await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
-    await expect(page.getByRole('link', { name: 'Descargar PDF', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
+    await page.getByText('Comprobante y tamaño de papel', { exact: true }).click();
+    await expect(
+      page.getByRole('link', { name: 'Descargar comprobante de venta', exact: true }),
+    ).toBeVisible();
   } finally {
     await context.close();
   }

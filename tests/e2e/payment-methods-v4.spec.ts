@@ -55,8 +55,8 @@ for (const agreement of ['divisa', 'bcv'] as const) {
       agreement === 'divisa' ? 'Binance P2P' : 'BCV oficial',
     );
     await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
-    const saleId = page.url().split('/').at(-1)!;
+    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
+    const saleId = new URL(page.url()).pathname.split('/').at(-1)!;
     const sale: SaleDetail = await (await page.request.get('/api/sales/' + saleId)).json();
     expect(sale).toMatchObject({
       settlementBasis: agreement,
@@ -179,9 +179,9 @@ test('cuatro métodos V4: elección explícita, crédito optativo y accesibilida
   await page.getByRole('button', { name: 'Revisar y registrar crédito', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Sin abono');
   await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
+  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
   const sale: SaleDetail = await (
-    await page.request.get('/api/sales/' + page.url().split('/').at(-1))
+    await page.request.get('/api/sales/' + new URL(page.url()).pathname.split('/').at(-1))
   ).json();
   expect(sale.payments).toEqual([]);
   expect(sale.balanceUsd).toBe('38.00');

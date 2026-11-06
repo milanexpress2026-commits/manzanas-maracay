@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { AppEnvironment, SessionInfo } from '../../../../packages/domain/src/auth';
+import { internalReturnPath } from './auth-return';
 
 export function webAuthConfig() {
   const environment = process.env.MM_APP_ENV ?? 'local';
@@ -71,8 +72,10 @@ export async function getSession(): Promise<SessionInfo | null> {
   return session;
 }
 
-export async function requireSession(): Promise<SessionInfo> {
+export async function requireSession(returnTo?: string): Promise<SessionInfo> {
   const session = await getSession();
-  if (!session) redirect('/login');
+  const destination = internalReturnPath(returnTo);
+  if (!session)
+    redirect(destination ? '/login?returnTo=' + encodeURIComponent(destination) : '/login');
   return session;
 }

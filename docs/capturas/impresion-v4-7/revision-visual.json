@@ -1,0 +1,101 @@
+{
+  "reviewedAt": "2026-11-06T23:08:32.669029+00:00",
+  "sourceBaseCommit": "566ff95fb37625766f73d075cdb0b4fdc3e55173",
+  "sourceWorktreeModified": true,
+  "runtimePublishedByThisEvidence": false,
+  "physicalPrinterTested": false,
+  "tabletPhysicallyTested": false,
+  "sourceSha256": {
+    "apps/api/src/commerce-pdf.ts": "e4b01596c20bafdd1043d623d427ea1a9d0faa604ca020e03c41f30a57613dc3",
+    "apps/api/src/pdf-layout.ts": "1339b0a670774ea95df58c026f73a7fee4fb064b5483af5cfd40203c17ec75c1",
+    "tests/fixtures/commerce-pdf.ts": "b103382b93ddf321009c9faa9ded8865cc54a53718508d437f3f819e5470ee8f",
+    "tests/unit/commerce-pdf.test.ts": "bc482499fcc4c1fa25146e5562b658091bac020835ce9f35080e49290447ef7a",
+    "scripts/capture-commerce-pdfs.ts": "708c2374c56e657ea0b87d14110fdc7dc5432173ae6a0db6ceaaee3b757d21fc",
+    "scripts/verify-commerce-pdfs.py": "b4f067f7e3d04e70165cb4b431ebe00e6a7efba551cf2835d6dbb75db8f36d61"
+  },
+  "publicPages": [
+    {
+      "file": "entrega-01-1.png",
+      "sha256": "9f2fad8a286754833a8e7d93b086b441b28875669b4ce4e14f28ef82fda5dcc8",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-25-1.png",
+      "sha256": "a72b2a58ae76fd081e033d28af661e1ebbcea6cde2f11f0af6942fb6e9a9d895",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-25-2.png",
+      "sha256": "0088a7e8fb37316b81861ed4e026a257b136f251bb7ae4beae43f25f81e33dae",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-25-3.png",
+      "sha256": "b72c76b1d2fa57ea87494fb209a77344d62bb75f3da6c0fda48f164f7d6c3370",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-25-4.png",
+      "sha256": "3bb61a7834fc286b91f8d15f6aa343cb8223bad45cc1d375d2f2678148c1d672",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-50-1.png",
+      "sha256": "4068804dfadd68030052dac6f2138f3916088d762735c5229fd3f6154b539f33",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-50-2.png",
+      "sha256": "aaa7ca9a6ef2a2be1a93b030ff07a37d859356912f6d6a84cb55d80a12ae6220",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-50-3.png",
+      "sha256": "67bba2089d047533cec39c43e81b5f187d481197aaa5edd7d4056d57fd2af422",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-50-4.png",
+      "sha256": "d5806176f031c10c5113496f9539f9d19d6f968cde04c5b36d018b2c893d44a6",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-50-5.png",
+      "sha256": "0a3f677c9d14a8118243e61274b45a1eba13f2ae011d78cbe0a6b235d632ac6c",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    },
+    {
+      "file": "entrega-50-6.png",
+      "sha256": "bc1732091c44954e1c6d71e6c261db090da0971a8973a61433f4077d6ea449ca",
+      "reviewed": true,
+      "clippingOrOverlapObserved": false
+    }
+  ],
+  "additionalPrivatePagesReviewed": [
+    "entrega-unicode-1.png",
+    "abono-usdt-1.png",
+    "entrega-anulada-25-1.png",
+    "entrega-anulada-25-4.png"
+  ],
+  "unitTests": {
+    "passed": 15,
+    "failed": 0,
+    "logSha256": "973b4e92627ea9e8e69fce83d6f52a2c0a065af5db51f242f74265b3b69267ec"
+  },
+  "automaticSamples": 12,
+  "automaticRenderedPages": 37,
+  "limitations": [
+    "Revisión en pantalla de documentos sintéticos, no prueba física de impresión.",
+    "Los símbolos fuera de Helvetica se muestran como códigos Unicode explícitos."
+  ]
+}

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -126,11 +127,17 @@ export class CommerceController {
   @Get('sales/:id/delivery-note')
   @Header('Cache-Control', 'no-store')
   @Header('X-Content-Type-Options', 'nosniff')
-  async deliveryDocument(@Param('id') id: string) {
+  async deliveryDocument(@Param('id') id: string, @Query() query: Record<string, unknown>) {
+    if (
+      Object.keys(query).some((key) => key !== 'size' && key !== 'download') ||
+      (query.size !== undefined && query.size !== 'letter' && query.size !== 'a4') ||
+      (query.download !== undefined && query.download !== '1' && query.download !== '0')
+    )
+      throw new BadRequestException('Elige tamaño carta o A4 y una opción de descarga válida.');
     const sale = await this.commerce.sale(id);
-    return new StreamableFile(await salePdf(sale, 'delivery'), {
+    return new StreamableFile(await salePdf(sale, 'delivery', { size: query.size ?? 'letter' }), {
       type: 'application/pdf',
-      disposition: `inline; filename="entrega-${sale.id}.pdf"`,
+      disposition: `${query.download === '1' ? 'attachment' : 'inline'}; filename="entrega-${sale.id}.pdf"`,
     });
   }
 }

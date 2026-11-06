@@ -1,5 +1,15 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  COMMERCIAL_JOURNAL_EVENT,
+  CommercialJournalError,
+  commercialJournalKey,
+  readCommercialPending,
+  sendCommercialCommand,
+  type CommercialCommandKind,
+  type CommercialSummary,
+  type PendingCommercialCommand,
+} from './commercial-journal';
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -92,6 +102,121 @@ export function useCommand() {
     }
   }
   return { run, busy, error, setError };
+}
+
+/** Durable only for financial commands; other low-impact forms keep useCommand. */
+export function useDurableCommercialCommand(scope: string, kind: CommercialCommandKind) {
+  const [pending, setPending] = useState<PendingCommercialCommand | null>(null);
+  const [ready, setReady] = useState(false),
+    [storageError, setStorageError] = useState('');
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  const [authNeeded, setAuthNeeded] = useState(false);
+  const captured = useRef<PendingCommercialCommand | null>(null),
+    inFlight = useRef(false);
+  const confirmed = useRef<{ body: string; result: unknown } | null>(null);
+  const refreshSequence = useRef(0);
+  const key = commercialJournalKey(scope, kind);
+  const refresh = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
+    try {
+      if (!navigator.locks?.request)
+        throw new CommercialJournalError(
+          'Este navegador no permite proteger operaciones entre pestañas. Usa un navegador actualizado antes de guardar.',
+        );
+      const value = await readCommercialPending(localStorage, scope, kind);
+      if (sequence !== refreshSequence.current) return;
+      setPending(value);
+      if (value) captured.current = value;
+      setStorageError('');
+    } catch (failure) {
+      if (sequence !== refreshSequence.current) return;
+      setStorageError(
+        failure instanceof Error ? failure.message : 'No se pudo leer el pendiente local.',
+      );
+    } finally {
+      if (sequence === refreshSequence.current) setReady(true);
+    }
+  }, [scope, kind]);
+  useEffect(() => {
+    captured.current = null;
+    confirmed.current = null;
+    setPending(null);
+    setReady(false);
+    void refresh();
+    const changed = (event: Event) => {
+      if (event instanceof StorageEvent && event.key !== null && event.key !== key) return;
+      void refresh();
+    };
+    window.addEventListener('storage', changed);
+    window.addEventListener(COMMERCIAL_JOURNAL_EVENT, changed);
+    return () => {
+      ++refreshSequence.current;
+      window.removeEventListener('storage', changed);
+      window.removeEventListener(COMMERCIAL_JOURNAL_EVENT, changed);
+    };
+  }, [key, refresh]);
+  async function run<T>(body: unknown, summary: CommercialSummary | null = null): Promise<T> {
+    if (confirmed.current?.body === JSON.stringify(body)) return confirmed.current.result as T;
+    if (inFlight.current) throw new CommercialJournalError('La confirmación ya está en curso.');
+    if (!ready || storageError)
+      throw new CommercialJournalError(
+        storageError || 'Espera mientras se verifica la operación pendiente.',
+      );
+    inFlight.current = true;
+    setBusy(true);
+    setError('');
+    setAuthNeeded(false);
+    try {
+      const result = await sendCommercialCommand<T>(
+        {
+          storage: localStorage,
+          withLock: (name, work) =>
+            navigator.locks.request(
+              name,
+              { mode: 'exclusive', ifAvailable: true },
+              async (lock) => {
+                if (!lock)
+                  throw new CommercialJournalError(
+                    'Otra pestaña está confirmando esta operación. Espera y recupera el mismo pendiente.',
+                  );
+                return work();
+              },
+            ),
+          send: (url, commandKey, json) =>
+            fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Idempotency-Key': commandKey },
+              body: json,
+              signal: AbortSignal.timeout(20000),
+            }),
+          changed: () => window.dispatchEvent(new Event(COMMERCIAL_JOURNAL_EVENT)),
+        },
+        scope,
+        kind,
+        body,
+        summary,
+        captured.current ?? undefined,
+      );
+      captured.current = null;
+      confirmed.current = { body: JSON.stringify(body), result };
+      return result;
+    } catch (failure) {
+      if (failure instanceof CommercialJournalError && failure.editable) captured.current = null;
+      setAuthNeeded(failure instanceof CommercialJournalError && failure.status === 401);
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : 'No se pudo confirmar. La solicitud se conserva.',
+      );
+      throw failure;
+    } finally {
+      await refresh();
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }
+  return { run, pending, ready, storageError, busy, error, setError, refresh, authNeeded };
 }
 export function displayMoney(value: string) {
   const [whole, decimal = ''] = value.split('.');

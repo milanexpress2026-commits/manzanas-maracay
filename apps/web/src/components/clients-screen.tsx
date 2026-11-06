@@ -13,7 +13,13 @@ import { AppShell, type AppSession } from './app-shell';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { LoadError, LoadingRows, PageFooter, SavedNotice } from './operations-ui';
-import { ClientDialog, PaymentDialog, PaymentSaved, SaleTable } from './commercial-shared';
+import {
+  ClientDialog,
+  PaymentDialog,
+  PaymentSaved,
+  PendingPaymentRecovery,
+  SaleTable,
+} from './commercial-shared';
 import { useRemote, displayMoney, displayDate } from '@/lib/inventory-api';
 import { useClientDirectory } from '@/lib/use-client-directory';
 export function ClientsScreen({ session }: { session: AppSession }) {
@@ -191,6 +197,13 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
           <ArrowLeft aria-hidden="true" />
           Clientes
         </Link>
+        <PendingPaymentRecovery
+          session={session}
+          onSaved={async (value) => {
+            setPayment(value);
+            await account.reload();
+          }}
+        />
         {account.error ? (
           <LoadError error={account.error} retry={() => void account.reload()} />
         ) : null}
@@ -308,6 +321,7 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
       ) : null}
       {paymentSale !== undefined ? (
         <PaymentDialog
+          session={session}
           clientId={id}
           saleId={paymentSale ?? undefined}
           onClose={() => setPaymentSale(undefined)}

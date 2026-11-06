@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
-ARG NODE_IMAGE
+ARG NODE_IMAGE=node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d
 FROM ${NODE_IMAGE} AS dependencies
+RUN node -e "const [a,b,c]=process.versions.node.split('.').map(Number); if(a!==24 || b<22 || (b===22 && c<1)) throw Error('Node 24.22.1 or newer patched Node 24 is required')"
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./

@@ -186,8 +186,8 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar venta', exact: true })
     .click();
-  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
-  const saleId = page.url().split('/').at(-1)!;
+  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
+  const saleId = new URL(page.url()).pathname.split('/').at(-1)!;
   let sale = (await (await page.request.get('/api/sales/' + saleId)).json()) as SaleDetail;
   expect(sale.isDemo).toBe(false);
   expect(sale.totalUsd).toBe('80.00');

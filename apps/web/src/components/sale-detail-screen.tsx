@@ -2,16 +2,7 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import Decimal from 'decimal.js';
-import {
-  ArrowLeft,
-  Download,
-  Printer,
-  HandCoins,
-  CalendarDays,
-  Undo2,
-  MessageCircle,
-  FileText,
-} from 'lucide-react';
+import { ArrowLeft, HandCoins, CalendarDays, Undo2, MessageCircle, FileText } from 'lucide-react';
 import {
   changeSaleDatesSchema,
   paymentMethodLabel,
@@ -33,10 +24,19 @@ import {
   SaveButton,
   SavedNotice,
 } from './operations-ui';
-import { PaymentDialog, PaymentSaved, DueBadge } from './commercial-shared';
+import { PaymentDialog, PaymentSaved, PendingPaymentRecovery, DueBadge } from './commercial-shared';
+import { SaleDocumentActions } from './sale-document-actions';
 import { useRemote, useCommand, readApi, displayMoney, displayDate } from '@/lib/inventory-api';
 import { presentationNames, caracasDate, addCaracasDays } from '@/lib/commercial-ui';
-export function SaleDetailScreen({ session, id }: { session: AppSession; id: string }) {
+export function SaleDetailScreen({
+  session,
+  id,
+  justSaved = false,
+}: {
+  session: AppSession;
+  id: string;
+  justSaved?: boolean;
+}) {
   const detail = useRemote<SaleDetail>('/api/sales/' + id);
   const [paymentOpen, setPaymentOpen] = useState(false),
     [payment, setPayment] = useState<PaymentDetail | null>(null),
@@ -76,6 +76,13 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
           <LoadError error={detail.error} retry={() => void detail.reload()} />
         ) : null}
         {detail.loading && !sale ? <LoadingRows /> : null}
+        <PendingPaymentRecovery
+          session={session}
+          onSaved={async (saved) => {
+            setPayment(saved);
+            await detail.reload();
+          }}
+        />
         {sale ? (
           <>
             <div className="commercial-detail-heading">
@@ -88,34 +95,15 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
               </div>
               <div className="inline-actions">
                 <DueBadge sale={sale} />
-                <Button variant="outline" asChild>
-                  <a
-                    href={'/api/sales/' + id + '/delivery-note'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Printer aria-hidden="true" />
-                    Nota de entrega · Abrir para imprimir
-                  </a>
-                </Button>
-                <Button variant="outline" asChild>
-                  <a href={'/api/sales/' + id + '/document'} download>
-                    <Download aria-hidden="true" />
-                    Descargar PDF
-                  </a>
-                </Button>
-                <Button variant="outline" asChild>
-                  <a
-                    href={'/api/sales/' + id + '/document'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Printer aria-hidden="true" />
-                    Abrir para imprimir
-                  </a>
-                </Button>
               </div>
             </div>
+            {justSaved && sale.status === 'confirmed' ? (
+              <SavedNotice>
+                Venta guardada · {sale.number} · {displayMoney(sale.totalUsd)}. Puedes abrir la nota
+                de entrega o registrar una nueva venta.
+              </SavedNotice>
+            ) : null}
+            <SaleDocumentActions id={id} cancelled={sale.status === 'cancelled'} />
             {notice ? <SavedNotice>{notice}</SavedNotice> : null}
             {payment ? <PaymentSaved payment={payment} /> : null}
             <div className="commercial-layout">
@@ -379,6 +367,7 @@ export function SaleDetailScreen({ session, id }: { session: AppSession; id: str
       </main>
       {sale && paymentOpen ? (
         <PaymentDialog
+          session={session}
           clientId={sale.clientId}
           saleId={sale.id}
           onClose={() => setPaymentOpen(false)}
