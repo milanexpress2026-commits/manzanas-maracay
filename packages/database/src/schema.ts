@@ -104,6 +104,7 @@ export const packingRules = pgTable(
       .references(() => variants.id),
     blistersPerBox: integer('blisters_per_box'),
     packingModel: text('packing_model').notNull().default('blister'),
+    commercialUnitLabel: text('commercial_unit_label'),
     halfPreparation: text('half_preparation').notNull().default('counted'),
     allowedPresentations: text('allowed_presentations')
       .array()
@@ -129,6 +130,10 @@ export const packingRules = pgTable(
       sql`${t.allowedPresentations} <@ ARRAY['box','half_box','blister']::text[] and 'box'=any(${t.allowedPresentations}) and cardinality(${t.allowedPresentations}) between 1 and 3 and (${t.packingModel}='blister' or ${t.blistersPerBox} is null) and (${t.packingModel}<>'whole' or (${t.allowedPresentations}=ARRAY['box']::text[] and ${t.halfPreparation}='none')) and (${t.packingModel}<>'halves' or (not ('blister'=any(${t.allowedPresentations})) and ${t.halfPreparation}='commercial'))`,
     ),
     check('packing_version_positive', sql`${t.version}>0`),
+    check(
+      'packing_commercial_unit_valid',
+      sql`${t.commercialUnitLabel} is null or (length(btrim(${t.commercialUnitLabel})) between 1 and 80 and ${t.packingModel}='whole' and ${t.boxWeightKg} is null)`,
+    ),
     check('packing_notes_length', sql`length(${t.notes})<=500`),
   ],
 );
@@ -198,7 +203,7 @@ export const purchaseLines = pgTable(
       .references(() => variants.id),
     quantity: integer('quantity').notNull(),
     presentation: text('presentation').notNull(),
-    unitCostUsd: money('unit_cost_usd').notNull(),
+    unitCostUsd: money('unit_cost_usd'),
     notes: text('notes').notNull().default(''),
   },
   (t) => [
@@ -225,6 +230,7 @@ export const lots = pgTable(
     packingRuleVersion: integer('packing_rule_version').notNull(),
     blistersPerBoxSnapshot: integer('blisters_per_box_snapshot'),
     packingModelSnapshot: text('packing_model_snapshot').notNull().default('blister'),
+    commercialUnitLabelSnapshot: text('commercial_unit_label_snapshot'),
     halfPreparationSnapshot: text('half_preparation_snapshot').notNull().default('counted'),
     allowedPresentationsSnapshot: text('allowed_presentations_snapshot')
       .array()
@@ -235,7 +241,7 @@ export const lots = pgTable(
       .notNull()
       .default('legacy_unverified'),
     receivedAt: time('received_at').notNull(),
-    unitCostUsd: money('unit_cost_usd').notNull(),
+    unitCostUsd: money('unit_cost_usd'),
     receivedBoxes: integer('received_boxes').notNull().default(0),
     notes: text('notes').notNull().default(''),
     isDemo: boolean('is_demo').notNull().default(false),
@@ -264,6 +270,10 @@ export const lots = pgTable(
       sql`(${t.blistersPerBoxSnapshot} is null or ${t.blistersPerBoxSnapshot} between 1 and 100) and ${t.unitCostUsd}>=0 and ${t.packingRuleVersion}>0`,
     ),
     check('lots_receipt_valid', sql`${t.receivedBoxes}>=0 and ${t.inventoryVersion}>=0`),
+    check(
+      'lot_commercial_unit_valid',
+      sql`${t.commercialUnitLabelSnapshot} is null or (length(btrim(${t.commercialUnitLabelSnapshot})) between 1 and 80 and ${t.packingModelSnapshot}='whole' and ${t.boxWeightKgSnapshot} is null)`,
+    ),
     check(
       'lot_confirmation_snapshot_valid',
       sql`${t.confirmationStatusSnapshot} in ('confirmed','pending','legacy_unverified')`,
@@ -575,7 +585,7 @@ export const sales = pgTable(
     actor: text('actor').notNull().default('legacy'),
     isDemo: boolean('is_demo').notNull().default(false),
     totalUsd: numeric('total_usd', { precision: 18, scale: 2 }).notNull().default('0'),
-    costUsd: money('cost_usd').notNull().default('0'),
+    costUsd: money('cost_usd'),
     creationTransaction: bigint('creation_transaction', { mode: 'bigint' })
       .notNull()
       .default(sql`txid_current()`),
@@ -605,12 +615,13 @@ export const saleLines = pgTable(
       .references(() => variants.id),
     presentation: text('presentation').notNull(),
     quantity: integer('quantity').notNull(),
-    referenceUnitUsd: money('reference_unit_usd').notNull(),
+    referenceUnitUsd: money('reference_unit_usd'),
     agreedUnitUsd: money('agreed_unit_usd').notNull(),
     priceBasis: text('price_basis').notNull(),
     descriptionSnapshot: text('description_snapshot').notNull(),
+    commercialUnitLabelSnapshot: text('commercial_unit_label_snapshot'),
     lineTotalUsd: numeric('line_total_usd', { precision: 18, scale: 2 }).notNull().default('0'),
-    costUsd: money('cost_usd').notNull().default('0'),
+    costUsd: money('cost_usd'),
   },
   (t) => [
     index('sale_lines_sale_idx').on(t.saleId),
@@ -620,7 +631,15 @@ export const saleLines = pgTable(
       sql`${t.quantity}>0 and ${t.referenceUnitUsd}>=0 and ${t.agreedUnitUsd}>=0`,
     ),
     check('sale_presentation_valid', sql`${t.presentation} in ('box','blister','half_box')`),
-    check('sale_basis_valid', sql`${t.priceBasis} in ('usd_cash_promo','ves_regular')`),
+    check('sale_basis_valid', sql`${t.priceBasis} in ('usd_cash_promo','ves_regular','manual')`),
+    check(
+      'sale_manual_price_valid',
+      sql`(${t.priceBasis}='manual' and ${t.referenceUnitUsd} is null and ${t.agreedUnitUsd}>0) or (${t.priceBasis}<>'manual' and ${t.referenceUnitUsd} is not null)`,
+    ),
+    check(
+      'sale_commercial_unit_valid',
+      sql`${t.commercialUnitLabelSnapshot} is null or (length(btrim(${t.commercialUnitLabelSnapshot})) between 1 and 80 and ${t.presentation}='box')`,
+    ),
     check(
       'sale_line_totals_valid',
       sql`${t.lineTotalUsd}=round(${t.quantity}*${t.agreedUnitUsd},2) and ${t.costUsd}>=0`,
@@ -651,6 +670,10 @@ export const payments = pgTable(
     amountUsd: money('amount_usd').notNull(),
     bcvRateId: uuid('bcv_rate_id').references(() => bcvRates.id),
     usdtRateId: uuid('usdt_rate_id').references(() => usdtRates.id),
+    usdtReferenceRateId: uuid('usdt_reference_rate_id').references(() => usdtRates.id),
+    conversionRoundingUsd: numeric('conversion_rounding_usd', { precision: 18, scale: 2 })
+      .notNull()
+      .default('0'),
     receivedAt: time('received_at').notNull(),
     idempotencyKey: uuid('idempotency_key').notNull(),
     createdAt: createdAt(),
@@ -662,6 +685,12 @@ export const payments = pgTable(
     index('payments_client_idx').on(t.clientId),
     index('payments_rate_idx').on(t.bcvRateId),
     index('payments_usdt_rate_idx').on(t.usdtRateId),
+    index('payments_usdt_reference_rate_idx').on(t.usdtReferenceRateId),
+    check(
+      'payment_reference_currency',
+      sql`${t.usdtReferenceRateId} is null or ${t.currency}='USDT'`,
+    ),
+    check('payment_rounding_currency', sql`${t.currency}='VES' or ${t.conversionRoundingUsd}=0`),
     check('payment_positive', sql`${t.amount}>0 and ${t.amountUsd}>0`),
     check(
       'payment_currency_rate',

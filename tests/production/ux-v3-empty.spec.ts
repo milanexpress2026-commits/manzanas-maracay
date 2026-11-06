@@ -2,12 +2,11 @@ import { chooseSaleClient } from '../e2e/helpers/sale-client';
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import Decimal from 'decimal.js';
 import { Client } from 'pg';
 import type { Catalog, HabitualCatalogOptions, SaleDetail } from '../../packages/domain/src/index';
 import { databaseTarget } from '../../packages/database/src/environment';
 import { assertIsolatedProduction, assertNoDocumentOverflow, loginProduction } from './ui-helpers';
-import { chooseReceiptProduct, setReceiptPrice } from '../e2e/helpers/quick-receipt-ui';
+import { chooseReceiptProduct } from '../e2e/helpers/quick-receipt-ui';
 
 // Run after the closed-gate empty checks and the LOCAL activation fixture, before other writes.
 // The harness owns creation/activation/cleanup of the unique production_regression database.
@@ -73,11 +72,11 @@ async function assertOperationalCounts(expected: {
   }
 }
 
-test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, contado y crédito liquidado', async ({
+test('QA V4.5 vacía: cinco productos sin costo/proveedor/lista, precio manual, contado y crédito liquidado', async ({
   browser,
 }) => {
   test.setTimeout(240000);
-  fs.mkdirSync('docs/capturas/recepcion-v4-2', { recursive: true });
+  fs.mkdirSync('docs/capturas/operacion-simple-v4-5', { recursive: true });
   // Authenticate before recording. The session remains in RAM, never in an output artifact.
   const loginContext = await browser.newContext({
     baseURL: 'https://localhost:3143',
@@ -91,10 +90,10 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     baseURL: 'https://localhost:3143',
     ignoreHTTPSErrors: true,
     storageState: state,
-    viewport: { width: 390, height: 844 },
+    viewport: { width: 800, height: 1000 },
     recordVideo: {
-      dir: '.local/production-qa/recepcion-v4-2-videos',
-      size: { width: 390, height: 844 },
+      dir: '.local/production-qa/operacion-simple-v45-videos',
+      size: { width: 800, height: 1000 },
     },
   });
   const page = await context.newPage();
@@ -125,31 +124,27 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     await expect(page.getByRole('button', { name: 'Agregar producto', exact: true })).toBeEnabled();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: 'docs/capturas/recepcion-v4-2/catalogo-virtual-vacio-390.png',
+      path: 'docs/capturas/operacion-simple-v4-5/catalogo-virtual-vacio-800.png',
       fullPage: true,
     });
-    const chosen = [
+    const wanted = [
+      ['apple_traditional', 'Gala', '100'],
+      ['apple_bulk', 'Gala', 'PC'],
+      ['apple_bulk', 'Roja normal', '235'],
+      ['pear', 'Forelle', '125'],
+      ['grape', 'Verde', null],
+    ] as const;
+    const chosen = wanted.map(([template, variety, caliber]) =>
       options.options.find(
         (row) =>
-          row.templateId === 'apple_traditional' &&
-          row.varietyName === 'Gala' &&
-          row.caliberLabel === '100',
+          row.templateId === template &&
+          row.varietyName === variety &&
+          row.caliberLabel === caliber,
       )!,
-      options.options.find(
-        (row) =>
-          row.templateId === 'apple_traditional' &&
-          row.varietyName === 'Roja normal' &&
-          row.caliberLabel === '113',
-      )!,
-      options.options.find((row) => row.templateId === 'kiwi')!,
-    ];
+    );
     expect(chosen[0]!.suggestedPacking?.blistersPerBox).toBe(4);
-    expect(chosen[1]!.suggestedPacking?.blistersPerBox).toBe(5);
-    expect(chosen[2]!.suggestedPacking).toMatchObject({
-      blistersPerBox: null,
-      allowedPresentations: ['box', 'half_box'],
-    });
-    expect(new Decimal(chosen[2]!.suggestedPacking!.boxWeightKg!).eq('10')).toBe(true);
+    expect(chosen[1]!.suggestedPacking?.blistersPerBox).toBeNull();
+    expect(chosen[3]!.suggestedPacking?.blistersPerBox).toBe(4);
     expect(chosen.every((row) => row.configurationId === null)).toBe(true);
     await page.goto('/recepciones');
     await expect(page.getByLabel('Proveedor (opcional)', { exact: true })).not.toBeVisible();
@@ -160,42 +155,32 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
       page.getByLabel('Fecha y hora de recepción (opcional)', { exact: true }),
     ).not.toBeVisible();
     for (let index = 0; index < chosen.length; index++) {
-      const line = await chooseReceiptProduct(
-        page,
-        chosen[index]!.label,
-        index,
-        ['Gala 100', 'Roja 113', 'Kiwi'][index],
-      );
-      await line.getByLabel('Cajas recibidas', { exact: true }).fill(['2', '6', '3'][index]!);
+      const line = await chooseReceiptProduct(page, chosen[index]!.label, index);
       await line
-        .getByLabel('Costo real por caja · USD', { exact: true })
-        .fill(['25', '27', '30'][index]!);
-      if (index < 2)
-        await expect(
-          line.getByText(`${index === 0 ? 4 : 5} blíster por caja`, { exact: true }),
-        ).toBeVisible();
+        .getByLabel('Cajas recibidas', { exact: true })
+        .fill(['10', '6', '4', '5', '2'][index]!);
+      await expect(line.getByLabel(/Costo|Precio/i)).toHaveCount(0);
       await expect(line.getByRole('checkbox', { name: /Verifiqué esta presentación/ })).toHaveCount(
         0,
       );
     }
-    await setReceiptPrice(page, 0, '40', '48');
     await assertNoDocumentOverflow(page);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: 'docs/capturas/recepcion-v4-2/vacio-tres-lineas-390.png',
+      path: 'docs/capturas/operacion-simple-v4-5/vacio-cinco-lineas-800.png',
       fullPage: true,
     });
-    await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+    await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('Sin proveedor indicado');
-    await expect(page.getByRole('dialog')).toContainText('USD 302,00');
+    await expect(page.getByRole('dialog')).not.toContainText('USD');
     await page.getByRole('button', { name: 'Guardar recepción', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: 'Recepción guardada', exact: true }),
     ).toBeVisible();
-    await assertOperationalCounts({ prices: 2, suppliers: 0, purchases: 1, lots: 3 });
+    await assertOperationalCounts({ prices: 0, suppliers: 0, purchases: 1, lots: 5 });
     expect(await (await page.request.get('/api/suppliers')).json()).toEqual([]);
     const confirmedCatalog: Catalog = await (await page.request.get('/api/catalog')).json();
-    expect(confirmedCatalog.configurations).toHaveLength(3);
+    expect(confirmedCatalog.configurations).toHaveLength(5);
     const apple = confirmedCatalog.configurations.find(
       (row) => row.fruit === 'Manzana' && row.variety === 'Gala' && row.caliber === '100',
     )!;
@@ -205,10 +190,15 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
       allowedPresentations: ['box', 'blister'],
     });
     expect(
-      confirmedCatalog.configurations.find((row) => row.variety === 'Roja normal')?.blistersPerBox,
-    ).toBe(5);
+      confirmedCatalog.configurations.find((row) => row.variety === 'Forelle')?.blistersPerBox,
+    ).toBe(4);
+    expect(
+      confirmedCatalog.configurations.every((row) =>
+        row.prices.every((price) => price.promoUsd === null && price.regularUsd === null),
+      ),
+    ).toBe(true);
     const inventoryBefore = await (await page.request.get('/api/inventory')).json();
-    expect(inventoryBefore.lots).toHaveLength(3);
+    expect(inventoryBefore.lots).toHaveLength(5);
     expect(
       inventoryBefore.lots.every(
         (row: { supplierId: string | null; supplier: string | null; isDemo: boolean }) =>
@@ -218,8 +208,8 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     const lot = inventoryBefore.lots.find(
       (row: { configurationId: string }) => row.configurationId === apple.id,
     );
-    expect(lot.closedBoxes).toBe(2);
-    expect(lot.unitCostUsd).toBe('25.0000');
+    expect(lot.closedBoxes).toBe(10);
+    expect(lot.unitCostUsd).toBeNull();
     await page.goto('/clientes');
     await page.getByRole('button', { name: 'Nuevo cliente', exact: true }).click();
     await page.getByLabel('Nombre del cliente').fill('Cliente QA contado vacío');
@@ -230,35 +220,40 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     await chooseSaleClient(page, { name: 'Cliente QA contado vacío' });
     await page.getByLabel('Producto', { exact: true }).selectOption(apple.id);
     await page.getByLabel('Presentación', { exact: true }).selectOption('box');
-    await page.getByLabel('Cantidad', { exact: true }).fill('1');
-    await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
+    await page.getByLabel('Cantidad', { exact: true }).fill('2');
+    await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
+    await expect(page.getByLabel('Precio por unidad (USD)', { exact: true })).toHaveValue('');
+    await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
     await expect(page.getByLabel('Presentación', { exact: true })).toHaveValue('box');
     await expect(page.getByLabel('Fecha acordada (opcional)', { exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Recordar cobrar (opcional)', { exact: true })).toHaveCount(0);
     await expect(page.locator('input#sale-paid')).toHaveCount(0);
     await expect(page.locator('input#sale-method')).toHaveCount(0);
     await expect(page.getByLabel('Método de cobro', { exact: true })).toHaveValue('usd_cash');
-    await expect(page.getByLabel('Total de la venta', { exact: true })).toHaveText('USD 40,00');
+    await expect(page.getByLabel('Total de la venta', { exact: true })).toHaveText('USD 80,00');
     await assertNoDocumentOverflow(page);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: 'docs/capturas/recepcion-v4-2/vacio-primera-venta-contado.png',
+      path: 'docs/capturas/operacion-simple-v4-5/vacio-primera-venta-contado.png',
       fullPage: true,
     });
     await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
-    await expect(page.getByRole('dialog')).toContainText('USD 40,00');
+    await expect(page.getByRole('dialog')).toContainText('USD 80,00');
     await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
     await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
     const saleId = page.url().split('/').at(-1)!;
     const sale: SaleDetail = await (await page.request.get('/api/sales/' + saleId)).json();
     expect(sale.condition).toBe('cash');
-    expect(sale.totalUsd).toBe('40.00');
-    expect(sale.paidUsd).toBe('40.00');
+    expect(sale.totalUsd).toBe('80.00');
+    expect(sale.lines[0]!.agreedUnitUsd).toBe('40.0000');
+    expect(sale.lines[0]!.referenceUnitUsd).toBeNull();
+    expect(sale.paidUsd).toBe('80.00');
     expect(sale.balanceUsd).toBe('0.00');
     expect(new Date(sale.soldAt).getTime()).toBeGreaterThanOrEqual(
       new Date(lot.receivedAt).getTime(),
     );
-    expect(new Decimal(sale.costUsd).eq('25')).toBe(true);
+    expect(sale.costUsd).toBeNull();
+    expect(sale.grossProfitUsd).toBeNull();
     expect(sale.dueDate).toBeNull();
     expect(sale.reminderDate).toBeNull();
     expect(sale.payments).toHaveLength(1);
@@ -270,13 +265,14 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     await page.reload();
     const inventoryAfter = await (await page.request.get('/api/inventory')).json();
     expect(inventoryAfter.lots.find((row: { id: string }) => row.id === lot.id).closedBoxes).toBe(
-      1,
+      8,
     );
     await page.goto('/ventas/nueva');
     await chooseSaleClient(page, { name: 'Cliente QA contado vacío' });
     await page.getByLabel('Producto', { exact: true }).selectOption(apple.id);
     await page.getByLabel('Presentación', { exact: true }).selectOption('box');
-    await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
+    await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
+    await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('43');
     await page.getByRole('radio', { name: 'Crédito', exact: true }).check();
     await page.getByRole('button', { name: '7 días', exact: true }).click();
     const due = await page.locator('#sale-due').inputValue();
@@ -291,20 +287,20 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     const creditId = page.url().split('/').at(-1)!;
     const credit: SaleDetail = await (await page.request.get('/api/sales/' + creditId)).json();
     expect(credit).toMatchObject({
-      totalUsd: '40.00',
-      balanceUsd: '40.00',
+      totalUsd: '43.00',
+      balanceUsd: '43.00',
       dueDate: due,
       reminderDate: due,
       payments: [],
     });
-    for (const amount of ['10', '30']) {
+    for (const amount of ['10', '33']) {
       await page.getByRole('button', { name: 'Registrar abono', exact: true }).click();
       await page.getByLabel('Monto recibido · USD', { exact: true }).fill(amount);
       await page.getByRole('button', { name: 'Revisar abono' }).click();
       await page.getByRole('button', { name: 'Confirmar abono' }).click();
       await expect(page.getByRole('dialog')).toHaveCount(0);
       const current: SaleDetail = await (await page.request.get('/api/sales/' + creditId)).json();
-      expect(current.balanceUsd).toBe(amount === '10' ? '30.00' : '0.00');
+      expect(current.balanceUsd).toBe(amount === '10' ? '33.00' : '0.00');
     }
     const paidCredit: SaleDetail = await (await page.request.get('/api/sales/' + creditId)).json();
     expect(paidCredit.payments).toHaveLength(2);
@@ -315,11 +311,14 @@ test('QA V4.2 vacía real: opciones habituales, tres productos sin proveedor, co
     );
     const finalInventory = await (await page.request.get('/api/inventory')).json();
     expect(finalInventory.lots.find((row: { id: string }) => row.id === lot.id).closedBoxes).toBe(
-      0,
+      7,
     );
+    const original: SaleDetail = await (await page.request.get('/api/sales/' + saleId)).json();
+    expect(original.lines).toEqual(sale.lines);
+    await assertOperationalCounts({ prices: 0, suppliers: 0, purchases: 1, lots: 5 });
     expect(errors).toEqual([]);
   } finally {
     await context.close();
   }
-  await video?.saveAs('docs/capturas/recepcion-v4-2/vacio-recepcion-venta-credito-qa.webm');
+  await video?.saveAs('docs/capturas/operacion-simple-v4-5/vacio-recepcion-venta-credito-qa.webm');
 });

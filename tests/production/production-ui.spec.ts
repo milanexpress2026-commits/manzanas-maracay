@@ -131,13 +131,9 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
     .getByLabel('Documento del proveedor (opcional)', { exact: true })
     .fill('QA ingreso UI ' + suffix);
   await receiptLine.getByLabel('Cajas recibidas', { exact: true }).fill('20');
-  await receiptLine.getByLabel('Costo real por caja · USD', { exact: true }).fill('25');
-  await receiptLine.getByText('Notas y precios de este producto', { exact: true }).click();
-  await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
-  await page.getByLabel('Promocional divisa', { exact: true }).fill('40');
-  await page.getByLabel('Regular · Bs. BCV', { exact: true }).fill('45');
+  await expect(receiptLine.getByLabel(/Costo|Precio/i)).toHaveCount(0);
   await page.getByRole('checkbox', { name: /Verifiqué esta presentación/ }).check();
-  await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Guardar recepción', exact: true })
@@ -180,7 +176,8 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await expect(presentation).toBeDisabled();
   await expect(presentation.getByRole('option')).toHaveText(['Selecciona', 'Caja']);
   await page.getByLabel('Cantidad', { exact: true }).fill('2');
-  await page.getByLabel('Precio acordado', { exact: true }).selectOption('usd_cash_promo');
+  await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
   await expect(page.getByLabel('Total de la venta', { exact: true })).toHaveText('USD 80,00');
   await expect(page.getByRole('checkbox', { name: 'Registrar un abono ahora' })).not.toBeChecked();
   await expect(page.locator('#sale-paid')).toHaveCount(0);
@@ -194,7 +191,8 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   let sale = (await (await page.request.get('/api/sales/' + saleId)).json()) as SaleDetail;
   expect(sale.isDemo).toBe(false);
   expect(sale.totalUsd).toBe('80.00');
-  expect(Number(sale.costUsd)).toBe(50);
+  expect(sale.costUsd).toBeNull();
+  expect(sale.grossProfitUsd).toBeNull();
   expect(sale.balanceUsd).toBe('80.00');
   expect(sale.payments).toEqual([]);
   await expect(page.getByRole('button', { name: 'Cobrar por WhatsApp' })).toBeDisabled();
@@ -204,7 +202,7 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
     page.getByRole('option', { name: 'Bolívares a tasa BCV', exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole('option', { name: 'Bolívares a tasa USDT compra', exact: true }),
+    page.getByRole('option', { name: 'Bolívares a tasa Binance/USDT compra', exact: true }),
   ).toBeDisabled();
   await page.getByRole('button', { name: 'Revisar abono', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar abono', exact: true }).click();
@@ -232,7 +230,22 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await page.screenshot({ path: 'docs/capturas/fase4/venta-qa-390.png', fullPage: true });
   await page.goto('/inicio');
   await expect(page.getByRole('heading', { name: 'Continúa con tu negocio' })).toBeVisible();
-  await expect(page.locator('.operation-checklist li[data-complete="true"]')).toHaveCount(7);
+  const completedSteps = page.locator('.operation-checklist li');
+  await expect(completedSteps).toHaveCount(3);
+  const expectedSteps = [
+    ['Recibe la mercancía', 'Registrar recepción', '/recepciones'],
+    ['Registra el cliente', 'Ir a clientes', '/clientes'],
+    ['Registra la primera venta', 'Crear venta', '/ventas/nueva'],
+  ] as const;
+  for (const [index, [title, action, href]] of expectedSteps.entries()) {
+    const step = completedSteps.nth(index);
+    await expect(step).toHaveAttribute('data-complete', 'true');
+    await expect(step.getByRole('heading', { level: 3, includeHidden: true })).toContainText(title);
+    await expect(step.getByText('Registrado', { exact: true })).toHaveCount(1);
+    await expect(
+      step.getByRole('link', { name: action, exact: true, includeHidden: true }),
+    ).toHaveAttribute('href', href);
+  }
   await expect(page.locator('.operation-overview')).toContainText('USD 50,00');
   await expect(page.locator('body')).not.toContainText(/DEMO|ENTORNO DE PRUEBAS|Vista previa/);
   await page.screenshot({ path: 'docs/capturas/fase4/inicio-qa-390.png', fullPage: true });

@@ -197,12 +197,13 @@ test('alta contextual de dos frutas, tres pasos, reintento estable y recepción 
   await expect(page).toHaveURL(new RegExp(`producto=${created[0].id}`));
   const receivedProduct = page.getByRole('region', { name: 'Producto 1', exact: true });
   await expect(receivedProduct.getByRole('heading')).toContainText(fruit);
-  await expect(receivedProduct.getByLabel('Costo real por caja · USD')).toHaveValue('');
+  await expect(receivedProduct.getByLabel('Cajas recibidas')).toHaveValue('1');
+  await expect(page.getByLabel(/Costo real|Costo USD|Actualizar precios/)).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Volver a la venta guardada' })).toHaveAttribute(
     'href',
     '/ventas/nueva',
   );
-  const pearDialog = await beginProduct(page, `Pera UX ${suffix}`, 'Forelle', '110', 'pear');
+  const pearDialog = await beginProduct(page, `Pera UX ${suffix}`, 'Forelle', '130', 'pear');
   await pearDialog.getByLabel('Presentación de la caja').selectOption('blister');
   await expect(pearDialog.getByLabel('Blíster por caja')).toHaveValue('');
   await pearDialog.getByRole('button', { name: 'Revisar producto' }).click();
@@ -215,7 +216,7 @@ test('alta contextual de dos frutas, tres pasos, reintento estable y recepción 
   const pear = updated.configurations.find((row) => row.fruit === `Pera UX ${suffix}`);
   expect(pear).toMatchObject({
     variety: 'Forelle',
-    caliber: '110',
+    caliber: '130',
     blistersPerBox: null,
     confirmationStatus: 'pending',
   });
@@ -234,8 +235,8 @@ test('sugerencias separadas por familia y alta sin desplazamiento horizontal en 
   await dialog.getByLabel('Variedad', { exact: true }).selectOption({ label: 'Gala' });
   for (const [family, expected] of [
     ['apple', ['80', '88', '100', '113', '125', '135', '150', '163', '175', '198', '216']],
-    ['bulk', ['150', '163', '175', '198', '216', '232']],
-    ['pear', ['70', '80', '90', '100', '110', '120', '135']],
+    ['bulk', ['150', '163', '175', '198', '216', '232', '235', 'PC']],
+    ['pear', ['70', '80', '90', '100', '110', '120', '125', '135', '150', '165']],
   ] as const) {
     await dialog.getByLabel('Tipo de producto', { exact: true }).selectOption(family);
     await dialog.locator('summary').filter({ hasText: 'Calibres habituales' }).click();
@@ -296,11 +297,10 @@ test('vídeo QA del alta y llegada a recepción con el producto elegido', async 
       page.getByRole('region', { name: 'Producto 1', exact: true }).getByRole('heading'),
     ).toContainText('Fruta vídeo QA');
     await expect(
-      page
-        .getByRole('region', { name: 'Producto 1', exact: true })
-        .getByLabel('Costo real por caja · USD'),
-    ).toHaveValue('');
-    await expect(page.getByRole('heading', { name: 'Recepción rápida' })).toBeVisible();
+      page.getByRole('region', { name: 'Producto 1', exact: true }).getByLabel('Cajas recibidas'),
+    ).toHaveValue('1');
+    await expect(page.getByLabel(/Costo real|Costo USD|Actualizar precios/)).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Recibir mercancía' })).toBeVisible();
   } finally {
     await context.close();
   }

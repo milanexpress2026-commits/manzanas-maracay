@@ -33,7 +33,7 @@ export const saleAllocations = pgTable(
       .notNull()
       .references(() => inventoryMovements.id),
     quantity: integer('quantity').notNull(),
-    costUsd: numeric('cost_usd', { precision: 18, scale: 4 }).notNull(),
+    costUsd: numeric('cost_usd', { precision: 18, scale: 4 }),
     createdAt: createdAt(),
   },
   (t) => [

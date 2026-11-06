@@ -1,64 +1,52 @@
 'use client';
 import Link from 'next/link';
-import type { Configuration, HabitualCatalogOption, ReceiptPacking } from '@mm/domain';
-import { Trash2, RefreshCw, Check } from 'lucide-react';
+import type { HabitualCatalogOption, ReceiptPacking } from '@mm/domain';
+import { Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { NativeSelect } from './ui/native-select';
 import { Field, FieldLabel } from './ui/field';
 import { PackingReviewFields } from './packing-review-fields';
-import { ReceiptPrices } from './receipt-prices';
-import { displayDate, displayMoney } from '@/lib/inventory-api';
 import { packingLabel, presentationNames } from '@/lib/commercial-ui';
-import {
-  acceptPreviousCost,
-  revisePacking,
-  receiptOptionChanged,
-  type QuickLine,
-} from '@/lib/receipt-flow';
+import { revisePacking, receiptOptionChanged, type QuickLine } from '@/lib/receipt-flow';
 import styles from './receipt-quick.module.css';
 
 export function ReceiptQuickLine({
   line,
   index,
   option,
-  configuration,
   update,
   remove,
   choose,
-  costLoading,
-  costError,
-  reloadCost,
 }: {
   line: QuickLine;
   index: number;
   option: HabitualCatalogOption | undefined;
-  configuration?: Configuration;
   update: (line: QuickLine) => void;
   remove: () => void;
   choose: () => void;
-  costLoading: boolean;
-  costError: string;
-  reloadCost: () => void;
 }) {
   const confirmed = option?.confirmationStatus === 'confirmed';
   const needsReview = !!option?.needsPresentation;
   const title = option?.label ?? 'Producto no disponible: vuelve a elegirlo';
   const effective = line.packing;
   const changePacking = (value: ReceiptPacking) => update(revisePacking(line, value));
-  const displayPacking =
-    effective?.packingModel === 'blister'
-      ? effective.blistersPerBox
-        ? `${effective.blistersPerBox} blíster por caja`
-        : 'Caja completa · blíster por confirmar'
-      : effective?.packingModel === 'halves'
-        ? effective.boxWeightKg
-          ? `Caja ${effective.boxWeightKg} kg · media comercial`
-          : 'Caja y media comercial'
-        : effective
-          ? 'Caja completa'
-          : 'Presentación por confirmar';
+  const displayPacking = effective?.commercialUnitLabel
+    ? effective.commercialUnitLabel
+    : option?.requiresCommercialUnit
+      ? 'Unidad comercial por confirmar'
+      : effective?.packingModel === 'blister'
+        ? effective.blistersPerBox
+          ? `${effective.blistersPerBox} blíster por caja`
+          : 'Caja completa · blíster por confirmar'
+        : effective?.packingModel === 'halves'
+          ? effective.boxWeightKg
+            ? `Caja ${effective.boxWeightKg} kg · media comercial`
+            : 'Caja y media comercial'
+          : effective
+            ? 'Caja completa'
+            : 'Presentación por confirmar';
   return (
     <section className={styles.line} aria-label={`Producto ${index + 1}`}>
       <div className={styles.lineHeading}>
@@ -84,12 +72,51 @@ export function ReceiptQuickLine({
       {option && receiptOptionChanged(line, option) ? (
         <p role="alert" className={styles.warning}>
           Este producto cambió desde que lo elegiste. Pulsa Cambiar producto y vuelve a elegirlo
-          para revisar el empaque actualizado; se conservarán las cajas y el costo.
+          para revisar el empaque actualizado; se conservará la cantidad.
         </p>
       ) : null}
       <div className={styles.lineFields}>
+        {option?.requiresCommercialUnit &&
+        (!confirmed || !option.currentPacking?.commercialUnitLabel) ? (
+          <Field>
+            <FieldLabel htmlFor={`quick-unit-${line.key}`}>Unidad comercial</FieldLabel>
+            <Input
+              id={`quick-unit-${line.key}`}
+              required
+              maxLength={80}
+              value={line.packing?.commercialUnitLabel ?? ''}
+              placeholder="Indica la unidad recibida"
+              onChange={(event) =>
+                update({
+                  ...line,
+                  packing: {
+                    ...(confirmed && option.currentPacking
+                      ? option.currentPacking
+                      : {
+                          packingModel: 'whole' as const,
+                          halfPreparation: 'none' as const,
+                          allowedPresentations: ['box' as const],
+                          blistersPerBox: null,
+                          boxWeightKg: null,
+                        }),
+                    commercialUnitLabel: event.target.value,
+                  },
+                  packingChanged: true,
+                  packingConfirmed: !!event.target.value.trim(),
+                })
+              }
+            />
+            <p className={styles.help}>
+              Cada unidad se recibe y vende completa. Escribe cómo se identifica en la mercancía.
+            </p>
+          </Field>
+        ) : null}
         <Field>
-          <FieldLabel htmlFor={`quick-boxes-${line.key}`}>Cajas recibidas</FieldLabel>
+          <FieldLabel htmlFor={`quick-boxes-${line.key}`}>
+            {option?.requiresCommercialUnit || line.packing?.commercialUnitLabel
+              ? 'Unidades recibidas'
+              : 'Cajas recibidas'}
+          </FieldLabel>
           <Input
             id={`quick-boxes-${line.key}`}
             type="number"
@@ -102,73 +129,6 @@ export function ReceiptQuickLine({
             onChange={(event) => update({ ...line, boxes: event.target.value })}
           />
         </Field>
-        <div>
-          {line.previousCost ? (
-            <div className={styles.previousCost}>
-              <p>
-                Costo anterior: <strong>{displayMoney(line.previousCost.unitCostUsd)}</strong> por
-                caja{' '}
-                <span className={styles.help}>· {displayDate(line.previousCost.receivedAt)}</span>
-              </p>
-              {line.costSource === 'previous' ? (
-                <div className={styles.costActions}>
-                  <span className={styles.accepted}>
-                    <Check size={16} aria-hidden="true" /> Costo anterior confirmado
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => update({ ...line, costSource: 'entered', cost: '' })}
-                  >
-                    Cambiar costo
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => update(acceptPreviousCost(line, line.previousCost!))}
-                >
-                  Usar costo anterior
-                </Button>
-              )}
-            </div>
-          ) : null}
-          {line.costSource !== 'previous' ? (
-            <Field>
-              <FieldLabel htmlFor={`quick-cost-${line.key}`}>Costo real por caja · USD</FieldLabel>
-              <Input
-                id={`quick-cost-${line.key}`}
-                inputMode="decimal"
-                required
-                value={line.cost}
-                placeholder="Ej. 25,00"
-                onChange={(event) =>
-                  update({ ...line, cost: event.target.value, costSource: 'entered' })
-                }
-              />
-              <p className={styles.help}>
-                {line.previousCost
-                  ? 'Escribe el nuevo costo si cambió.'
-                  : 'Confirma el costo de esta llegada para conservar FIFO y margen reales.'}
-              </p>
-            </Field>
-          ) : null}
-          {costLoading ? (
-            <p role="status" className={styles.help}>
-              Consultando último costo…
-            </p>
-          ) : null}
-          {costError ? (
-            <div className={styles.warning} role="status">
-              {costError} Puedes escribir el costo real.
-              <Button type="button" variant="ghost" onClick={reloadCost}>
-                <RefreshCw aria-hidden="true" />
-                Reintentar consulta del costo
-              </Button>
-            </div>
-          ) : null}
-        </div>
       </div>
       {option?.packingDiscrepancy ? (
         <div className={styles.warning}>
@@ -198,7 +158,7 @@ export function ReceiptQuickLine({
         <summary>
           {needsReview ? 'Confirmar presentación' : 'Revisar empaque y excepciones'}
         </summary>
-        {!confirmed ? (
+        {!confirmed && !option?.requiresCommercialUnit ? (
           <>
             {!line.packing ? (
               <Field>
@@ -229,11 +189,7 @@ export function ReceiptQuickLine({
                 id={`quick-packing-${line.key}`}
                 value={line.packing}
                 onChange={changePacking}
-                fixedBlisters={
-                  option?.templateId === 'apple_traditional'
-                    ? option.suggestedPacking?.blistersPerBox
-                    : null
-                }
+                fixedBlisters={option?.suggestedPacking?.blistersPerBox ?? null}
                 fixedModel={!!option?.suggestedPacking}
                 fixedWeight={!!option?.suggestedPacking}
               />
@@ -258,6 +214,10 @@ export function ReceiptQuickLine({
               hasta confirmarla.
             </p>
           </>
+        ) : option?.requiresCommercialUnit ? (
+          <p className={styles.help}>
+            Se conserva la unidad comercial indicada, sin fracciones ni pesos supuestos.
+          </p>
         ) : (
           <p className={styles.help}>
             Se conserva el empaque confirmado. Para cambiar las presentaciones futuras,{' '}
@@ -331,7 +291,7 @@ export function ReceiptQuickLine({
         ) : null}
       </details>
       <details className={styles.details}>
-        <summary>Notas y precios de este producto</summary>
+        <summary>Notas de este producto</summary>
         <Field>
           <FieldLabel htmlFor={`quick-notes-${line.key}`}>Notas del lote</FieldLabel>
           <Textarea
@@ -341,15 +301,6 @@ export function ReceiptQuickLine({
             onChange={(event) => update({ ...line, notes: event.target.value })}
           />
         </Field>
-        <ReceiptPrices
-          line={{ ...line, key: index }}
-          config={
-            configuration ?? {
-              confirmationStatus: line.packingConfirmed || !needsReview ? 'confirmed' : 'pending',
-            }
-          }
-          update={(changes) => update({ ...line, ...changes, key: line.key })}
-        />
       </details>
     </section>
   );

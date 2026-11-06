@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 const journey = [
   {
     title: 'Recibe',
-    text: 'Un camión, varios productos. Cada costo conserva su historia.',
+    text: 'Un camión, varios productos. Indica las cantidades y guarda la recepción.',
     icon: Truck,
   },
   {

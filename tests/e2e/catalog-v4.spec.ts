@@ -159,7 +159,11 @@ test('plantillas activan solo calibres elegidos, conservan selección y aceptan 
   const bulk: Catalog = await (await page.request.get('/api/catalog')).json();
   expect(
     bulk.configurations.find(
-      (row) => row.fruitId === apple.id && row.commercialLine === 'Granel' && row.caliber === '216',
+      (row) =>
+        row.fruitId === apple.id &&
+        row.commercialLine === 'A granel' &&
+        row.variety === 'Roja normal' &&
+        row.caliber === '216',
     ),
   ).toMatchObject({
     packingModel: 'halves',

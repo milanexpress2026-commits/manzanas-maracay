@@ -194,8 +194,8 @@ async function main() {
   assert.equal(phase4Journal.entries.length, 13);
   assert.equal(
     currentJournal.entries.length,
-    15,
-    'La prueba está fijada a V4.2 con migración aditiva 0014.',
+    16,
+    'La prueba está fijada a V4.5 con migración aditiva 0015.',
   );
   const phase4Migrations = path.join(scratch, 'phase4-13-migrations');
   await fs.mkdir(path.join(phase4Migrations, 'meta'), { recursive: true });
@@ -216,6 +216,15 @@ async function main() {
     await fs.copyFile(
       path.join(currentMigrations, `${entry.tag}.sql`),
       path.join(v4Migrations, `${entry.tag}.sql`),
+    );
+  const v42Journal = { ...currentJournal, entries: currentJournal.entries.slice(0, 15) };
+  const v42Migrations = path.join(scratch, 'v42-15-migrations');
+  await fs.mkdir(path.join(v42Migrations, 'meta'), { recursive: true });
+  await fs.writeFile(path.join(v42Migrations, 'meta/_journal.json'), JSON.stringify(v42Journal));
+  for (const entry of v42Journal.entries)
+    await fs.copyFile(
+      path.join(currentMigrations, `${entry.tag}.sql`),
+      path.join(v42Migrations, `${entry.tag}.sql`),
     );
   const adminUrl = new URL(base);
   adminUrl.pathname = '/postgres';
@@ -301,6 +310,17 @@ async function main() {
         noSyntheticOperationalData: true,
         constraintsValidated: true,
       };
+      const nullable = (
+        await fresh.query(`select table_name,column_name,is_nullable from information_schema.columns
+        where table_schema='public' and ((table_name in ('purchase_lines','lots') and column_name='unit_cost_usd')
+          or (table_name in ('sales','sale_lines') and column_name='cost_usd')
+          or (table_name='sale_lines' and column_name='reference_unit_usd')) order by table_name,column_name`)
+      ).rows;
+      assert.equal(nullable.length, 5);
+      assert.ok(
+        nullable.every((column) => column.is_nullable === 'YES'),
+        'La ausencia de costo o referencia debe representarse por NULL.',
+      );
     } finally {
       await fresh.end();
     }
@@ -484,10 +504,44 @@ async function main() {
     } finally {
       await v4Pool.end();
     }
+    const v42Pool = new Pool({ connectionString: upgradeUrl, max: 1 });
+    let v42Before: Snapshot;
+    try {
+      await migrate(drizzle(v42Pool), { migrationsFolder: v42Migrations });
+      const read = await v42Pool.connect();
+      try {
+        v42Before = await snapshot(read as unknown as Client);
+        assert.equal(v42Before.hashes.length, 15);
+      } finally {
+        read.release();
+      }
+    } finally {
+      await v42Pool.end();
+    }
     await migrateDatabase(upgradeUrl);
     const updated = new Client({ connectionString: upgradeUrl });
     await updated.connect();
     try {
+      const v45After = await snapshot(updated, v42Before!.columns);
+      assert.deepEqual(
+        v45After.rows,
+        v42Before!.rows,
+        '0015 alteró costos, precios, cantidades, documentos o respuestas idempotentes históricos.',
+      );
+      assert.deepEqual(
+        v45After.hashes.slice(0, 15),
+        v42Before!.hashes,
+        'Cambió una de las quince migraciones aplicadas.',
+      );
+      report.v45Upgrade = {
+        fromMigrationCount: 15,
+        toMigrationCount: v45After.hashes.length,
+        preservedTables: tables.length,
+        historicalKnownCostsPreserved: true,
+        historicalPricesPreserved: true,
+        commandReceiptsPreserved: true,
+        preservedMigrationHashes: 15,
+      };
       const v4After = await snapshot(updated, v4Before!.columns);
       assert.deepEqual(
         v4After.rows,

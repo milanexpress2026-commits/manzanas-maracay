@@ -1,3 +1,4 @@
+import { historicalSaleCost, historicalContainerCosts } from './helpers/historical-cost';
 import { test, expect } from '@playwright/test';
 import { randomUUID, createHash } from 'node:crypto';
 import { Client } from 'pg';
@@ -58,12 +59,13 @@ test('FIFO real: 10 cajas a 25 + 10 a 27, venta 12 a 40 conserva costo 304, brut
   const sale = await commercePost<SaleDetail>(request, '/api/sales', input, key);
   expect(sale).toMatchObject({
     totalUsd: '480.00',
-    costUsd: '304.0000',
-    grossProfitUsd: '176.0000',
+    costUsd: null,
+    grossProfitUsd: null,
     balanceUsd: '480.00',
     paidUsd: '0.00',
     dueDate: null,
   });
+  await historicalSaleCost(sale.id, '304.0000');
   expect(sale.lines[0].allocations.filter((a) => a.lotId === first.lots[0].id)).toHaveLength(10);
   expect(sale.lines[0].allocations.filter((a) => a.lotId === second.lots[0].id)).toHaveLength(2);
   expect(
@@ -93,12 +95,13 @@ test('venta de un blíster de tres cajas de cinco conserva dos cajas, cuatro bl�
   const input = commercialSaleInput(customer, rule, 1, '10', 'blister');
   const key = randomUUID();
   const sale = await commercePost<SaleDetail>(request, '/api/sales', input, key);
-  expect(sale).toMatchObject({ totalUsd: '10.00', costUsd: '6.0000', grossProfitUsd: '4.0000' });
+  expect(sale).toMatchObject({ totalUsd: '10.00', costUsd: null, grossProfitUsd: null });
+  await historicalSaleCost(sale.id, '6.0000');
   expect(sale.lines[0].allocations).toHaveLength(1);
   expect(sale.lines[0].allocations[0]).toMatchObject({
     lotId: receipt.lots[0].id,
     quantity: 1,
-    costUsd: '6.0000',
+    costUsd: null,
   });
   const detail: LotDetail = await (
     await request.get(`/api/inventory/lots/${receipt.lots[0].id}`)
@@ -110,7 +113,8 @@ test('venta de un blíster de tres cajas de cinco conserva dos cajas, cuatro bl�
     equivalentIntactBlisters: 14,
   });
   expect(detail.containers.every((container) => container.countedPieces === null)).toBe(true);
-  expect(detail.containers.map((container) => container.costUsd).sort()).toEqual([
+  expect(detail.containers.every((container) => container.costUsd === null)).toBe(true);
+  expect(await historicalContainerCosts(receipt.lots[0].id)).toEqual([
     '0.0000',
     '0.0000',
     '30.0000',
@@ -150,10 +154,11 @@ test('negociación 5 por 38 sin cambiar lista; contado cubre total y pago cero s
   expect(sale).toMatchObject({
     totalUsd: '190.00',
     discountUsd: '10.00',
-    costUsd: '125.0000',
+    costUsd: null,
     balanceUsd: '0.00',
     dueStatus: 'paid',
   });
+  await historicalSaleCost(sale.id, '125.0000');
   expect(sale.lines[0].referenceUnitUsd).toBe('40.0000');
   expect(sale.payments).toHaveLength(1);
   const zero = await request.post('/api/sales', {
@@ -257,7 +262,8 @@ test('granel y kiwi venden medias sin piezas; uva rechaza blíster y media', asy
   const input = commercialSaleInput(customer, granel, 1);
   input.lines.push({ ...input.lines[0], presentation: 'half_box' });
   const sale = await commercePost<SaleDetail>(request, '/api/sales', input);
-  expect(sale.costUsd).toBe('37.5000');
+  expect(sale.costUsd).toBeNull();
+  await historicalSaleCost(sale.id, '37.5000');
   const detail: LotDetail = await (
     await request.get(`/api/inventory/lots/${receipt.lots[0].id}`)
   ).json();
@@ -324,7 +330,8 @@ test('reversa comercial conserva documento y costo, restaura stock y rectifica a
   });
   expect(cancelled.status).toBe('cancelled');
   expect(cancelled.balanceUsd).toBe('0.00');
-  expect(cancelled.costUsd).toBe('25.0000');
+  expect(cancelled.costUsd).toBeNull();
+  await historicalSaleCost(cancelled.id, '25.0000');
   const detail: LotDetail = await (
     await request.get(`/api/inventory/lots/${receipt.lots[0].id}`)
   ).json();

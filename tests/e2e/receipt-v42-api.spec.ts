@@ -1,3 +1,4 @@
+import { historicalSaleCost, historicalLotCost } from './helpers/historical-cost';
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -107,7 +108,7 @@ test('V4.2 opciones habituales son virtuales: no crean maestros, precios ni oper
   const before = await receiptCounts();
   const catalogBefore = await (await request.get('/api/catalog')).json();
   const first = await habitualOptions(request);
-  expect(first.templateVersion).toBe('v4.2');
+  expect(first.templateVersion).toBe('v4.5');
   expect(await habitualOptions(request)).toEqual(first);
   expect(await receiptCounts()).toEqual(before);
   expect(await (await request.get('/api/catalog')).json()).toEqual(catalogBefore);
@@ -135,14 +136,16 @@ test('V4.2 opciones habituales son virtuales: no crean maestros, precios ni oper
     }
   }
   const pears = first.options.filter((option) => option.templateId === 'pear');
-  for (const variety of ['Forelle', 'Packcam']) {
-    for (const caliber of ['70', '80', '90', '100', '110', '120', '135']) {
+  for (const variety of ['Forelle', 'Packham']) {
+    for (const caliber of ['70', '80', '90', '100', '110', '120', '125', '135', '150', '165']) {
       const option = pears.find(
         (row) =>
           row.varietyName?.toLowerCase() === variety.toLowerCase() && row.caliberLabel === caliber,
       );
       expect(option, `${variety} ${caliber}`).toBeDefined();
-      expect(option!.suggestedPacking?.blistersPerBox).toBeNull();
+      expect(option!.suggestedPacking?.blistersPerBox).toBe(
+        ['135', '150', '165'].includes(caliber) ? 5 : 4,
+      );
     }
   }
   const grapeVarieties = first.options
@@ -252,7 +255,9 @@ test('V4.2 costo anterior requiere aceptación explícita y una propuesta obsole
   const rule = await commercialProduct(request, 'whole');
   expect((await previousReceiptCost(request, rule.id)).previousCost).toBeNull();
   const first = await quickReceipt(request, [quickLine(rule, 2, '25')]);
-  const proposed = (await previousReceiptCost(request, rule.id)).previousCost!;
+  expect((await previousReceiptCost(request, rule.id)).previousCost).toBeNull();
+  const proposed = { sourceLotId: first.lots[0]!.id, unitCostUsd: '25.0000' };
+  await historicalLotCost(proposed.sourceLotId, proposed.unitCostUsd);
   expect(proposed).toMatchObject({ sourceLotId: first.lots[0]!.id, unitCostUsd: '25.0000' });
   for (const cost of [
     { kind: 'entered', unitCostUsd: '0', accepted: true },
@@ -286,14 +291,11 @@ test('V4.2 costo anterior requiere aceptación explícita y una propuesta obsole
     },
   ];
   const accepted = await quickReceipt(request, acceptedLines, {}, acceptedKey);
-  expect((await previousReceiptCost(request, rule.id)).previousCost?.sourceLotId).toBe(
-    accepted.lots[0]!.id,
-  );
+  expect((await previousReceiptCost(request, rule.id)).previousCost).toBeNull();
+  await historicalLotCost(accepted.lots[0]!.id, '25.0000');
   const newest = await quickReceipt(request, [quickLine(rule, 1, '27')]);
-  expect((await previousReceiptCost(request, rule.id)).previousCost).toMatchObject({
-    sourceLotId: newest.lots[0]!.id,
-    unitCostUsd: '27.0000',
-  });
+  expect((await previousReceiptCost(request, rule.id)).previousCost).toBeNull();
+  await historicalLotCost(newest.lots[0]!.id, '27.0000');
   const before = await receiptCounts();
   const stale = await request.post('/api/receipts', {
     headers: commerceHeaders(),
@@ -399,10 +401,11 @@ test('V4.2 costo real 25/27 conserva FIFO, precios acordados, abonos y PDF sin p
   );
   expect(sale).toMatchObject({
     totalUsd: '480.00',
-    costUsd: '304.0000',
-    grossProfitUsd: '176.0000',
+    costUsd: null,
+    grossProfitUsd: null,
     balanceUsd: '480.00',
   });
+  await historicalSaleCost(sale.id, '304.0000');
   expect(
     sale.lines[0]!.allocations.filter((allocation) => allocation.lotId === first.lots[0]!.id),
   ).toHaveLength(10);
@@ -412,7 +415,8 @@ test('V4.2 costo real 25/27 conserva FIFO, precios acordados, abonos y PDF sin p
   const detail: LotDetail = await (
     await request.get(`/api/inventory/lots/${second.lots[0]!.id}`)
   ).json();
-  expect(detail.lot).toMatchObject({ closedBoxes: 8, supplierId: null, unitCostUsd: '27.0000' });
+  expect(detail.lot).toMatchObject({ closedBoxes: 8, supplierId: null, unitCostUsd: null });
+  await historicalLotCost(detail.lot.id, '27.0000');
   await commercePost<PaymentDetail>(request, '/api/payments', {
     clientId: customer.id,
     currency: 'USD',
@@ -422,7 +426,7 @@ test('V4.2 costo real 25/27 conserva FIFO, precios acordados, abonos y PDF sin p
     applications: [{ saleId: sale.id, amountUsd: '480' }],
   });
   const paid: SaleDetail = await (await request.get(`/api/sales/${sale.id}`)).json();
-  expect(paid).toMatchObject({ totalUsd: '480.00', costUsd: '304.0000', balanceUsd: '0.00' });
+  expect(paid).toMatchObject({ totalUsd: '480.00', costUsd: null, balanceUsd: '0.00' });
   expect(paid.lines).toEqual(sale.lines);
   expect(
     ((await (await request.get('/api/catalog')).json()) as Catalog).configurations.find(
@@ -460,7 +464,8 @@ test('V4.2 excepción de blíster solo afecta al lote nuevo y nunca reescribe el
   const detail: LotDetail = await (
     await request.get(`/api/inventory/lots/${exceptional.lots[0]!.id}`)
   ).json();
-  expect(detail.lot).toMatchObject({ blistersPerBox: 5, closedBoxes: 1, unitCostUsd: '27.0000' });
+  expect(detail.lot).toMatchObject({ blistersPerBox: 5, closedBoxes: 1, unitCostUsd: null });
+  await historicalLotCost(detail.lot.id, '27.0000');
   await receiptDatabase(async (db) => {
     const audits = (
       await db.query(

@@ -26,7 +26,8 @@ function allowedRoute(method: string, endpoint: string) {
       ].includes(endpoint) ||
       new RegExp(`^inventory/lots/${UUID}$`).test(endpoint) ||
       new RegExp(`^(clients|sales|payments)/${UUID}$`).test(endpoint) ||
-      new RegExp(`^(sales|payments)/${UUID}/document$`).test(endpoint)
+      new RegExp(`^(sales|payments)/${UUID}/document$`).test(endpoint) ||
+      new RegExp(`^sales/${UUID}/delivery-note$`).test(endpoint)
     );
   if (method === 'POST')
     return (
@@ -126,7 +127,8 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     if (response.status === 429) headers['Retry-After'] = '60';
     if (
       response.ok &&
-      new RegExp(`^(sales|payments)/${UUID}/document$`).test(endpoint) &&
+      (new RegExp(`^(sales|payments)/${UUID}/document$`).test(endpoint) ||
+        new RegExp(`^sales/${UUID}/delivery-note$`).test(endpoint)) &&
       response.headers.get('content-type')?.startsWith('application/pdf')
     ) {
       headers['Content-Type'] = 'application/pdf';

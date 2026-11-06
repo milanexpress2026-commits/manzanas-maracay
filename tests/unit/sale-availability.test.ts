@@ -86,7 +86,7 @@ describe('disponibilidad independiente sin reservar ni duplicar recipientes', ()
       ).availableQuantity,
     ).toBe(0);
   });
-  it('detiene FIFO en el costo desconocido en vez de ofrecer mercancía posterior', () => {
+  it('ofrece el stock físico conocido y desconocido sin saltar ni bloquear FIFO por costo', () => {
     const first = {
       ...blister,
       confirmed: true,
@@ -94,8 +94,8 @@ describe('disponibilidad independiente sin reservar ni duplicar recipientes', ()
     };
     const later = { ...blister, confirmed: true, containers: [container('sealed_box')] };
     expect(countSellablePresentation([first, later], 'box', true)).toEqual({
-      availableQuantity: 1,
-      blockedReason: 'Hay mercancía anterior cuyo costo necesita revisión.',
+      availableQuantity: 3,
+      blockedReason: null,
     });
   });
   it('prioriza blíster disponibles antes de abrir cajas, incluso con costo desconocido', () => {
@@ -104,7 +104,7 @@ describe('disponibilidad independiente sin reservar ni duplicar recipientes', ()
       confirmed: true,
       containers: [container('sealed_box', null), container('intact_blister', '5.0000')],
     };
-    expect(countSellablePresentation([lot], 'blister', true).availableQuantity).toBe(1);
+    expect(countSellablePresentation([lot], 'blister', true).availableQuantity).toBe(6);
   });
   it('producción no ofrece un lote no confirmado; el historial QA conserva su lectura', () => {
     const lot = { ...blister, confirmed: false, containers: [container('sealed_box')] };

@@ -15,8 +15,12 @@ export function productLabel(
     .join(' · ');
 }
 export function packingLabel(
-  product: Pick<Configuration, 'packingModel' | 'blistersPerBox' | 'boxWeightKg'>,
+  product: Pick<
+    Configuration,
+    'packingModel' | 'blistersPerBox' | 'boxWeightKg' | 'commercialUnitLabel'
+  >,
 ) {
+  if (product.commercialUnitLabel) return product.commercialUnitLabel;
   if (product.packingModel === 'blister')
     return product.blistersPerBox == null
       ? 'Blíster por confirmar'

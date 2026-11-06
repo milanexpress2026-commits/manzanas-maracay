@@ -1,3 +1,4 @@
+import { historicalSaleCost } from './helpers/historical-cost';
 import { chooseSaleClient } from './helpers/sale-client';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -199,8 +200,9 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   await expect(page.getByLabel('Presentación', { exact: true })).toBeDisabled();
   await expect(page.getByLabel('Presentación', { exact: true })).toHaveValue('box');
   await page.getByLabel('Cantidad', { exact: true }).fill('2');
-  await page.getByLabel('Precio acordado').selectOption('usd_cash_promo');
-  await expect(page.getByLabel('Precio unitario (USD)')).toHaveValue(/^40(?:\.0+)?$/);
+  await page.getByLabel('Acuerdo de cobro').selectOption('divisa');
+  await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
+  await expect(page.getByLabel('Precio por unidad (USD)')).toHaveValue(/^40(?:\.0+)?$/);
   await expect(page.getByRole('checkbox', { name: 'Registrar un abono ahora' })).not.toBeChecked();
   await expect(page.locator('#sale-paid')).toHaveCount(0);
   const keys: string[] = [];
@@ -236,7 +238,8 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   expect(keys[1]).toBe(keys[0]);
   expect(saved?.payments).toEqual([]);
   expect(saved?.totalUsd).toBe('80.00');
-  expect(Number(saved?.costUsd)).toBe(50);
+  expect(saved?.costUsd).toBeNull();
+  await historicalSaleCost(saved!.id, '50.0000');
   const saleId = page.url().split('/').at(-1)!;
   await expect(page.getByRole('button', { name: 'Cobrar por WhatsApp' })).toBeDisabled();
   // This UI scenario explicitly exercises unavailable quotes, independent of provider/network state.
@@ -251,7 +254,7 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
     page.getByRole('option', { name: 'Bolívares a tasa BCV', exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole('option', { name: 'Bolívares a tasa USDT compra', exact: true }),
+    page.getByRole('option', { name: 'Bolívares a tasa Binance/USDT compra', exact: true }),
   ).toBeDisabled();
   const paymentKeys: string[] = [];
   let recordedPaymentId = '';
@@ -296,7 +299,7 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
   await page.screenshot({ path: 'docs/capturas/fase3/venta-interna-390.png', fullPage: true });
 });
 
-test('precios parciales: configurar solo caja y conservar presentaciones pendientes', async ({
+test('lista histórica parcial permanece intacta al recibir sin costo ni precios con reintento', async ({
   page,
 }) => {
   test.setTimeout(120000);
@@ -315,18 +318,11 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
     confirmationStatus: 'pending',
   });
   const supplier = await post(page, '/api/suppliers', { name: 'DEMO precio proveedor ' + suffix });
+  await post(page, '/api/prices', {
+    items: [{ variantId: config.variantId, presentation: 'box', promoUsd: '40', regularUsd: '45' }],
+  });
   await page.goto('/catalogo');
-  await page.getByRole('textbox', { name: 'Buscar en el catálogo' }).fill(fruit.name);
-  await page.getByRole('button', { name: 'Ver ' + fruit.name, exact: true }).click();
-  await page.getByRole('button', { name: 'Editar precios', exact: true }).click();
-  const priceDialog = page.getByRole('dialog');
-  await priceDialog.getByLabel('Promocional divisa', { exact: true }).first().fill('40');
-  await priceDialog.getByLabel('Regular · Bs. BCV', { exact: true }).first().fill('45');
-  await expect(priceDialog.getByLabel('Promocional divisa', { exact: true }).nth(1)).toHaveValue(
-    '',
-  );
-  await priceDialog.getByRole('button', { name: 'Actualizar precios', exact: true }).click();
-  await expect(priceDialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Editar precios', exact: true })).toHaveCount(0);
   const catalog = await (await page.request.get('/api/catalog')).json();
   const prices = catalog.configurations.find((c: { id: string }) => c.id === config.id).prices;
   expect(
@@ -351,12 +347,9 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
     .getByLabel('Documento del proveedor (opcional)', { exact: true })
     .fill('DEMO precios ' + suffix);
   await page.getByLabel('Cajas recibidas', { exact: true }).fill('1');
-  await page.getByLabel('Costo real por caja · USD', { exact: true }).fill('25');
+  await expect(page.getByLabel(/Costo real|Precio unitario/)).toHaveCount(0);
   await page.getByLabel('Blíster por caja', { exact: true }).fill('4');
   await page.getByLabel('Preparación de media caja', { exact: true }).selectOption('counted');
-  await page.getByText('Notas y precios de este producto', { exact: true }).click();
-  await page.getByRole('radio', { name: 'Actualizar precios', exact: true }).check();
-  await page.getByLabel('Promocional divisa', { exact: true }).first().fill('42');
   const receiptKeys: string[] = [];
   let receivedLotId = '';
   await page.route('**/api/receipts', async (route) => {
@@ -377,11 +370,11 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
   await expect(
     page.getByLabel('Fecha y hora de recepción (opcional)', { exact: true }),
   ).toHaveValue('');
-  await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('main').getByRole('alert')).toContainText('Confirma la presentación');
   await page.getByRole('checkbox', { name: /Verifiqué esta presentación/ }).check();
-  await page.getByRole('button', { name: 'Revisar recepción', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   const received = page.waitForRequest(
     (r) => r.url().endsWith('/api/receipts') && r.method() === 'POST',
@@ -390,7 +383,7 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
     .getByRole('dialog')
     .getByRole('button', { name: 'Guardar recepción', exact: true })
     .click();
-  expect((await received).postDataJSON().lines[0].prices).toHaveLength(1);
+  expect((await received).postDataJSON().lines[0].prices).toBeUndefined();
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText(
     'Confirmación de recepción perdida',
   );
@@ -412,5 +405,5 @@ test('precios parciales: configurar solo caja y conservar presentaciones pendien
         .find((c: { id: string }) => c.id === config.id)
         .prices.find((p: { presentation: string }) => p.presentation === 'box').promoUsd,
     ),
-  ).toBe(42);
+  ).toBe(40);
 });

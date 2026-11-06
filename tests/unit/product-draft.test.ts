@@ -24,7 +24,28 @@ describe('suggestions do not reinterpret existing product names', () => {
     ]);
     expect(caliberSuggestions.bulk).toContain('216');
     expect(caliberSuggestions.pear).not.toContain('198');
-    expect(caliberSuggestions.pear).toEqual(['70', '80', '90', '100', '110', '120', '135']);
+    expect(caliberSuggestions.pear).toEqual([
+      '70',
+      '80',
+      '90',
+      '100',
+      '110',
+      '120',
+      '125',
+      '135',
+      '150',
+      '165',
+    ]);
+    expect(caliberSuggestions.bulk).toEqual([
+      '150',
+      '163',
+      '175',
+      '198',
+      '216',
+      '232',
+      '235',
+      'PC',
+    ]);
     expect(caliberSuggestions.kiwi).toBeUndefined();
     expect(caliberSuggestions.grape).toBeUndefined();
   });

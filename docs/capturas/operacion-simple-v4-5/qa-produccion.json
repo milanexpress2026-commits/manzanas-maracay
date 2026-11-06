@@ -1,0 +1,43 @@
+{
+  "runtimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+  "validationCommit": "998cceb478b525ceecda5e24ff53e86ce2c7105e",
+  "environment": "isolated_synthetic_production_qa",
+  "startedAt": "2026-11-06T21:55:41.114Z",
+  "finishedAt": "2026-11-06T21:58:18.557Z",
+  "passed": 13,
+  "failed": 0,
+  "groups": {
+    "empty": 2,
+    "emptyWorkflow": 1,
+    "ui": 4,
+    "api": 6
+  },
+  "databaseCleaned": true,
+  "postmasterPidFiles": [],
+  "artifacts": [
+    {
+      "file": "catalogo-virtual-vacio-800.png",
+      "bytes": 179116,
+      "sha256": "48f8148fee2a88ef9b3ca7182804d731b23c7348334d5b64b16564e3cab18203"
+    },
+    {
+      "file": "vacio-cinco-lineas-800.png",
+      "bytes": 194546,
+      "sha256": "fab92411fe5d708620f48e5c6ccdf8a0695d81ec623690d308b54dedb9871181"
+    },
+    {
+      "file": "vacio-primera-venta-contado.png",
+      "bytes": 173497,
+      "sha256": "0088694bb89d43ff421e8a8512cfb1c6bf55dc1ae3dfb049b1cfd2a36872d425"
+    },
+    {
+      "file": "vacio-recepcion-venta-credito-qa.webm",
+      "bytes": 8814816,
+      "sha256": "f7256c8815f342b132dadc0f43a91b9f4a642d4a4f71f7aa010cf70156334994"
+    }
+  ],
+  "screenshotsVisuallyReviewed": true,
+  "videoVisuallyReviewed": false,
+  "physicalTabletTested": false,
+  "physicalPrinterTested": false
+}

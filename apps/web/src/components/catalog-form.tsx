@@ -334,7 +334,7 @@ export function CatalogForm({
               <Alert>
                 <Info aria-hidden="true" />
                 <AlertDescription>
-                  Los lotes existentes conservarán el empaque y costo con los que fueron recibidos.
+                  Los lotes existentes conservarán el empaque con el que fueron recibidos.
                 </AlertDescription>
               </Alert>
             </>

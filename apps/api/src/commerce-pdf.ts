@@ -8,10 +8,10 @@ import {
   type PaymentDetail,
 } from '../../../packages/domain/src/commerce';
 
-const green = rgb(0.07, 0.235, 0.173),
-  cream = rgb(0.97, 0.965, 0.94),
-  ink = rgb(0.13, 0.21, 0.17),
-  muted = rgb(0.38, 0.44, 0.41);
+const green = rgb(0.15, 0.15, 0.15),
+  cream = rgb(0.96, 0.96, 0.96),
+  ink = rgb(0.1, 0.1, 0.1),
+  muted = rgb(0.35, 0.35, 0.35);
 const presentation = { box: 'Caja', half_box: 'Media caja', blister: 'Blíster' };
 const date = (value: string) =>
   new Intl.DateTimeFormat('es-VE', {
@@ -63,7 +63,7 @@ async function document(title: string, number: string, isDemo: boolean) {
   function start() {
     page = doc.addPage([595.28, 841.89]);
     y = 690;
-    page.drawRectangle({ x: 0, y: 722, width: 595.28, height: 120, color: green });
+    page.drawLine({ start: { x: 36, y: 722 }, end: { x: 559, y: 722 }, thickness: 1, color: ink });
     const dimensions = logo.scaleToFit(84, 94);
     page.drawImage(logo, {
       x: 36 + (84 - dimensions.width) / 2,
@@ -76,10 +76,10 @@ async function document(title: string, number: string, isDemo: boolean) {
       y: 798,
       size: 17,
       font: bold,
-      color: rgb(1, 1, 1),
+      color: ink,
     });
-    page.drawText(title, { x: 141, y: 771, size: 12, font: bold, color: rgb(1, 1, 1) });
-    page.drawText(number, { x: 141, y: 749, size: 12, font, color: rgb(1, 1, 1) });
+    page.drawText(title, { x: 141, y: 771, size: 12, font: bold, color: ink });
+    page.drawText(number, { x: 141, y: 749, size: 12, font, color: ink });
     if (isDemo) {
       page.drawRectangle({ x: 36, y: 690, width: 523, height: 22, color: cream });
       page.drawText('DEMO · ENTORNO DE PRUEBAS · SIN VALIDEZ COMERCIAL', {
@@ -174,7 +174,7 @@ async function document(title: string, number: string, isDemo: boolean) {
       start: { x: 36, y: y + 12 },
       end: { x: 559, y: y + 12 },
       thickness: 0.4,
-      color: rgb(0.85, 0.88, 0.85),
+      color: rgb(0.85, 0.85, 0.85),
     });
   }
   function total(label: string, value: string, emphasis = false) {
@@ -221,8 +221,15 @@ async function document(title: string, number: string, isDemo: boolean) {
   }
   return { text, section, tableRow, total, finish };
 }
-export async function salePdf(sale: SaleDetail): Promise<Buffer> {
-  const pdf = await document('COMPROBANTE DE VENTA', sale.number, sale.isDemo);
+export async function salePdf(
+  sale: SaleDetail,
+  kind: 'sale' | 'delivery' = 'sale',
+): Promise<Buffer> {
+  const pdf = await document(
+    kind === 'delivery' ? 'NOTA DE ENTREGA' : 'COMPROBANTE DE VENTA',
+    sale.number,
+    sale.isDemo,
+  );
   pdf.text(`Fecha: ${date(sale.soldAt)} · Hora de Venezuela`);
   pdf.text(`Cliente: ${sale.client.name}`, { bold: true, size: 12 });
   if (sale.client.taxId) pdf.text(`Identificación: ${sale.client.taxId}`);
@@ -250,7 +257,7 @@ export async function salePdf(sale: SaleDetail): Promise<Buffer> {
   for (const line of sale.lines)
     pdf.tableRow(
       [
-        `${line.description} / ${presentation[line.presentation]}`,
+        `${line.description} / ${line.commercialUnitLabel ?? presentation[line.presentation]}`,
         `${line.quantity}`,
         amount(line.agreedUnitUsd, 4),
         amount(line.totalUsd),
@@ -258,7 +265,7 @@ export async function salePdf(sale: SaleDetail): Promise<Buffer> {
       [257, 55, 105, 106],
     );
   pdf.total('Total de la venta', sale.totalUsd, true);
-  if (!new Decimal(sale.discountUsd).isZero())
+  if (sale.discountUsd !== null && !new Decimal(sale.discountUsd).isZero())
     pdf.total('Diferencia de referencia', sale.discountUsd);
   pdf.total('Abonado', sale.paidUsd);
   pdf.total('Saldo actual', sale.balanceUsd, true);
@@ -272,6 +279,15 @@ export async function salePdf(sale: SaleDetail): Promise<Buffer> {
   if (sale.notes) {
     pdf.section('Observaciones');
     pdf.text(sale.notes);
+  }
+  if (kind === 'delivery') {
+    pdf.section('Constancia de entrega');
+    pdf.text('Recibido por: __________________________________________');
+    pdf.text('Fecha y firma: __________________________________________');
+    pdf.text(
+      'Copia del comprobante indicado. Su impresión no registra otra salida de inventario.',
+      { size: 9 },
+    );
   }
   pdf.text('El saldo refleja los abonos vigentes al consultar este comprobante.', {
     size: 9,
@@ -300,7 +316,23 @@ export async function paymentPdf(payment: PaymentDetail): Promise<Buffer> {
       size: 9,
     });
   }
-  if (payment.currency === 'USDT') pdf.text('USDT recibido aplicado 1:1 a la deuda USD.');
+  if (payment.currency === 'USDT') {
+    pdf.text('USDT recibido aplicado 1:1 a la deuda USD.');
+    if (payment.usdtReferenceRate) {
+      pdf.text(
+        `Referencia informativa: Bs. ${amount(payment.usdtReferenceRate.equivalentVes)}. No representa bolívares recibidos.`,
+      );
+      pdf.text(
+        `Binance compra: ${payment.usdtReferenceRate.rate} VES por USDT · ${payment.usdtReferenceRate.sourceUrl}`,
+        { size: 9 },
+      );
+    } else pdf.text('Equivalencia informativa en Bs. no disponible.', { size: 9 });
+  }
+  if (payment.conversionRoundingUsd && !new Decimal(payment.conversionRoundingUsd).isZero())
+    pdf.text(
+      `Ajuste por liquidación del importe exacto en Bs.: USD ${payment.conversionRoundingUsd}.`,
+      { size: 9 },
+    );
   pdf.total('Equivalente aplicado', payment.amountUsd, true);
   pdf.section('Aplicación por comprobante');
   pdf.tableRow(['Comprobante', 'Aplicado USD', 'Saldo al registrar USD'], [257, 133, 133], true);

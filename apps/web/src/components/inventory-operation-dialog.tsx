@@ -222,7 +222,7 @@ export function InventoryOperationDialog({
                         <option value="">Selecciona el contenedor</option>
                         {eligible.map((c) => (
                           <option key={c.id} value={c.id}>
-                            {containerName(c)}
+                            {containerName(c, detail.lot.commercialUnitLabel)}
                             {c.unit === 'loose_piece' ? ` · ${c.quantity} piezas` : ''}
                           </option>
                         ))}
@@ -449,7 +449,8 @@ export function InventoryOperationDialog({
                   <h3>Revisa antes de guardar</h3>
                   {selected ? (
                     <p>
-                      <strong>Origen:</strong> {containerName(selected)}
+                      <strong>Origen:</strong>{' '}
+                      {containerName(selected, detail.lot.commercialUnitLabel)}
                     </p>
                   ) : null}
                   {action.kind === 'withdraw-blisters' ? (

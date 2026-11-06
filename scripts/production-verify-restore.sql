@@ -187,7 +187,7 @@ BEGIN
       (SELECT id,after_usd FROM inventory_cost_entries WHERE container_id=s.container_id ORDER BY entry_order DESC LIMIT 1) e ON true
     LEFT JOIN inventory_cost_openings o ON o.container_id=s.container_id
     WHERE s.cost_usd IS DISTINCT FROM CASE WHEN e.id IS NOT NULL THEN e.after_usd ELSE o.cost_usd END
-      OR (s.quantity>0 AND s.cost_usd IS NULL) OR (s.quantity=0 AND s.cost_usd IS DISTINCT FROM 0)
+      OR (s.quantity=0 AND s.cost_usd IS NOT NULL AND s.cost_usd<>0)
   ) THEN RAISE EXCEPTION 'Cost projection differs from its ledger'; END IF;
   FOR item IN SELECT id FROM sales LOOP PERFORM validate_commercial_sale(item.id); END LOOP;
   FOR item IN SELECT id FROM payments LOOP PERFORM validate_commercial_payment(item.id); END LOOP;

@@ -14,7 +14,7 @@ export const paymentChoices = [
   { id: 'usdt_transfer', label: 'USDT', currency: 'USDT', method: 'usdt_transfer', basis: null },
   {
     id: 'ves_usdt',
-    label: 'Bolívares a tasa USDT compra',
+    label: 'Bolívares a tasa Binance/USDT compra',
     currency: 'VES',
     method: 'bolivares',
     basis: 'divisa',
@@ -97,13 +97,11 @@ export function changeSaleLine(
     next.presentation = allowed.length === 1 ? allowed[0] : '';
   }
   if (changes.configurationId !== undefined || changes.presentation !== undefined) {
-    const options = salePrices(config, next.presentation);
-    // Agreement belongs to the sale, never to its cash/credit or later payment choice.
-    next.priceBasis = options.length === 1 ? options[0].basis : '';
-    next.agreedUnitUsd = options.length === 1 ? options[0].amount : '';
+    // A new product/presentation always requires the price agreed for this sale.
+    // Historical lists are not an input or a suggested price for new operations.
+    next.priceBasis = '';
+    next.agreedUnitUsd = '';
     next.priceEdited = false;
-  } else if (changes.priceBasis !== undefined && !line.priceEdited) {
-    next.agreedUnitUsd = saleReference(config, next) ?? '';
   }
   if (changes.agreedUnitUsd !== undefined) next.priceEdited = true;
   return next;
@@ -121,6 +119,7 @@ export function saleReviewInstant(date: string, dateEdited: boolean, now = new D
 
 export type SaleFormDraft = {
   clientId: string;
+  settlementBasis?: 'divisa' | 'bcv' | '';
   condition: 'cash' | 'credit';
   date: string;
   dateEdited: boolean;

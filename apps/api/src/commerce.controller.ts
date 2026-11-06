@@ -123,4 +123,14 @@ export class CommerceController {
       disposition: `attachment; filename="abono-${payment.id}.pdf"`,
     });
   }
+  @Get('sales/:id/delivery-note')
+  @Header('Cache-Control', 'no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  async deliveryDocument(@Param('id') id: string) {
+    const sale = await this.commerce.sale(id);
+    return new StreamableFile(await salePdf(sale, 'delivery'), {
+      type: 'application/pdf',
+      disposition: `inline; filename="entrega-${sale.id}.pdf"`,
+    });
+  }
 }

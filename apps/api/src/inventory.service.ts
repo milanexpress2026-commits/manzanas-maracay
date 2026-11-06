@@ -25,9 +25,11 @@ import {
   updateSupplierSchema,
   receiptSchema,
   quickReceiptSchema,
+  simpleReceiptSchema,
   formatReceiptNumber,
   businessDate,
   type QuickReceipt,
+  type SimpleReceipt,
   type ReceiptOptions,
   type PreviousReceiptCost,
   openBoxSchema,
@@ -60,13 +62,17 @@ type LotRow = {
   packing_model_snapshot: PackingModel;
   half_preparation_snapshot: HalfPreparation;
   allowed_presentations_snapshot: Presentation[];
-  unit_cost_usd: string;
+  unit_cost_usd: string | null;
+  commercial_unit_label_snapshot: string | null;
   inventory_version: number;
 };
 type StateMap = Map<string, ContainerStock>;
-type ResolvedReceipt = Omit<z.infer<typeof receiptSchema>, 'supplierId' | 'reference'> & {
+type ResolvedReceipt = Omit<z.infer<typeof receiptSchema>, 'supplierId' | 'reference' | 'lines'> & {
   supplierId: string | null;
   reference: string | null;
+  lines: (Omit<z.infer<typeof receiptSchema>['lines'][number], 'unitCostUsd'> & {
+    unitCostUsd: string | null;
+  })[];
 };
 const containerSelect = `select c.id,c.lot_id as "lotId",c.warehouse_id as "warehouseId",c.parent_id as "parentId",
   c.kind,c.state,s.unit,s.quantity,s.counted_pieces as "countedPieces",s.version,s.cost_usd as "costUsd"
@@ -77,7 +83,7 @@ const lotSelect = `select l.id,l.code,l.packing_rule_id as "configurationId",v.f
   v.commercial_line as "commercialLine",l.packing_model_snapshot as "packingModel",l.half_preparation_snapshot as "halfPreparation",
   l.allowed_presentations_snapshot as "allowedPresentations",l.box_weight_kg_snapshot as "boxWeightKgSnapshot",
   l.supplier_id as "supplierId",sp.name as supplier,l.received_at as "receivedAt",l.received_boxes as "receivedBoxes",
-  l.blisters_per_box_snapshot as "blistersPerBox",l.unit_cost_usd as "unitCostUsd",l.notes,l.is_demo as "isDemo",
+  l.blisters_per_box_snapshot as "blistersPerBox",null::numeric as "unitCostUsd",l.commercial_unit_label_snapshot as "commercialUnitLabel",l.notes,l.is_demo as "isDemo",
   l.inventory_version as version from lots l join product_variants v on v.id=l.variant_id
   join fruits f on f.id=v.fruit_id left join varieties vr on vr.id=v.variety_id left join calibers cl on cl.id=v.caliber_id
   left join suppliers sp on sp.id=l.supplier_id`;
@@ -184,8 +190,9 @@ export class InventoryService implements OnModuleDestroy {
           variant_id: string;
           confirmation_status: string;
           allowed_presentations: Presentation[];
+          commercial_unit_label: string | null;
         }>(
-          'select id,variant_id,confirmation_status,allowed_presentations from packing_rules order by id',
+          'select id,variant_id,confirmation_status,allowed_presentations,commercial_unit_label from packing_rules order by id',
         )
       ).rows;
       const lots = (
@@ -197,10 +204,11 @@ export class InventoryService implements OnModuleDestroy {
           allowedPresentations: Presentation[];
           blistersPerBox: number | null;
           confirmed: boolean;
+          commercial_unit_label_snapshot: string | null;
         }>(
           `select id,variant_id,packing_model_snapshot as "packingModel",
             half_preparation_snapshot as "halfPreparation",allowed_presentations_snapshot as "allowedPresentations",
-            blisters_per_box_snapshot as "blistersPerBox",confirmation_status_snapshot='confirmed' as confirmed
+            blisters_per_box_snapshot as "blistersPerBox",confirmation_status_snapshot='confirmed' as confirmed,commercial_unit_label_snapshot
            from lots where is_demo=$1 and received_at<=$2::timestamptz order by received_at,created_at,id`,
           [commandIsDemo(false), checkedAt],
         )
@@ -232,7 +240,11 @@ export class InventoryService implements OnModuleDestroy {
                   blockedReason: 'Confirma el empaque del producto antes de vender.',
                 }
               : countSellablePresentation(
-                  projected.filter((lot) => lot.variant_id === rule.variant_id),
+                  projected.filter(
+                    (lot) =>
+                      lot.variant_id === rule.variant_id &&
+                      lot.commercial_unit_label_snapshot === rule.commercial_unit_label,
+                  ),
                   presentation,
                   production,
                 )),
@@ -279,7 +291,7 @@ export class InventoryService implements OnModuleDestroy {
           receivedAt: row.receivedAt.toISOString(),
           ...summarizeContainers(containers, row.blistersPerBox, row.packingModel),
         },
-        containers,
+        containers: containers.map((container) => ({ ...container, costUsd: null })),
         movements,
       };
     });
@@ -401,7 +413,7 @@ export class InventoryService implements OnModuleDestroy {
   private async lockedLot(client: PoolClient, id: string): Promise<LotRow> {
     const lot = (
       await client.query(
-        'select id,code,blisters_per_box_snapshot,inventory_version,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,unit_cost_usd from lots where id=$1 for update',
+        'select id,code,blisters_per_box_snapshot,inventory_version,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,unit_cost_usd,commercial_unit_label_snapshot from lots where id=$1 for update',
         [id],
       )
     ).rows[0];
@@ -657,13 +669,13 @@ export class InventoryService implements OnModuleDestroy {
         throw new NotFoundException('El producto no existe.');
       return {
         configurationId,
-        previousCost: await this.previousCost(client, configurationId, commandIsDemo(false)),
+        previousCost: null,
       };
     });
   }
   private async resolveQuickReceipt(
     client: PoolClient,
-    input: QuickReceipt,
+    input: QuickReceipt | SimpleReceipt,
     actor: string,
     key: string,
   ): Promise<ResolvedReceipt> {
@@ -681,11 +693,18 @@ export class InventoryService implements OnModuleDestroy {
         );
       const rule =
         previous?.rule ??
-        (await resolveReceiptProduct(client, line.product, line.packing, actor, key));
+        (await resolveReceiptProduct(
+          client,
+          line.product,
+          line.packing,
+          actor,
+          key,
+          input.schemaVersion === 3 ? 'v4.5' : 'v4.2',
+        ));
       resolved.set(productKey, { fingerprint, rule });
       if (line.blisterOverride && rule.packing_model !== 'blister')
         throw new BadRequestException('Este producto no utiliza blíster.');
-      if (line.cost.kind === 'previous') {
+      if ('cost' in line && line.cost.kind === 'previous') {
         const cost = await this.previousCost(client, rule.id, demo);
         if (
           !cost ||
@@ -699,10 +718,10 @@ export class InventoryService implements OnModuleDestroy {
       lines.push({
         configurationId: rule.id,
         boxes: line.boxes,
-        unitCostUsd: line.cost.unitCostUsd,
+        unitCostUsd: 'cost' in line ? line.cost.unitCostUsd : null,
         ...(line.blisterOverride ? { blistersPerBox: line.blisterOverride.blistersPerBox } : {}),
-        priceAction: line.priceAction,
-        prices: line.prices,
+        priceAction: 'priceAction' in line ? line.priceAction : 'keep',
+        prices: 'prices' in line ? line.prices : [],
         notes: line.notes,
       });
     }
@@ -720,14 +739,18 @@ export class InventoryService implements OnModuleDestroy {
     // The legacy parser/hash is retained so a pre-upgrade confirmed request can still replay.
     const input =
       body && typeof body === 'object' && 'schemaVersion' in body
-        ? quickReceiptSchema.parse(body)
+        ? body.schemaVersion === 3
+          ? simpleReceiptSchema.parse(body)
+          : quickReceiptSchema.parse(body)
         : receiptSchema.parse(body);
     return this.runCommand('receipt', input, key, actor, async (client, hash) => {
       const data: ResolvedReceipt =
         'schemaVersion' in input
           ? await this.resolveQuickReceipt(client, input, actor, key!)
           : input;
-      if (data.lines.some((line) => new Decimal(line.unitCostUsd).lte(0)))
+      if (
+        data.lines.some((line) => line.unitCostUsd !== null && new Decimal(line.unitCostUsd).lte(0))
+      )
         throw new BadRequestException('Confirma un costo real por caja mayor que cero.');
       if (data.supplierId !== null) {
         const supplier = (
@@ -852,8 +875,8 @@ export class InventoryService implements OnModuleDestroy {
           code = `MM-${businessDate(new Date(data.receivedAt)).replaceAll('-', '')}-${id.slice(0, 8).toUpperCase()}`;
         const blisterCount = line.blistersPerBox ?? rule.blisters_per_box;
         await client.query(
-          `insert into lots(id,code,variant_id,supplier_id,purchase_line_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd,received_boxes,notes,is_demo,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,box_weight_kg_snapshot,confirmation_status_snapshot)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+          `insert into lots(id,code,variant_id,supplier_id,purchase_line_id,packing_rule_id,packing_rule_version,blisters_per_box_snapshot,received_at,unit_cost_usd,received_boxes,notes,is_demo,packing_model_snapshot,half_preparation_snapshot,allowed_presentations_snapshot,box_weight_kg_snapshot,confirmation_status_snapshot,commercial_unit_label_snapshot)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
           [
             id,
             code,
@@ -873,6 +896,7 @@ export class InventoryService implements OnModuleDestroy {
             rule.allowed_presentations,
             rule.box_weight_kg,
             rule.confirmation_status,
+            rule.commercial_unit_label,
           ],
         );
         const state: StateMap = new Map();
@@ -892,6 +916,7 @@ export class InventoryService implements OnModuleDestroy {
             half_preparation_snapshot: rule.half_preparation,
             allowed_presentations_snapshot: rule.allowed_presentations,
             unit_cost_usd: line.unitCostUsd,
+            commercial_unit_label_snapshot: rule.commercial_unit_label,
           },
           [],
           state,
@@ -919,11 +944,11 @@ export class InventoryService implements OnModuleDestroy {
           lots,
           ...('schemaVersion' in input
             ? {
-                schemaVersion: 2,
+                schemaVersion: input.schemaVersion,
                 confirmations: input.lines.map((line, index) => ({
                   lotId: lots[index].id,
                   product: line.product,
-                  cost: line.cost,
+                  ...('cost' in line ? { cost: line.cost } : { costKnown: false }),
                   blisterOverride: line.blisterOverride ?? null,
                   packing: line.packing ?? null,
                 })),
@@ -1189,7 +1214,7 @@ export class InventoryService implements OnModuleDestroy {
     for (const line of lines) {
       const rule = (
         await client.query(
-          'select variant_id,allowed_presentations from packing_rules where id=$1 for share',
+          'select variant_id,allowed_presentations,commercial_unit_label from packing_rules where id=$1 for share',
           [line.configurationId],
         )
       ).rows[0];
@@ -1198,8 +1223,8 @@ export class InventoryService implements OnModuleDestroy {
       const rows = (
         await client.query(
           `select id from lots where variant_id=$1 and is_demo=$2
-        and $3=any(allowed_presentations_snapshot) order by received_at,created_at,id for update`,
-          [rule.variant_id, isDemo, line.presentation],
+        and $3=any(allowed_presentations_snapshot) and commercial_unit_label_snapshot is not distinct from $4::text order by received_at,created_at,id for update`,
+          [rule.variant_id, isDemo, line.presentation, rule.commercial_unit_label],
         )
       ).rows;
       let remaining = line.quantity;
@@ -1274,17 +1299,13 @@ export class InventoryService implements OnModuleDestroy {
             }
           }
           if (!selected) break;
-          if (selected.costUsd == null)
-            throw new ConflictException(
-              'Este contenedor necesita revisión de costo histórico antes de venderse.',
-            );
           allocations.push({
             saleLineId: line.lineId,
             lotId: lot.id,
             containerId: selected.id,
             movementId: '',
             quantity: 1,
-            costUsd: selected.costUsd,
+            costUsd: selected.costUsd ?? null,
           });
           selected.quantity = 0;
           selected.costUsd = '0.0000';

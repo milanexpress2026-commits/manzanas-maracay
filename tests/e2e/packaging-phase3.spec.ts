@@ -1,3 +1,5 @@
+import { historicalLotCost, historicalContainerCosts } from './helpers/historical-cost';
+import { receiptDatabase } from './helpers/receipt-v42';
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { loginRequest } from './helpers/auth';
@@ -15,6 +17,7 @@ import type {
   LotDetail,
   Supplier,
   InventoryCommandResult,
+  ContainerStock,
 } from '../../packages/domain/src/index';
 test.beforeEach(async ({ request }) => loginRequest(request));
 
@@ -86,7 +89,8 @@ test('recepción cuatro modalidades: precios elegidos, rollback de toda la recep
   const unchanged = (await (
     await request.get(`/api/inventory/lots/${receipt.lots[1].id}`)
   ).json()) as LotDetail;
-  expect(unchanged.lot.unitCostUsd).toBe('26.0000');
+  expect(unchanged.lot.unitCostUsd).toBeNull();
+  await historicalLotCost(unchanged.lot.id, '26.0000');
   expect(unchanged.lot.blistersPerBox).toBeNull();
 });
 
@@ -128,13 +132,66 @@ test('fracciones FIFO conservan el último decimal de costo y la mitad comercial
   const sales = [];
   for (let i = 0; i < 3; i++)
     sales.push(await commercialSale(request, customer, rule, 1, '15', 'blister'));
-  expect(sales.map((s) => s.costUsd).sort()).toEqual(['8.3333', '8.3333', '8.3334']);
+  expect(sales.map((s) => s.costUsd)).toEqual([null, null, null]);
+  await receiptDatabase(async (db) => {
+    const allocations = (
+      await db.query<{
+        sale_id: string;
+        sale_cost: string;
+        line_cost: string;
+        allocation_cost: string;
+        source_cost: string;
+        total_cost: string;
+        container_id: string;
+        lot_id: string;
+        quantity: number;
+        after_state: ContainerStock[];
+      }>(
+        `select s.id as sale_id,s.cost_usd as sale_cost,l.cost_usd as line_cost,
+          a.cost_usd as allocation_cost,a.container_id,a.lot_id,a.quantity,m.after_state,
+          dispatched_container_cost(m.id,a.container_id)::numeric(18,4)::text as source_cost,
+          sum(a.cost_usd) over () as total_cost
+        from sales s join sale_lines l on l.sale_id=s.id
+        join sale_allocations a on a.sale_line_id=l.id
+        join inventory_movements m on m.id=a.movement_id
+        where s.id=any($1::uuid[])`,
+        [sales.map((sale) => sale.id)],
+      )
+    ).rows;
+    expect(allocations).toHaveLength(3);
+    expect(new Set(allocations.map((a) => a.sale_id))).toEqual(
+      new Set(sales.map((sale) => sale.id)),
+    );
+    expect(new Set(allocations.map((a) => a.container_id)).size).toBe(3);
+    expect(allocations.map((a) => a.sale_cost).sort()).toEqual(['8.3333', '8.3333', '8.3334']);
+    for (const allocation of allocations) {
+      expect(allocation.total_cost).toBe('25.0000');
+      expect(allocation.lot_id).toBe(receipt.lots[0].id);
+      expect(allocation.quantity).toBe(1);
+      expect(allocation.sale_cost).toBe(allocation.line_cost);
+      expect(allocation.line_cost).toBe(allocation.allocation_cost);
+      expect(allocation.allocation_cost).toBe(allocation.source_cost);
+    }
+    // The residue belongs to the last physical child created when the box opens.
+    // Subsequent commands select siblings by UUID, not by their creation ordinal.
+    const first = allocations.find((a) => a.sale_id === sales[0].id)!;
+    const children = first.after_state.filter((c) => c.unit === 'intact_blister');
+    expect(children).toHaveLength(3);
+    expect(first.container_id).toBe(children[0].id);
+    for (const [index, child] of children.entries())
+      expect(allocations.find((a) => a.container_id === child.id)?.allocation_cost).toBe(
+        ['8.3333', '8.3333', '8.3334'][index],
+      );
+  });
   const lot = (await (
     await request.get(`/api/inventory/lots/${receipt.lots[0].id}`)
   ).json()) as LotDetail;
   expect(lot.lot.closedBoxes).toBe(0);
   expect(lot.lot.intactBlisters).toBe(0);
-  expect(lot.containers.every((c) => c.costUsd === '0.0000')).toBe(true);
+  expect(lot.containers.every((c) => c.costUsd === null)).toBe(true);
+  expect((await historicalContainerCosts(lot.lot.id)).every((cost) => cost === '0.0000')).toBe(
+    true,
+  );
   const halfRule = await commercialProduct(request, 'halves'),
     halfReceipt = await commercialReceipt(request, halfRule, 1, '25');
   const before = (await (
@@ -210,7 +267,9 @@ test('precios repetidos coherentes se consolidan y propuestas conflictivas revie
       async (l) => (await (await request.get(`/api/inventory/lots/${l.id}`)).json()) as LotDetail,
     ),
   );
-  expect(details.map((d) => d.lot.unitCostUsd).sort()).toEqual(['25.0000', '27.0000']);
+  expect(details.map((d) => d.lot.unitCostUsd)).toEqual([null, null]);
+  for (const [index, detail] of details.entries())
+    await historicalLotCost(detail.lot.id, ['25.0000', '27.0000'][index]!);
   expect(
     (await (await request.get('/api/prices')).json()).find(
       (p: { configurationId: string; presentation: string }) =>

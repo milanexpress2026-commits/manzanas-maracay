@@ -46,7 +46,7 @@ export async function establishCostBaseline(pool: Pool) {
     }
     await client.query('commit');
     console.log(
-      `Costo inicial trazable: ${updated} contenedores; ${unknown} pendientes de revisión (venta bloqueada).`,
+      `Costo histórico trazable: ${updated} contenedores; ${unknown} con costo desconocido, sin bloquear existencias.`,
     );
   } catch (error) {
     await client.query('rollback');
