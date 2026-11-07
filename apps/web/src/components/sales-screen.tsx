@@ -20,7 +20,8 @@ import {
   type SaleDetail,
   type Catalog,
   type Presentation,
-  type SaleAvailability,
+  type SalePreviewInput,
+  type SalePreviewResult,
 } from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
 import { Button } from './ui/button';
@@ -29,7 +30,7 @@ import { Textarea } from './ui/textarea';
 import { NativeSelect } from './ui/native-select';
 import { Field, FieldGroup, FieldSet, FieldLegend, FieldLabel, FieldDescription } from './ui/field';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { LoadError, LoadingRows, PageFooter, FormError, SaveButton } from './operations-ui';
+import { LoadError, LoadingRows, PageFooter, FormError } from './operations-ui';
 import {
   ClientDialog,
   SaleTable,
@@ -44,6 +45,8 @@ import { useRemote, useDurableCommercialCommand, displayMoney } from '@/lib/inve
 import { CommercialJournalError, commercialCommandBody } from '@/lib/commercial-journal';
 import { paymentEquivalent } from '@/lib/payment-equivalent';
 import { useClientDirectory } from '@/lib/use-client-directory';
+import { useSalePreview } from '@/lib/use-sale-preview';
+import { saleQuantity, saleQuantityIssue, saleStockWarningContext } from '@/lib/sale-stock';
 import {
   productLabel,
   presentationNames,
@@ -143,7 +146,6 @@ export function SalesScreen({ session }: { session: AppSession }) {
 export function NewSaleScreen({ session }: { session: AppSession }) {
   const router = useRouter();
   const catalog = useRemote<Catalog>('/api/catalog');
-  const availability = useRemote<SaleAvailability>('/api/inventory/sale-availability');
   const rate = useRemote<RateStatus>('/api/rates/current');
   const [clientId, setClientId] = useState('');
   const clients = useClientDirectory(clientId);
@@ -170,6 +172,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const [review, setReview] = useState<ReturnType<typeof manualSaleSchema.parse> | null>(null);
   const scope = session.environment + ':' + session.user.id;
   const command = useDurableCommercialCommand(scope, 'sale');
+  const [checkingStock, setCheckingStock] = useState(false);
+  const checkingRef = useRef(false);
+  const lineKeys = useRef(new Map<number, string>());
+  const previousMaxima = useRef(new Map<number, { context: string; maximum: number }>());
   const restoredCommandKey = useRef<string | null>(null);
   const initialized = useRef(false);
   useEffect(() => {
@@ -226,11 +232,92 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     setRestored(true);
   }, [command.pending, command.busy]);
   const activeClients = clients.options.filter((client) => client.active);
-  const configurations =
-    catalog.data?.configurations.filter(
-      (config) => session.environment !== 'production' || config.confirmationStatus === 'confirmed',
-    ) ?? [];
+  const catalogConfigurations = catalog.data?.configurations ?? [];
+  const configurations = catalogConfigurations.filter(
+    (config) => config.confirmationStatus === 'confirmed',
+  );
+  const pendingConfigurations = catalogConfigurations.filter(
+    (config) => config.confirmationStatus !== 'confirmed',
+  );
   const ready = !!catalog.data && !!clients.data && !catalog.error;
+  function stockKey(key: number) {
+    let value = lineKeys.current.get(key);
+    if (!value) {
+      value = crypto.randomUUID();
+      lineKeys.current.set(key, value);
+    }
+    return value;
+  }
+  function previewInput(soldAt?: string): SalePreviewInput | null {
+    if (review)
+      return {
+        soldAt: review.soldAt,
+        lines: review.lines.map((line, index) => ({
+          lineKey: stockKey(lines[index]?.key ?? index + 1),
+          configurationId: line.configurationId,
+          presentation: line.presentation,
+          quantity: line.quantity,
+        })),
+      };
+    if (
+      lines.some(
+        (line) =>
+          !line.configurationId || !line.presentation || saleQuantity(line.quantity) === null,
+      )
+    )
+      return null;
+    try {
+      return {
+        soldAt: soldAt ?? saleReviewInstant(date, dateEdited),
+        lines: lines.map((line) => ({
+          lineKey: stockKey(line.key),
+          configurationId: line.configurationId,
+          presentation: line.presentation as Presentation,
+          quantity: saleQuantity(line.quantity)!,
+        })),
+      };
+    } catch {
+      return null;
+    }
+  }
+  const preview = useSalePreview(
+    JSON.stringify([
+      dateEdited ? date : 'automatic',
+      review?.soldAt ?? null,
+      lines.map(({ key, configurationId, presentation, quantity }) => [
+        key,
+        configurationId,
+        presentation,
+        quantity,
+      ]),
+    ]),
+    () => previewInput(),
+    ready && command.ready && !command.pending && !reviewAttempted,
+  );
+  const warningDate = review?.soldAt ?? (dateEdited ? date : 'automatic');
+  useEffect(() => {
+    if (!preview.fresh || !preview.result) return;
+    for (const line of lines) {
+      const maximum = preview.result.lines.find(
+        (item) => item.lineKey === lineKeys.current.get(line.key),
+      )?.maxQuantity;
+      if (maximum != null)
+        previousMaxima.current.set(line.key, {
+          context: saleStockWarningContext(lines, line.key, warningDate),
+          maximum,
+        });
+    }
+  }, [preview.fresh, preview.result, lines, warningDate]);
+  const quantityTotal = lines.reduce((sum, line) => sum + (saleQuantity(line.quantity) ?? 0), 0);
+  const cartComplete = lines.every(
+    (line) => line.configurationId && line.presentation && saleQuantity(line.quantity) !== null,
+  );
+  const stockValid =
+    cartComplete && quantityTotal <= 1000 && preview.fresh && !!preview.result?.valid;
+  const pricesComplete = lines.every((line) => {
+    const price = normalizedMoney(line.agreedUnitUsd);
+    return /^\d{1,11}(\.\d{1,4})?$/.test(price) && new Decimal(price).gt(0);
+  });
   const total = lines.reduce((sum, line) => sum.plus(saleLineTotal(line)), new Decimal(0));
   const settlement = basis || null;
   const bcvCurrent = useQuoteCurrent(rate.data?.rate);
@@ -347,27 +434,35 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     });
   }
   function stockIssue(line: SaleDraftLine) {
-    if (!line.configurationId || !line.presentation || !availability.data) return '';
-    const item = availability.data.items.find(
-      (entry) =>
-        entry.configurationId === line.configurationId && entry.presentation === line.presentation,
-    );
-    if (!item) return 'Esta presentación todavía no tiene existencias disponibles.';
-    const requested = lines
-      .filter(
-        (other) =>
-          other.configurationId === line.configurationId &&
-          other.presentation === line.presentation,
+    if (!line.configurationId || !line.presentation) return '';
+    const local = saleQuantityIssue(line.quantity);
+    if (local) return local;
+    if (!preview.fresh) {
+      const previous = previousMaxima.current.get(line.key);
+      if (
+        previous?.context === saleStockWarningContext(lines, line.key, warningDate) &&
+        saleQuantity(line.quantity)! > previous.maximum
       )
-      .reduce((sum, other) => sum + (Number(other.quantity) || 0), 0);
-    if (requested <= item.availableQuantity) return '';
-    return (
-      item.blockedReason ||
-      `Hay ${item.availableQuantity} ${line.presentation === 'box' ? (configurations.find((config) => config.id === line.configurationId)?.commercialUnitLabel ?? 'cajas') : presentationNames[line.presentation].toLocaleLowerCase('es')} disponibles. Reduce la cantidad o registra una recepción.`
+        return `Supera la última disponibilidad comprobada (${previous.maximum}). ${preview.error ? 'Actualiza las existencias antes de continuar.' : 'Actualizando existencias…'}`;
+      return '';
+    }
+    return preview.result?.lines.find((item) => item.lineKey === stockKey(line.key))?.message ?? '';
+  }
+  function changedStock(result: SalePreviewResult) {
+    setReview(null);
+    command.setError(
+      'Las existencias cambiaron o no alcanzan para esta combinación. Revisa las cantidades; conservamos el cliente y los precios.',
     );
+    const invalid = result.lines.find((item) => item.issueCode);
+    const line = lines.find((item) => stockKey(item.key) === invalid?.lineKey);
+    if (line)
+      window.requestAnimationFrame(() =>
+        document.getElementById('sale-quantity-' + line.key)?.focus(),
+      );
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (checkingRef.current || command.busy) return;
     command.setError('');
     if (review) {
       if (reviewQuote && !reviewQuoteCurrent && !reviewAttempted) {
@@ -376,7 +471,24 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         );
         return;
       }
+      checkingRef.current = true;
+      setCheckingStock(true);
       try {
+        // A pending request may already have committed. Never gate its exact replay on new stock.
+        if (!reviewAttempted && !command.pending) {
+          const input = previewInput();
+          const result = input && (await preview.check(input));
+          if (!result) {
+            command.setError(
+              'No pudimos comprobar las existencias. Conservamos la revisión; actualiza e intenta de nuevo.',
+            );
+            return;
+          }
+          if (!result.valid) {
+            changedStock(result);
+            return;
+          }
+        }
         setReviewAttempted(true);
         const result = await command.run<SaleDetail>(review, {
           totalUsd: reviewTotals.total,
@@ -385,7 +497,13 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         clearSaleDraft();
         router.push('/ventas/' + result.id + '?guardada=1');
       } catch (error) {
-        if (error instanceof CommercialJournalError && error.editable) setReviewAttempted(false);
+        if (error instanceof CommercialJournalError && error.editable) {
+          setReviewAttempted(false);
+          setReview(null);
+        }
+      } finally {
+        checkingRef.current = false;
+        setCheckingStock(false);
       }
       return;
     }
@@ -403,10 +521,6 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       command.setError('Selecciona un cliente activo o crea uno para esta venta.');
       return;
     }
-    if (!availability.data || availability.error) {
-      command.setError('Actualiza las existencias antes de revisar la venta.');
-      return;
-    }
     for (const line of lines) {
       const config = configurations.find((item) => item.id === line.configurationId);
       if (!config) {
@@ -417,6 +531,17 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         command.setError(
           'Elige el acuerdo de cobro e indica el precio por unidad de cada producto.',
         );
+        return;
+      }
+      if (!line.presentation || saleQuantity(line.quantity) === null) {
+        command.setError(
+          !line.presentation
+            ? 'Selecciona la presentación antes de indicar la cantidad.'
+            : saleQuantityIssue(line.quantity),
+        );
+        document
+          .getElementById((!line.presentation ? 'sale-presentation-' : 'sale-quantity-') + line.key)
+          ?.focus();
         return;
       }
       const issue = stockIssue(line);
@@ -491,15 +616,34 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       command.setError(parsed.error.issues[0]?.message ?? 'Revisa los datos de la venta.');
       return;
     }
-    setReviewQuote(currency === 'VES' && activeRate ? { ...activeRate } : null);
-    setReviewInformation(
-      currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
-        ? { ...rate.data.usdt.rate }
-        : null,
-    );
-    setReviewAttempted(false);
-    setReviewTotals({ total: total.toFixed(2), balance: balance.toFixed(2) });
-    setReview(parsed.data);
+    checkingRef.current = true;
+    setCheckingStock(true);
+    try {
+      const input = previewInput(soldAt);
+      const result = input && (await preview.check(input));
+      if (!result) {
+        command.setError(
+          'No pudimos comprobar las existencias. Conservamos la venta; actualiza e intenta de nuevo.',
+        );
+        return;
+      }
+      if (!result.valid) {
+        changedStock(result);
+        return;
+      }
+      setReviewQuote(currency === 'VES' && activeRate ? { ...activeRate } : null);
+      setReviewInformation(
+        currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
+          ? { ...rate.data.usdt.rate }
+          : null,
+      );
+      setReviewAttempted(false);
+      setReviewTotals({ total: total.toFixed(2), balance: balance.toFixed(2) });
+      setReview(parsed.data);
+    } finally {
+      checkingRef.current = false;
+      setCheckingStock(false);
+    }
   }
   const basisChoices = [
     { value: 'divisa', label: 'Promoción / divisa' },
@@ -536,15 +680,19 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         {clients.error ? (
           <LoadError error={clients.error} retry={() => void clients.reload()} />
         ) : null}
-        {availability.error ? (
-          <LoadError error={availability.error} retry={() => void availability.reload()} />
+        {preview.error && !review ? (
+          <LoadError error={preview.error} retry={() => void preview.check()} />
         ) : null}
         {!ready && (catalog.loading || clients.loading) ? <LoadingRows /> : null}
         {ready ? (
           <form onSubmit={submit} className={styles.layout}>
             <fieldset
               disabled={
-                command.busy || !command.ready || !!command.storageError || !!command.pending
+                command.busy ||
+                checkingStock ||
+                !command.ready ||
+                !!command.storageError ||
+                !!command.pending
               }
               className={styles.main}
             >
@@ -644,7 +792,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     {lines.length} {lines.length === 1 ? 'línea' : 'líneas'}
                   </span>
                 </div>
-                {!configurations.length ? (
+                {!catalogConfigurations.length ? (
                   <p className={styles.lineHelp}>
                     Aún no hay productos con empaque confirmado.{' '}
                     <Link href="/catalogo?returnTo=/ventas/nueva" onClick={preserveDraft}>
@@ -659,11 +807,11 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                         (item) => item.id === line.configurationId,
                       );
                       const allowed = config ? salePresentations(config) : [];
-                      const stock = availability.data?.items.find(
-                        (item) =>
-                          item.configurationId === line.configurationId &&
-                          item.presentation === line.presentation,
-                      );
+                      const stock = preview.fresh
+                        ? preview.result?.lines.find((item) => item.lineKey === stockKey(line.key))
+                        : undefined;
+                      const quantity = saleQuantity(line.quantity);
+                      const quantityEnabled = !!config && !!line.presentation;
                       const issue = stockIssue(line);
                       return (
                         <section
@@ -700,9 +848,16 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                                 }
                               >
                                 <option value="">Selecciona un producto</option>
-                                {configurations.map((item) => (
-                                  <option key={item.id} value={item.id}>
+                                {catalogConfigurations.map((item) => (
+                                  <option
+                                    key={item.id}
+                                    value={item.id}
+                                    disabled={item.confirmationStatus !== 'confirmed'}
+                                  >
                                     {productLabel(item)}
+                                    {item.confirmationStatus !== 'confirmed'
+                                      ? ' · Empaque pendiente'
+                                      : ''}
                                   </option>
                                 ))}
                               </NativeSelect>
@@ -748,7 +903,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                                   type="button"
                                   variant="outline"
                                   aria-label={'Reducir cantidad del producto ' + (index + 1)}
-                                  disabled={Number(line.quantity) <= 1}
+                                  disabled={!quantityEnabled || quantity === null || quantity <= 1}
                                   onClick={() =>
                                     update(line.key, {
                                       quantity: String(
@@ -762,14 +917,13 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                                 <Input
                                   id={'sale-quantity-' + line.key}
                                   required
-                                  type="number"
+                                  type="text"
                                   inputMode="numeric"
-                                  min={1}
-                                  max={1000}
-                                  step={1}
+                                  pattern="[0-9]+"
+                                  disabled={!quantityEnabled}
                                   value={line.quantity}
                                   aria-invalid={!!issue}
-                                  aria-describedby={issue ? 'stock-' + line.key : undefined}
+                                  aria-describedby={'stock-' + line.key}
                                   onChange={(event) =>
                                     update(line.key, { quantity: event.target.value })
                                   }
@@ -779,8 +933,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                                   variant="outline"
                                   aria-label={'Aumentar cantidad del producto ' + (index + 1)}
                                   disabled={
-                                    Number(line.quantity) >= 1000 ||
-                                    (!!stock && Number(line.quantity) >= stock.availableQuantity)
+                                    !quantityEnabled ||
+                                    quantity === null ||
+                                    !preview.fresh ||
+                                    stock?.maxQuantity == null ||
+                                    quantity >= stock.maxQuantity ||
+                                    quantity >= 1000
                                   }
                                   onClick={() =>
                                     update(line.key, {
@@ -811,9 +969,39 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                               <strong>{displayMoney(saleLineTotal(line).toFixed(2))}</strong>
                             </div>
                           </FieldGroup>
-                          {issue ? (
-                            <p id={'stock-' + line.key} className={styles.error}>
-                              {issue}{' '}
+                          <div
+                            id={'stock-' + line.key}
+                            className={styles.stockHelp}
+                            aria-live="polite"
+                            aria-atomic="true"
+                          >
+                            {issue ? <p className={styles.error}>{issue}</p> : null}
+                            <p className={styles.lineHelp}>
+                              {!line.configurationId
+                                ? 'Elige el producto para consultar sus existencias.'
+                                : !line.presentation
+                                  ? 'Elige la presentación para consultar sus existencias e indicar la cantidad.'
+                                  : stock?.maxQuantity != null
+                                    ? `Disponible para esta venta: ${stock.maxQuantity} ${line.presentation === 'box' && config?.commercialUnitLabel ? config.commercialUnitLabel : presentationNames[line.presentation].toLocaleLowerCase('es')}. Considera las otras líneas.`
+                                    : preview.loading
+                                      ? 'Comprobando esta combinación de productos…'
+                                      : 'Revisa las líneas de la venta para comprobar la disponibilidad conjunta.'}
+                            </p>
+                            {stock?.maxQuantity != null &&
+                            stock.maxQuantity > 0 &&
+                            quantity !== null &&
+                            quantity > stock.maxQuantity ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                  update(line.key, { quantity: String(stock.maxQuantity) })
+                                }
+                              >
+                                Usar máximo disponible ({stock.maxQuantity})
+                              </Button>
+                            ) : null}
+                            {stock?.issueCode === 'stock_insufficient' ? (
                               <Link
                                 href={
                                   '/recepciones?producto=' +
@@ -824,17 +1012,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                               >
                                 Registrar recepción
                               </Link>
-                            </p>
-                          ) : stock ? (
-                            <p className={styles.lineHelp}>
-                              Disponibles: {stock.availableQuantity}{' '}
-                              {line.presentation &&
-                                (line.presentation === 'box' && config?.commercialUnitLabel
-                                  ? config.commercialUnitLabel
-                                  : presentationNames[line.presentation].toLocaleLowerCase('es'))}
-                              . Se comprueban de nuevo al confirmar.
-                            </p>
-                          ) : null}
+                            ) : null}
+                          </div>
                         </section>
                       );
                     })}
@@ -850,6 +1029,18 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                       <Plus aria-hidden="true" />
                       Agregar producto
                     </Button>
+                    {pendingConfigurations.length ? (
+                      <p className={styles.lineHelp}>
+                        Empaque pendiente: {pendingConfigurations.length}{' '}
+                        {pendingConfigurations.length === 1
+                          ? 'producto requiere'
+                          : 'productos requieren'}{' '}
+                        confirmar sus presentaciones antes de vender.{' '}
+                        <Link href="/catalogo?returnTo=/ventas/nueva" onClick={preserveDraft}>
+                          Revisar empaques en catálogo
+                        </Link>
+                      </p>
+                    ) : null}
                     <Field className={styles.agreement}>
                       <FieldLabel htmlFor="sale-basis">Acuerdo de cobro</FieldLabel>
                       <NativeSelect
@@ -929,7 +1120,11 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               {quantityText ? <p className={styles.muted}>{quantityText}</p> : null}
               <fieldset
                 disabled={
-                  command.busy || !command.ready || !!command.storageError || !!command.pending
+                  command.busy ||
+                  checkingStock ||
+                  !command.ready ||
+                  !!command.storageError ||
+                  !!command.pending
                 }
                 className={styles.payment}
               >
@@ -1082,9 +1277,68 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                 </dl>
               ) : null}
               <FormError message={command.storageError || (!review ? command.error : '')} />
-              <SaveButton busy={command.busy}>
-                {condition === 'cash' ? 'Revisar y cobrar' : 'Revisar y registrar crédito'}
-              </SaveButton>
+              <div className={styles.stockSummary} role="status">
+                {quantityTotal > 1000 ? (
+                  <p className={styles.error}>
+                    La venta admite hasta 1.000 unidades entre todas las líneas.
+                  </p>
+                ) : null}
+                {preview.result?.issues
+                  .filter((issue) => issue.lineKey === null)
+                  .map((issue) => (
+                    <p key={issue.issueCode} className={styles.error}>
+                      {issue.message}
+                    </p>
+                  ))}
+                <p className={styles.muted}>
+                  {!cartComplete
+                    ? 'Completa producto, presentación y cantidad para comprobar existencias.'
+                    : preview.loading || checkingStock
+                      ? 'Comprobando existencias…'
+                      : preview.fresh && preview.result?.valid
+                        ? 'Existencias comprobadas para esta combinación. No se reservan hasta guardar.'
+                        : 'Revisa las cantidades o actualiza las existencias antes de continuar.'}
+                </p>
+                {preview.fresh && preview.result ? (
+                  <p className={styles.muted}>
+                    Consultado:{' '}
+                    {new Intl.DateTimeFormat('es-VE', {
+                      dateStyle: 'short',
+                      timeStyle: 'medium',
+                      timeZone: 'America/Caracas',
+                    }).format(new Date(preview.result.checkedAt))}{' '}
+                    · Venezuela.
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!cartComplete || checkingStock || preview.loading || !!command.pending}
+                onClick={() => void preview.check()}
+              >
+                Actualizar existencias
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  command.busy ||
+                  checkingStock ||
+                  !command.ready ||
+                  !!command.storageError ||
+                  !!command.pending ||
+                  !stockValid ||
+                  !pricesComplete ||
+                  !clientId ||
+                  !basis
+                }
+              >
+                {checkingStock
+                  ? 'Comprobando existencias…'
+                  : condition === 'cash'
+                    ? 'Revisar y cobrar'
+                    : 'Revisar y registrar crédito'}
+              </Button>
               <details className={styles.optional}>
                 <summary>
                   Monedas y tasas
@@ -1117,7 +1371,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         <Dialog
           open={!!review}
           onOpenChange={(open) => {
-            if (!open && !command.busy && !reviewAttempted) setReview(null);
+            if (!open && !command.busy && !checkingStock && !reviewAttempted) setReview(null);
           }}
         >
           <DialogContent className="catalog-dialog">
@@ -1238,6 +1492,31 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     sus datos.
                   </p>
                 ) : null}
+                {!reviewAttempted && !command.pending ? (
+                  <div role="status" className={styles.stockSummary}>
+                    <p>
+                      {preview.loading || checkingStock
+                        ? 'Comprobando existencias…'
+                        : preview.fresh && preview.result?.valid
+                          ? 'Esta consulta no reserva mercancía. Comprobaremos de nuevo al guardar.'
+                          : 'Las existencias requieren otra revisión. Conservamos todos los datos de la venta.'}
+                    </p>
+                    {preview.result?.issues.map((issue, index) => (
+                      <p key={index} className={styles.error}>
+                        {issue.message}
+                      </p>
+                    ))}
+                    {preview.error ? <p className={styles.error}>{preview.error}</p> : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={checkingStock || preview.loading}
+                      onClick={() => void preview.check()}
+                    >
+                      Actualizar existencias
+                    </Button>
+                  </div>
+                ) : null}
                 <FormError message={command.storageError || command.error} />
                 {command.authNeeded ? (
                   <Link href="/login">Iniciar sesión para recuperar esta venta</Link>
@@ -1246,16 +1525,28 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={command.busy || reviewAttempted}
+                    disabled={command.busy || checkingStock || reviewAttempted}
                     onClick={() => setReview(null)}
                   >
                     Volver a editar
                   </Button>
                   <Button
                     type="submit"
-                    disabled={command.busy || !command.ready || !!command.storageError}
+                    disabled={
+                      command.busy ||
+                      checkingStock ||
+                      !command.ready ||
+                      !!command.storageError ||
+                      (!reviewAttempted &&
+                        !command.pending &&
+                        (!preview.fresh || !preview.result?.valid))
+                    }
                   >
-                    {command.busy ? 'Guardando…' : 'Confirmar venta'}
+                    {command.busy
+                      ? 'Guardando…'
+                      : checkingStock
+                        ? 'Comprobando existencias…'
+                        : 'Confirmar venta'}
                   </Button>
                 </div>
               </form>

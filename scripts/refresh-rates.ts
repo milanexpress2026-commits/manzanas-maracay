@@ -4,12 +4,17 @@ import https from 'node:https';
 import tls from 'node:tls';
 import path from 'node:path';
 import { createHash, X509Certificate } from 'node:crypto';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import {
   BCV_SOURCE_URL,
   USDT_SOURCE_URL,
   parseBcvSource,
   parseUsdtSource,
+  planBcvContinuity,
+  isOriginalBcvObservation,
+  readBcvContinuityMetadata,
+  validateBcvContinuity,
+  type BcvObservation,
   type CollectedRate,
 } from '../packages/domain/src/rate-sources';
 
@@ -51,6 +56,7 @@ export function fetchRateSource(url: string): Promise<string> {
           !Number.isFinite(headerDate) ||
           Math.abs(received - headerDate) > 5 * 60 * 1000 ||
           !Number.isFinite(age) ||
+          age < 0 ||
           age > 300
         ) {
           response.resume();
@@ -74,6 +80,120 @@ export function fetchRateSource(url: string): Promise<string> {
     req.on('timeout', () => req.destroy(new Error('La fuente no respondió a tiempo.')));
     req.on('error', reject);
   });
+}
+
+/** Caller holds transaction advisory lock 68493019 and has just verified the live TLS source. */
+export async function storeBcvObservation(
+  client: Pick<PoolClient, 'query'>,
+  rate: CollectedRate,
+  hash: string,
+  fetchedAt: Date,
+  verifiedAt: Date,
+) {
+  if (rate.source !== 'BCV' || rate.sourceUrl !== BCV_SOURCE_URL || !/^[a-f0-9]{64}$/.test(hash))
+    throw new Error('Observación BCV inesperada.');
+  const existing = (
+    await client.query<BcvObservation>(
+      `select * from bcv_rates where valid_from=$1 or (valid_from<$2 and valid_until>$1)
+     order by valid_from,id limit 2`,
+      [rate.validFrom, rate.validUntil],
+    )
+  ).rows;
+  let next: BcvObservation;
+  if (existing.length) {
+    if (
+      existing.length !== 1 ||
+      !isOriginalBcvObservation(existing[0]!, verifiedAt) ||
+      existing[0]!.rate !== rate.rate ||
+      existing[0]!.valid_from.getTime() !== rate.validFrom.getTime() ||
+      existing[0]!.valid_until.getTime() !== rate.validUntil.getTime()
+    )
+      throw new Error('Hay una corrección o ambigüedad en BCV; requiere revisar la evidencia.');
+    next = existing[0]!;
+  } else {
+    next = (
+      await client.query<BcvObservation>(
+        `insert into bcv_rates(rate,source,source_url,source_hash,valid_from,valid_until,fetched_at,verified_at,verified_by)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
+        [
+          rate.rate,
+          'BCV',
+          rate.sourceUrl,
+          hash,
+          rate.validFrom,
+          rate.validUntil,
+          fetchedAt,
+          verifiedAt,
+          'automatic-strict-tls-v1',
+        ],
+      )
+    ).rows[0]!;
+  }
+  const result = {
+    status: existing.length ? 'unchanged' : 'verified',
+    rate: rate.rate,
+    validFrom: rate.validFrom,
+    validUntil: rate.validUntil,
+    sourceHash: next.source_hash,
+    continuityInserted: false,
+  };
+  if (rate.validFrom <= verifiedAt) return result;
+  const previousRows = (
+    await client.query<BcvObservation>(
+      `select * from bcv_rates
+     where valid_from=(select max(valid_from) from bcv_rates where valid_from <= $1)
+        or (valid_from <= $1 and valid_until > $1)
+     order by valid_from desc,id limit 3`,
+      [verifiedAt],
+    )
+  ).rows;
+  if (!previousRows.length) return result; // A fresh future quote cannot invent a cold-start past value.
+  if (previousRows.length !== 1) throw new Error('La última tasa oficial es ambigua.');
+  const previous = previousRows[0]!;
+  if (previous.valid_until > verifiedAt) {
+    const metadata = readBcvContinuityMetadata(previous.verified_by);
+    const parents = metadata
+      ? (
+          await client.query<BcvObservation>(
+            'select * from bcv_rates where id=any($1::uuid[]) order by id limit 3',
+            [[metadata.parentId, metadata.nextId]],
+          )
+        ).rows
+      : [];
+    if (
+      !(metadata
+        ? validateBcvContinuity(previous, parents)
+        : isOriginalBcvObservation(previous, verifiedAt))
+    )
+      throw new Error('La observación actual no conserva evidencia oficial válida.');
+    return result; // Includes the manually verified 6→9 bootstrap; never duplicate an active interval.
+  }
+  const continuation = planBcvContinuity(previous, next, rate, fetchedAt, verifiedAt);
+  if (!continuation) return result;
+  const overlaps = (
+    await client.query<BcvObservation>(
+      `select * from bcv_rates where (valid_from<$2 and valid_until>$1)
+       or (source_hash=$3 and valid_from=$1) order by valid_from,id limit 2`,
+      [continuation.valid_from, continuation.valid_until, continuation.source_hash],
+    )
+  ).rows;
+  if (overlaps.length) throw new Error('La continuidad BCV se solapa con otra observación.');
+  await client.query(
+    `insert into bcv_rates(rate,source,source_url,source_hash,valid_from,valid_until,fetched_at,verified_at,verified_by)
+     values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [
+      continuation.rate,
+      continuation.source,
+      continuation.source_url,
+      continuation.source_hash,
+      continuation.valid_from,
+      continuation.valid_until,
+      continuation.fetched_at,
+      continuation.verified_at,
+      continuation.verified_by,
+    ],
+  );
+  return { ...result, continuityInserted: true };
 }
 
 export async function collectRates(pool: Pool, environment: 'staging' | 'production') {
@@ -109,28 +229,13 @@ export async function collectRates(pool: Pool, environment: 'staging' | 'product
         await client.query("set local statement_timeout='5s'");
         await client.query('select pg_advisory_xact_lock(68493019)');
         if (name === 'BCV') {
-          const existing = (
-            await client.query('select rate::text,valid_until from bcv_rates where valid_from=$1', [
-              rate.validFrom,
-            ])
-          ).rows;
-          if (existing.length) {
-            if (
-              existing.length !== 1 ||
-              existing[0].rate !== rate.rate ||
-              new Date(existing[0].valid_until).getTime() !== rate.validUntil.getTime()
-            )
-              throw new Error(
-                'Hay una corrección o ambigüedad en BCV; requiere revisar la evidencia.',
-              );
-            await client.query('commit');
-            results[name] = { status: 'unchanged', rate: rate.rate, validUntil: rate.validUntil };
-            continue;
-          }
+          const result = await storeBcvObservation(client, rate, hash, fetchedAt, verifiedAt);
+          await client.query('commit');
+          results[name] = result;
+          continue;
         }
-        const table = name === 'BCV' ? 'bcv_rates' : 'usdt_rates';
         await client.query(
-          `insert into ${table}(rate,source,source_url,source_hash,valid_from,valid_until,fetched_at,verified_at,verified_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          `insert into usdt_rates(rate,source,source_url,source_hash,valid_from,valid_until,fetched_at,verified_at,verified_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
           [
             rate.rate,
             rate.source,

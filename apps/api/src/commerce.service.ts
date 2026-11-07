@@ -611,6 +611,7 @@ export class CommerceService implements OnModuleDestroy {
         key!,
         hash,
         isDemo,
+        data.soldAt,
       );
       if (
         (

@@ -206,6 +206,31 @@
   color: var(--muted-foreground);
   font-size: 13px;
 }
+.stockHelp,
+.stockSummary {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.stockHelp {
+  margin-top: 8px;
+}
+.stockHelp p,
+.stockSummary p {
+  margin: 0;
+}
+.stockHelp > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.stockHelp > button {
+  justify-self: start;
+}
 .lineHelp a,
 .error a,
 .optional a {

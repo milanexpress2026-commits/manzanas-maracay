@@ -11,6 +11,179 @@ export type CollectedRate = {
   validUntil: Date;
 };
 
+export type BcvObservation = {
+  id: string;
+  rate: string;
+  source: string;
+  source_url: string;
+  source_hash: string;
+  valid_from: Date;
+  valid_until: Date;
+  fetched_at: Date;
+  verified_at: Date;
+  verified_by: string;
+};
+const DAY = 86400000;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const BCV_CONTINUITY_PREFIX = 'bcv-continuity-v1:';
+export type BcvContinuityMetadata = {
+  policy: 'last_official_until_next_value_date_v1';
+  originalValueDate: string;
+  parentId: string;
+  nextId: string;
+};
+
+function officialDay(value: Date) {
+  if (!(value instanceof Date) || !Number.isFinite(value.getTime())) return null;
+  const day = value.toISOString().slice(0, 10);
+  return value.getTime() === new Date(`${day}T00:00:00-04:00`).getTime() ? day : null;
+}
+
+/** Canonical metadata rejects duplicate/extra keys and malformed dates or identities. */
+export function readBcvContinuityMetadata(value: string): BcvContinuityMetadata | null {
+  if (!value.startsWith(BCV_CONTINUITY_PREFIX)) return null;
+  try {
+    const raw = value.slice(BCV_CONTINUITY_PREFIX.length);
+    const parsed = JSON.parse(raw) as BcvContinuityMetadata;
+    const metadata: BcvContinuityMetadata = {
+      policy: parsed.policy,
+      originalValueDate: parsed.originalValueDate,
+      parentId: parsed.parentId,
+      nextId: parsed.nextId,
+    };
+    if (
+      raw !== JSON.stringify(metadata) ||
+      metadata.policy !== 'last_official_until_next_value_date_v1' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(metadata.originalValueDate) ||
+      officialDay(new Date(`${metadata.originalValueDate}T00:00:00-04:00`)) !==
+        metadata.originalValueDate ||
+      !UUID.test(metadata.parentId) ||
+      !UUID.test(metadata.nextId) ||
+      metadata.parentId === metadata.nextId
+    )
+      return null;
+    return metadata;
+  } catch {
+    return null;
+  }
+}
+
+export function isOriginalBcvObservation(row: BcvObservation, at: Date): boolean {
+  try {
+    const url = new URL(row.source_url);
+    return (
+      row.source === 'BCV' &&
+      UUID.test(row.id) &&
+      url.protocol === 'https:' &&
+      ['bcv.org.ve', 'www.bcv.org.ve'].includes(url.hostname) &&
+      !url.port &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      /^[a-f0-9]{64}$/.test(row.source_hash) &&
+      exactRate(row.rate) === row.rate &&
+      [
+        'automatic-strict-tls-v1',
+        'policy_explicit_user_last_official_until_next_value_date_v1',
+      ].includes(row.verified_by) &&
+      !!officialDay(row.valid_from) &&
+      !!officialDay(row.valid_until) &&
+      row.valid_until > row.valid_from &&
+      row.valid_until.getTime() - row.valid_from.getTime() <= 4 * DAY &&
+      [row.fetched_at, row.verified_at, at].every(
+        (date) => date instanceof Date && Number.isFinite(date.getTime()),
+      ) &&
+      row.fetched_at <= row.verified_at &&
+      row.verified_at <= at
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Application policy requested by the owner, not a BCV calendar/expiry rule. */
+export function planBcvContinuity(
+  previous: BcvObservation,
+  next: BcvObservation,
+  fresh: CollectedRate,
+  fetchedAt: Date,
+  verifiedAt: Date,
+): Omit<BcvObservation, 'id'> | null {
+  if (previous.valid_until > verifiedAt) return null;
+  if (
+    !isOriginalBcvObservation(previous, verifiedAt) ||
+    !isOriginalBcvObservation(next, verifiedAt) ||
+    previous.id === next.id ||
+    !(fetchedAt instanceof Date) ||
+    !Number.isFinite(fetchedAt.getTime()) ||
+    fetchedAt > verifiedAt ||
+    verifiedAt.getTime() - fetchedAt.getTime() > 5 * 60 * 1000 ||
+    fresh.source !== 'BCV' ||
+    fresh.sourceUrl !== BCV_SOURCE_URL ||
+    fresh.rate !== next.rate ||
+    fresh.validFrom.getTime() !== next.valid_from.getTime() ||
+    fresh.validUntil.getTime() !== next.valid_until.getTime() ||
+    next.valid_from <= verifiedAt ||
+    previous.valid_from > verifiedAt ||
+    next.valid_from <= previous.valid_until ||
+    next.valid_from.getTime() - previous.valid_from.getTime() > 4 * DAY
+  )
+    throw new Error('No hay evidencia oficial inequívoca para continuar la última tasa.');
+  const metadata: BcvContinuityMetadata = {
+    policy: 'last_official_until_next_value_date_v1',
+    originalValueDate: officialDay(previous.valid_from)!,
+    parentId: previous.id,
+    nextId: next.id,
+  };
+  return {
+    rate: previous.rate,
+    source: 'BCV',
+    source_url: previous.source_url,
+    source_hash: previous.source_hash,
+    valid_from: new Date(previous.valid_until),
+    valid_until: new Date(next.valid_from),
+    fetched_at: new Date(previous.fetched_at),
+    verified_at: new Date(verifiedAt),
+    verified_by: BCV_CONTINUITY_PREFIX + JSON.stringify(metadata),
+  };
+}
+
+/** Readers recheck both immutable parents; a well-formed JSON string alone is insufficient. */
+export function validateBcvContinuity(
+  row: BcvObservation,
+  parents: readonly BcvObservation[],
+): string | null {
+  const metadata = readBcvContinuityMetadata(row.verified_by);
+  if (!metadata || parents.length !== 2 || !UUID.test(row.id)) return null;
+  const previous = parents.find((parent) => parent.id === metadata.parentId);
+  const next = parents.find((parent) => parent.id === metadata.nextId);
+  if (!previous || !next || [previous.id, next.id].includes(row.id)) return null;
+  try {
+    const expected = planBcvContinuity(
+      previous,
+      next,
+      {
+        rate: next.rate,
+        source: 'BCV',
+        sourceUrl: BCV_SOURCE_URL,
+        validFrom: next.valid_from,
+        validUntil: next.valid_until,
+      },
+      row.verified_at,
+      row.verified_at,
+    );
+    if (!expected || metadata.originalValueDate !== officialDay(previous.valid_from)) return null;
+    for (const key of ['rate', 'source', 'source_url', 'source_hash', 'verified_by'] as const)
+      if (row[key] !== expected[key]) return null;
+    for (const key of ['valid_from', 'valid_until', 'fetched_at', 'verified_at'] as const)
+      if (row[key].getTime() !== expected[key].getTime()) return null;
+    return metadata.originalValueDate;
+  } catch {
+    return null;
+  }
+}
+
 function exactRate(value: string) {
   if (!/^\d{1,12}(?:\.\d{1,8})?$/.test(value)) throw new Error('Formato de tasa no reconocido.');
   const rate = new Decimal(value);

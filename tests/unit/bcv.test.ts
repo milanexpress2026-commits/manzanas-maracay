@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   readOfficialRate,
   selectOfficialRate,
+  selectLastOfficialRate,
   type OfficialRateCacheRow,
 } from '../../apps/api/src/bcv-rate';
 import { paymentVesToUsd } from '../../packages/domain/src/index';
@@ -100,5 +101,55 @@ describe('caché BCV oficial con cierre seguro', () => {
     expect(paymentVesToUsd('1234.56', rate, at)).toBe('24.69');
     expect(paymentVesToUsd('1234.56', later, at)).toBe('20.58');
     expect(() => paymentVesToUsd('100', rate, rate.validUntil)).toThrow();
+  });
+
+  it('permite mostrar una oficial histórica sin convertirla en una tasa de pago', () => {
+    const after = new Date('2026-11-07T18:00:00Z');
+    const row = fixture();
+    const reference = selectLastOfficialRate([row], after);
+    expect(reference).toMatchObject({
+      usage: 'display_only',
+      rate: row.rate,
+      sourceHash: row.source_hash,
+      validFrom: row.valid_from,
+      verifiedAt: row.verified_at,
+    });
+    expect(reference).not.toHaveProperty('id');
+    expect(selectOfficialRate([row], after)).toBeNull();
+    expect(() => paymentVesToUsd('100', reference!, after)).toThrow();
+    expect(reference?.validFrom).not.toBe(row.valid_from);
+  });
+
+  it('la referencia histórica también rechaza futura, vacía o ambigua', () => {
+    const future = {
+      ...fixture(),
+      valid_from: new Date('2026-11-09T04:00:00Z'),
+      valid_until: new Date('2026-11-10T04:00:00Z'),
+    };
+    const after = new Date('2026-11-07T18:00:00Z');
+    expect(selectLastOfficialRate([future], after)).toBeNull();
+    expect(selectLastOfficialRate([], after)).toBeNull();
+    expect(selectLastOfficialRate([fixture(), fixture()], after)).toBeNull();
+    expect(
+      selectLastOfficialRate([fixture(), { ...fixture(), rate: '51.00000000' }], after),
+    ).toBeNull();
+    expect(selectLastOfficialRate([fixture()], new Date('invalid'))).toBeNull();
+  });
+
+  it.each([
+    { source: 'OTHER' },
+    { source_url: 'https://bcv.org.ve.evil.example/' },
+    { source_url: 'https://user:pass@bcv.org.ve/' },
+    { source_hash: 'not-a-hash' },
+    { rate: 'NaN' },
+    { rate: '0' },
+    { verified_by: '' },
+    { verified_at: new Date('2026-11-08T04:00:00Z') },
+    { fetched_at: new Date('2026-11-04T04:00:00Z') },
+    { valid_until: new Date('2026-11-04T04:00:00Z') },
+  ])('no presenta como oficial una referencia inválida %#', (change) => {
+    expect(
+      selectLastOfficialRate([{ ...fixture(), ...change }], new Date('2026-11-07T18:00:00Z')),
+    ).toBeNull();
   });
 });
