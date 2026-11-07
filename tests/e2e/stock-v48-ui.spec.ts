@@ -6,6 +6,7 @@ import type {
   ClientSummary,
   SaleDetail,
   SalePreviewResult,
+  Catalog,
 } from '../../packages/domain/src/index';
 import { loginPage } from './helpers/auth';
 import { commercialCustomer, commercePost } from './helpers/commerce';
@@ -174,7 +175,7 @@ test('V4.8 T13: stock cambia de 9 a 2 mientras se revisa; primera confirmación 
     other = await commercialCustomer(page.request);
   await receiveUnknown(page.request, product, 9);
   await openSale(page, client, product);
-  await row(page).getByLabel('Cantidad', { exact: true }).fill('4');
+  await row(page).getByLabel('Cantidad', { exact: true }).fill('9');
   await reviewButton(page).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('button', { name: 'Confirmar venta', exact: true })).toBeEnabled();
@@ -189,7 +190,7 @@ test('V4.8 T13: stock cambia de 9 a 2 mientras se revisa; primera confirmación 
     'Las existencias cambiaron',
   );
   await expect(row(page)).toContainText('Disponible para esta venta: 2');
-  await expect(row(page).getByLabel('Cantidad', { exact: true })).toHaveValue('4');
+  await expect(row(page).getByLabel('Cantidad', { exact: true })).toHaveValue('9');
   await expect(row(page).getByLabel('Precio por unidad (USD)', { exact: true })).toHaveValue('40');
   await expect(page.getByLabel('Cliente', { exact: true })).toHaveValue(client.id);
   expect(posts).toBe(0);
@@ -205,7 +206,7 @@ test('V4.8 T13: stock cambia de 9 a 2 mientras se revisa; primera confirmación 
   expect(posts).toBe(1);
 });
 
-for (const width of [390, 800])
+for (const width of [390, 800, 1024, 1440])
   test(`V4.8 T14/T15 ${width}px: presentación obligatoria, cantidad estricta y cero existencias accesibles`, async ({
     page,
   }) => {
@@ -216,8 +217,14 @@ for (const width of [390, 800])
     const product = await unpricedProduct(page.request, 'halves'),
       empty = await unpricedProduct(page.request),
       client = await commercialCustomer(page.request);
+    // The create response is a packing rule; joined product identities come from the catalogue.
+    const catalogResponse = await page.request.get('/api/catalog');
+    expect(catalogResponse.status()).toBe(200);
+    const catalog: Catalog = await catalogResponse.json();
+    const catalogueProduct = catalog.configurations.find((item) => item.id === product.id);
+    expect(catalogueProduct).toBeDefined();
     const pending = await commercePost<Configuration>(page.request, '/api/catalog/configurations', {
-      fruitId: product.fruitId,
+      fruitId: catalogueProduct!.fruitId,
       commercialLine: 'Empaque sin confirmar QA',
       packingModel: 'whole',
       halfPreparation: 'none',

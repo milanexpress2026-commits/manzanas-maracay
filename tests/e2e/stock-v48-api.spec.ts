@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { catalogNameKey } from '../../packages/domain/src/index';
 import type {
   Configuration,
   ReceiptResult,
@@ -192,6 +193,14 @@ test('V4.8 T01–04 disponibilidad 5+4, rechazo 10 y FIFO 9; cuota 6+3 y residua
     valid: false,
     lines: [{ maxQuantity: 3 }],
   });
+  const beforeResidualRejection = await fingerprint();
+  const rejectedFour = await request.post('/api/sales', {
+    headers: commerceHeaders(),
+    data: saleBody(client, residualRule, cart(previewLine(residualRule, 4))),
+  });
+  expect(rejectedFour.status(), await rejectedFour.text()).toBe(409);
+  expect(await rejectedFour.json()).toMatchObject({ commandOutcome: 'rejected' });
+  expect(await fingerprint()).toEqual(beforeResidualRejection);
   await commercePost(
     request,
     '/api/sales',
@@ -344,7 +353,7 @@ test('V4.8 T05 identidad exacta separa Gala tradicional y tres graneles con PC',
       }),
     );
   const calibers = [];
-  for (const label of ['80', 'PC'])
+  for (const label of ['150', 'PC'])
     calibers.push(
       await commercePost<{ id: string }>(request, '/api/catalog/calibers', {
         fruitId: fruit.id,
@@ -357,17 +366,18 @@ test('V4.8 T05 identidad exacta separa Gala tradicional y tres graneles con PC',
     const rule = await commercePost<Configuration>(request, '/api/catalog/configurations', {
       fruitId: fruit.id,
       varietyId: varieties[traditional ? 0 : i - 1]!.id,
-      caliberId: calibers[traditional ? 0 : 1]!.id,
+      caliberId: calibers[i <= 1 ? 0 : 1]!.id,
       commercialLine: traditional ? 'Tradicional' : 'A granel',
       packingModel: traditional ? 'blister' : 'halves',
       halfPreparation: traditional ? 'counted' : 'commercial',
       allowedPresentations: traditional ? ['box', 'blister'] : ['box', 'half_box'],
-      blistersPerBox: traditional ? 4 : null,
+      blistersPerBox: traditional ? 5 : null,
       confirmationStatus: 'confirmed',
     });
     rules.push(rule);
     await receiveUnknown(request, rule, i + 2);
   }
+  expect(rules[0]!.variantId).not.toBe(rules[1]!.variantId);
   const before = await fingerprint();
   const result = await preview(request, cart(...rules.map((rule) => previewLine(rule, 1))));
   expect(result.valid).toBe(true);
@@ -545,14 +555,16 @@ test('V4.8 T20 preview de 50 líneas/200 cajas es solo lectura y coincide con co
   expect(result.valid).toBe(true);
   expect(result.lines.every((l) => l.maxQuantity === 4)).toBe(true);
   expect(await fingerprint()).toEqual(before);
+  const previewPerformance = JSON.stringify({
+    lines: 50,
+    boxes: 200,
+    receipts: 4,
+    elapsedMs: Math.round(elapsed),
+    readonly: true,
+  });
+  console.info('V48_PREVIEW_PERFORMANCE ' + previewPerformance);
   await testInfo.attach('preview-performance', {
-    body: JSON.stringify({
-      lines: 50,
-      boxes: 200,
-      receipts: 4,
-      elapsedMs: Math.round(elapsed),
-      readonly: true,
-    }),
+    body: previewPerformance,
     contentType: 'application/json',
   });
   expect(elapsed).toBeLessThan(15000);
@@ -574,6 +586,7 @@ test('V4.8 T07/T08 opciones reales: manzana 100/113 y pera Forelle/Packham 125/1
 }) => {
   test.setTimeout(90000);
   const options: HabitualCatalogOptions = await (await request.get('/api/catalog/options')).json();
+  expect(options.templateVersion).toBe('v4.5');
   const selections = [
     ['apple_traditional', 'Gala', '100', 4],
     ['apple_traditional', 'Gala', '113', 5],
@@ -586,7 +599,7 @@ test('V4.8 T07/T08 opciones reales: manzana 100/113 y pera Forelle/Packham 125/1
     const option = options.options.find(
       (row) =>
         row.templateId === templateId &&
-        row.varietyName === varietyName &&
+        catalogNameKey(row.varietyName ?? '') === catalogNameKey(varietyName) &&
         row.caliberLabel === caliberLabel,
     );
     expect(option, `${templateId} ${varietyName} ${caliberLabel}`).toBeDefined();
