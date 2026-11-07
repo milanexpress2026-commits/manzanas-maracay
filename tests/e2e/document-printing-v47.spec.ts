@@ -22,6 +22,7 @@ async function confirmedSale(page: Page, throughForm = false) {
     await chooseSaleClient(page, client);
     await page.getByLabel('Producto', { exact: true }).selectOption(rule.id);
     await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
+    await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
     await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
     await page
       .getByRole('dialog')

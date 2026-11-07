@@ -1,17 +1,20 @@
 # Auditoría de beta V4.7
 
-Estado al 6 de noviembre de 2026: **APTA SOLO PARA PRUEBAS**. Hay correcciones implementadas y pruebas dirigidas aprobadas; la ejecución integrada de V4.7 en Linux, su staging y la publicación autorizada todavía están pendientes. Esta conclusión describe el candidato V4.7, no sustituye la operación anterior actualmente publicada.
+Estado al 6 de noviembre de 2026: **APTA SOLO PARA PRUEBAS**. La primera ejecución Linux de V4.7 aprobó check y 14 de 15 casos dirigidos; el cierre integrado del candidato corregido, su staging y la publicación autorizada siguen pendientes. Esta conclusión describe V4.7, no sustituye la operación anterior actualmente publicada.
 
-El alcance procede del [brief V4.7](referencias/brief-cierre-beta-v4-7.txt). Se continúa desde `566ff95fb37625766f73d075cdb0b4fdc3e55173` en `feature/cierre-beta-v4-7`. El SHA final de esta ampliación todavía no está fijado en esta evidencia: las pruebas dirigidas corresponden al árbol de trabajo modificado. No se afirma que un commit anterior valide estos cambios.
+El alcance procede del [brief V4.7](referencias/brief-cierre-beta-v4-7.txt). Se continúa desde `566ff95fb37625766f73d075cdb0b4fdc3e55173` en `feature/cierre-beta-v4-7`. La primera QA corresponde a `9a666214d186f62b73e07947a1dee1eee0535adc`. El candidato posterior incorporará el parche SEC-03 y la corrección de fixture descritos abajo; su SHA final y ejecución están pendientes. No se atribuye a ese candidato el PASS de una fuente anterior.
 
 ## Evidencia y separación de entornos
 
 - Baseline V4.5: runtime `817a2783da7c4405e9c9609335adfe239a88e3ef`, pruebas ajustadas en `998cceb478b525ceecda5e24ff53e86ce2c7105e`, aplicación y migraciones idénticas entre ambos. Pasaron 286 unitarias, tipos/builds, 115 casos E2E distintos entre varias ejecuciones y 13/13 de producción aislada. **No hubo una única ejecución de 115 aprobados.** Véanse [matriz V4.5](matriz-aceptacion-v4-5.md) y [verificación V4.5](verificacion-v4-5.json).
 - Estado remoto previamente comprobado: staging V4.5 `817a278`, 16 migraciones y 16 comprobaciones de acceso aprobadas; producción `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0`, 13 migraciones. La auditoría V4.7 no actualizó ninguno de esos entornos.
-- Recuperación durable V4.7: **35/35 unitarias PASS** en `commercial-journal.test.ts` y `command-rejection.test.ts`; typecheck general y web PASS. Son pruebas sin PostgreSQL ni servidores. El Node local observado es `v24.19.0`; esto no acredita todavía la ejecución del candidato con el Node parcheado.
+- Recuperación durable V4.7: **37/37 unitarias PASS** en `commercial-journal.test.ts` y `command-rejection.test.ts`, incluidas las dos regresiones SEC-03 que fallaron antes del parche. Typecheck web y del E2E ampliado PASS; el check integrado del parche sigue pendiente. Estas unidades no usan PostgreSQL ni servidores; el Node local observado es `v24.19.0` y no se confunde con el runtime Linux de la QA integrada.
 - Documentos V4.7: **15/15 unitarias de PDF PASS** y **15/15 unitarias de entrega web PASS**. Hay 12 PDF sintéticos y 37 páginas renderizadas con extracción y comprobaciones geométricas. La [revisión visual](capturas/impresion-v4-7/revision-visual.json) acredita inspección en pantalla de las 11 páginas públicas de 1/25/50 líneas y ejemplos adicionales; no acredita impresora ni tablet físicas.
 - `npm audit --omit=dev --json`, ejecutado y leído durante esta revisión: **0 avisos reportados**, incluidos 0 altos y 0 críticos. No se confunde con la consulta offline anterior ni con una evaluación del ejecutable Node, de las librerías del sistema o de vulnerabilidades todavía no publicadas.
-- Están preparados 15 casos E2E V4.7: 4 de API/SQL, 3 de recuperación comercial y 8 de documentos/interfaz. Su existencia y listado no son un PASS; la ejecución Linux sigue pendiente, junto con la regresión completa, producción aislada y migraciones del candidato final.
+- Primera QA Linux sobre `9a666214`: **check PASS, 351/351 unitarias, tipos y builds; dirigido 14/15 PASS**. El caso de documentos a 390 px falló porque su fixture no eligió el acuerdo divisa; la captura mostraba la validación correcta de la aplicación. Se corrigió una línea de la prueba, sin elevar timeouts. La ejecución se detuvo al fallo: regresión completa, producción aislada y migraciones no se ejecutaron en ese ensayo.
+- Los 15 E2E se reparten en 4 de API/SQL, 3 de recuperación y 8 de documentos. Los 3 de recuperación de `9a666214` pasaron; la ampliación de SEC-03 dentro del caso de abono, junto con el candidato corregido completo, sigue pendiente de Linux.
+
+El [resumen público de verificación](verificacion-v4-7.json) conserva fechas UTC, fuente, resultados y PostgreSQL detenido; no incluye rutas privadas ni datos del negocio.
 
 ## Hallazgos P0/P1/P2 y cierre requerido
 
@@ -21,7 +24,7 @@ No se demostró un P0 en la revisión estática. Los siguientes hallazgos tienen
 
 La imagen tools del baseline V4.5 informó Node `v24.21.0`. El aviso oficial incluye CVE-2026-111497, una corrupción de memoria al descomprimir Brotli malformado; Node 24.22.1 contiene la corrección. No se ha demostrado un camino público explotable en esta aplicación: la API está detrás de sesión/proxy y el proxy no reenvía `Content-Encoding`. La versión de la producción antigua no se deduce de la imagen de QA. Fuentes primarias: [aviso Node de octubre](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases), [Node 24.22.1](https://nodejs.org/en/blog/release/v24.22.1).
 
-**Corrección implementada:** [Dockerfile de staging](../infra/Dockerfile) y [Dockerfile de producción](../infra/Dockerfile.production) fijan `node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d`, con guard de versión parcheada. **Pendiente:** construir/verificar imágenes finales, ejecutar QA con ese runtime y acreditar la actualización efectiva de los servicios propios cuando se autorice publicar. Un `npm audit` con cero avisos no cierra este hallazgo.
+**Corrección implementada:** [Dockerfile de staging](../infra/Dockerfile) y [Dockerfile de producción](../infra/Dockerfile.production) fijan `node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d`, con guard de versión parcheada. **Verificado en la primera QA Linux:** Node `v24.22.1` antes y después de check/dirigido sobre `9a666214`. **Pendiente:** construir/verificar imágenes finales, repetir la QA del candidato corregido y acreditar la actualización efectiva de los servicios propios cuando se autorice publicar. Un `npm audit` con cero avisos no cierra este hallazgo.
 
 ### P1 SEC-02 — Venta o abono duplicable al perder respuesta y recargar
 
@@ -31,9 +34,17 @@ La imagen tools del baseline V4.5 informó Node `v24.21.0`. El aviso oficial inc
 
 Un resultado ambiguo, corrupción del registro o falta de almacenamiento no genera otra clave ni sobrescribe el pendiente. Solo un rechazo empresarial de **primer intento**, con la misma clave y rollback confirmado por la API, permite editar. El [marcador de rechazo](../apps/api/src/command-rejection.ts) excluye autenticación, conflicto de clave anterior, bloqueo SQL, fallo del rollback y cualquier COMMIT intentado. Se aceptan errores empresariales HTTP y restricciones SQL `23503`, `23514`, `23505` únicamente después de callback iniciado y rollback confirmado. No se persisten rechazos ni se modifica el esquema.
 
-**Verificación:** 35/35 unidades PASS, incluidas respuesta perdida, conflicto de pestañas, partición, corrupción, almacenamiento bloqueado, rechazo inequívoco, restricciones SQL y ausencia del marcador ante incertidumbre. **Pendiente:** [3 casos de navegador/SQL](../tests/e2e/commercial-recovery-v47.spec.ts) con COMMIT real antes del corte, recarga/cierre/logout/login, misma venta/abono y una sola afectación de existencias/deuda.
+**Verificación:** 37/37 unidades PASS, incluidas respuesta perdida, conflicto de pestañas, partición, corrupción, almacenamiento bloqueado, rechazo inequívoco, restricciones SQL y ausencia del marcador ante incertidumbre. Los [3 casos de navegador/SQL](../tests/e2e/commercial-recovery-v47.spec.ts) de `9a666214` pasaron con COMMIT real antes del corte, cierre/login y una sola afectación. La versión reforzada del caso de abono por SEC-03 todavía no se ha ejecutado en Linux.
 
 **Límite residual deliberado:** después de un intento ambiguo, un rechazo posterior no autoriza borrar automáticamente el pendiente. No existe una consulta negativa de recibo de comando que pruebe por sí sola que nunca hubo COMMIT. Se conserva el replay manual y la revisión operativa; no hay botón de reinicio que pueda cobrar o vender de nuevo por accidente. El journal depende del almacenamiento de ese dispositivo: borrar sus datos o cambiar de dispositivo no equivale a recuperar una clave conservada.
+
+### P1 SEC-03 — Resumen visible distinto de la solicitud capturada
+
+**Reproducción:** mientras hay un abono A pendiente, otra pestaña abre el modal para un cliente B. Al recuperar A, desaparece el pendiente compartido y B vuelve a habilitarse, pero el hook conservaba A en memoria. Confirmar el resumen B podía reenviar A y mostrar su recibo; no duplicaba el débito, pero confirmaba una solicitud distinta de la revisada. Una variación con el mismo cliente y otra factura también era posible.
+
+**Corrección implementada después de `9a666214`:** antes de persistir o enviar se compara todo el cuerpo revisado contra el capturado usando su esquema/versionado. Se tolera solo el orden de propiedades y los defaults equivalentes; el POST conserva literalmente los bytes y clave originales. Ante discrepancia no hay POST ni cambio del journal y se indica cerrar/reabrir o actualizar. No se borra indiscriminadamente la clave que protege una recuperación legítima.
+
+**Evidencia:** las dos regresiones fallaron antes del parche devolviendo A, y después pasaron dentro de las **37/37 unidades**. El E2E de abono existente ahora mantiene abierto el modal B, recupera A, comprueba que B no envíe la solicitud equivocada y, tras reapertura, confirma B con una clave nueva. Esa ampliación sigue **PENDIENTE de ejecución integrada**, sin aumentar los tres casos de recuperación.
 
 ### P2 VAL-01 — Restore sin lectura efectiva bajo el rol de aplicación
 

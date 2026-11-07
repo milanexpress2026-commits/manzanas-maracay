@@ -196,6 +196,22 @@ test('abono completo: cierre y login recuperan el recibo aun cuando ya no hay sa
     soldAt: new Date().toISOString(),
     lines: [{ configurationId: rule.id, presentation: 'box', quantity: 2, agreedUnitUsd: '40' }],
   });
+  const otherFixture = await fixture(page);
+  const otherSale = await commercePost<SaleDetail>(page.request, '/api/sales', {
+    schemaVersion: 2,
+    clientId: otherFixture.client.id,
+    condition: 'credit',
+    settlementBasis: 'divisa',
+    soldAt: new Date().toISOString(),
+    lines: [
+      {
+        configurationId: otherFixture.rule.id,
+        presentation: 'box',
+        quantity: 1,
+        agreedUnitUsd: '30',
+      },
+    ],
+  });
   await page.goto('/ventas/' + sale.id);
   await page.getByRole('button', { name: 'Registrar abono', exact: true }).click();
   await page.getByLabel('Monto recibido').fill('80');
@@ -222,6 +238,12 @@ test('abono completo: cierre y login recuperan el recibo aun cuando ya no hay sa
   const saved = (await stored(page, 'payment'))!;
   expect(saved.record).toMatchObject({ key: requests[0].key, body: requests[0].body });
   expect((await (await page.request.get('/api/sales/' + sale.id)).json()).balanceUsd).toBe('0.00');
+  // A foreign-client modal must not reuse A after another tab resolves A.
+  const other = await context.newPage();
+  await other.goto('/clientes/' + otherFixture.client.id);
+  await other.getByRole('button', { name: 'Registrar abono', exact: true }).click();
+  await expect(other.getByRole('dialog').getByRole('alert')).toContainText('otro cliente');
+  await expect(other.getByLabel('Monto recibido')).toBeDisabled();
   expect(
     (
       await page.request.post('/api/auth/logout', {
@@ -257,6 +279,37 @@ test('abono completo: cierre y login recuperan el recibo aun cuando ya no hay sa
   const detail = await restored.request.get('/api/payments/' + payment.id + '/document');
   expect(detail.status()).toBe(200);
   expect((await detail.body()).subarray(0, 5).toString()).toBe('%PDF-');
+  await expect(other.getByLabel('Monto recibido')).toBeEnabled();
+  await other.getByLabel('Monto recibido').fill('30');
+  await other.getByLabel('Aplicar USD a ' + otherSale.number, { exact: true }).fill('30');
+  await other.getByRole('button', { name: 'Revisar abono', exact: true }).click();
+  await other.getByRole('button', { name: 'Confirmar abono', exact: true }).click();
+  await expect(other.getByRole('dialog').getByRole('alert')).toContainText(
+    'El resumen no corresponde',
+  );
+  expect(requests).toHaveLength(2);
+  expect(await financialCounts(otherFixture.client.id)).toEqual({
+    sales: 1,
+    payments: 0,
+    applications: 0,
+  });
+  await other.getByRole('button', { name: 'Cerrar resumen', exact: true }).click();
+  await other.getByRole('button', { name: 'Registrar abono', exact: true }).click();
+  await other.getByLabel('Monto recibido').fill('30');
+  await other.getByLabel('Aplicar USD a ' + otherSale.number, { exact: true }).fill('30');
+  await other.getByRole('button', { name: 'Revisar abono', exact: true }).click();
+  await other.getByRole('button', { name: 'Confirmar abono', exact: true }).click();
+  await expect(other.getByRole('dialog')).toHaveCount(0);
+  expect(requests).toHaveLength(3);
+  expect(requests[2].key).not.toBe(requests[0].key);
+  expect(JSON.parse(requests[2].body).clientId).toBe(otherFixture.client.id);
+  expect(await financialCounts(client.id)).toEqual({ sales: 1, payments: 1, applications: 1 });
+  expect(await financialCounts(otherFixture.client.id)).toEqual({
+    sales: 1,
+    payments: 1,
+    applications: 1,
+  });
+  await other.close();
   await restored.close();
 });
 

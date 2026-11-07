@@ -108,7 +108,14 @@ describe('journal comercial durable', () => {
       // A new caller represents reload, tab close or a new authenticated page.
       const newCaller = { ...h.deps, send: vi.fn().mockResolvedValue(response(201, result)) };
       expect(
-        await sendCommercialCommand(newCaller, scope, kind, { changed: true }, null, restored),
+        await sendCommercialCommand(
+          newCaller,
+          scope,
+          kind,
+          Object.fromEntries(Object.entries(JSON.parse(restored.body)).reverse()),
+          null,
+          restored,
+        ),
       ).toEqual(result);
       expect(newCaller.send).toHaveBeenCalledWith(...first);
       expect(await readCommercialPending(h.storage, scope, kind)).toBeNull();
@@ -268,4 +275,41 @@ describe('journal comercial durable', () => {
     );
     expect(await readCommercialPending(h.storage, scope, 'sale')).not.toBeNull();
   });
+
+  it.each(['other-client', 'other-invoice'] as const)(
+    'el resumen %s no puede reenviar un abono anterior resuelto por otra pestaña',
+    async (change) => {
+      const h = harness();
+      h.send.mockRejectedValueOnce(new Error('respuesta de COMMIT perdida'));
+      await expect(sendCommercialCommand(h.deps, scope, 'payment', payment)).rejects.toThrow(
+        'No llegó',
+      );
+      const captured = (await readCommercialPending(h.storage, scope, 'payment'))!;
+      const next =
+        change === 'other-client'
+          ? { ...payment, clientId: actor }
+          : { ...payment, applications: [{ saleId: actor, amountUsd: '80.00' }] };
+      // Tab A resolves its original payment and removes the shared slot.
+      h.send.mockResolvedValue(response(201, paymentResult));
+      await sendCommercialCommand(h.deps, scope, 'payment', payment, null, captured);
+      expect(await readCommercialPending(h.storage, scope, 'payment')).toBeNull();
+      // Tab B still captured A, but now reviews B. It must neither recreate A nor POST B with A's key.
+      await expect(
+        sendCommercialCommand(h.deps, scope, 'payment', next, null, captured),
+      ).rejects.toThrow('El resumen no corresponde');
+      expect(h.send).toHaveBeenCalledTimes(2);
+      expect(await readCommercialPending(h.storage, scope, 'payment')).toBeNull();
+      // Closing and reopening starts an explicit new operation, with a new key.
+      const nextResult = {
+        ...paymentResult,
+        id: actor,
+        clientId: next.clientId,
+        applications: next.applications,
+      };
+      h.send.mockResolvedValueOnce(response(201, nextResult));
+      expect(await sendCommercialCommand(h.deps, scope, 'payment', next)).toEqual(nextResult);
+      expect(h.send.mock.calls[2][1]).not.toBe(captured.key);
+      expect(JSON.parse(h.send.mock.calls[2][2])).toEqual(next);
+    },
+  );
 });

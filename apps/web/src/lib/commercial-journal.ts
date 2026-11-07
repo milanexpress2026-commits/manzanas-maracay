@@ -49,6 +49,20 @@ export function commercialCommandBody(record: PendingCommercialCommand) {
   // Validation must never rewrite the original bytes used by the first attempt.
   return body as ReturnType<typeof manualSaleSchema.parse> | ReturnType<typeof paymentSchema.parse>;
 }
+
+/** Compare the validated review, not object insertion order or optional defaults.
+ * The POST still uses the original saved bytes, never this canonical form. */
+export function commercialReviewMatches(record: PendingCommercialCommand, review: unknown) {
+  try {
+    const schema = record.kind === 'sale' ? manualSaleSchema : paymentSchema;
+    return (
+      JSON.stringify(schema.parse(review)) ===
+      JSON.stringify(schema.parse(commercialCommandBody(record)))
+    );
+  } catch {
+    return false;
+  }
+}
 export async function readCommercialPending(
   storage: StorageAccess,
   scope: string,
@@ -199,6 +213,10 @@ export async function sendCommercialCommand<T>(
       )
         throw new CommercialJournalError('No se pudo verificar la solicitud que deseas recuperar.');
       commercialCommandBody(verified);
+      if (!commercialReviewMatches(verified, body))
+        throw new CommercialJournalError(
+          'El resumen no corresponde a la solicitud conservada entre pestañas. No se envió ninguna operación. Cierra este formulario y vuelve a abrirlo, o actualiza la página para revisar el pendiente vigente.',
+        );
       if (existing && (existing.key !== verified.key || existing.hash !== verified.hash))
         throw new CommercialJournalError(
           'Otra pestaña resolvió o cambió esta operación. Actualiza para consultar el comprobante; no se enviaron datos nuevos.',

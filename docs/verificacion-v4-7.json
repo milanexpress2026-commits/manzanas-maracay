@@ -1,0 +1,108 @@
+{
+  "format": 1,
+  "version": "4.7",
+  "status": "awaiting_final_candidate_validation",
+  "conclusion": "APTA SOLO PARA PRUEBAS",
+  "baseCommit": "566ff95fb37625766f73d075cdb0b4fdc3e55173",
+  "finalCandidateCommit": null,
+  "firstLinuxQa": {
+    "runtimeCommit": "9a666214d186f62b73e07947a1dee1eee0535adc",
+    "startedAt": "2026-11-07T00:22:46.757Z",
+    "finishedAt": "2026-11-07T00:29:16.937Z",
+    "passed": false,
+    "runtimeSourceUnchangedBeforeAndAfter": true,
+    "dependencyLockUnchangedBeforeAndAfter": true,
+    "node": "v24.22.1",
+    "npm": "11.19.1",
+    "playwright": "1.64.1",
+    "check": {
+      "passed": true,
+      "startedAt": "2026-11-07T00:22:47.268Z",
+      "finishedAt": "2026-11-07T00:24:14.172Z",
+      "typecheck": "passed",
+      "apiBuild": "passed",
+      "webBuild": "passed",
+      "unitTests": { "passed": 351, "failed": 0, "total": 351 }
+    },
+    "directed": {
+      "status": "failed",
+      "startedAt": "2026-11-07T00:24:14.465Z",
+      "finishedAt": "2026-11-07T00:29:16.548Z",
+      "passed": 14,
+      "failed": 1,
+      "total": 15,
+      "failure": {
+        "spec": "tests/e2e/document-printing-v47.spec.ts",
+        "viewportWidth": 390,
+        "cause": "fixture_omitted_divisa_agreement_selection",
+        "applicationValidationObservedCorrect": true,
+        "oneLineFixtureCorrectionPrepared": true,
+        "timeoutIncreased": false,
+        "rerunAfterCorrection": "pending"
+      }
+    },
+    "stoppedAfterFailure": true,
+    "notExecuted": ["full_regression", "isolated_production_qa", "migrations"],
+    "postgresAfter": {
+      "stopped": true,
+      "postmasterPidFilesPresent": false,
+      "loopbackPortFree": true
+    }
+  },
+  "correctionsAfterFirstQa": {
+    "reviewBodyMustMatchCapturedCommand": {
+      "finding": "SEC-03",
+      "severity": "P1",
+      "implemented": true,
+      "regressionsFailedBeforePatch": 2,
+      "regressionsPassedAfterPatch": 2,
+      "journalAndRejectionUnitTests": { "passed": 37, "failed": 0, "total": 37 },
+      "webTypecheck": "passed",
+      "extendedE2eTypecheck": "passed",
+      "extendedE2eExecution": "pending",
+      "preservesOriginalRequestBytesAndKey": true,
+      "mismatchedReviewSendsNoPost": true,
+      "addsMigration": false
+    }
+  },
+  "dependencies": {
+    "productionNpmAuditReportedVulnerabilities": 0,
+    "nodeImagePin": "node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d",
+    "auditIsNotProofOfRuntimeDeployment": true
+  },
+  "pdfEvidence": {
+    "unitTestsPassed": 15,
+    "webDeliveryUnitTestsPassed": 15,
+    "syntheticDocuments": 12,
+    "renderedPages": 37,
+    "publicPagesVisuallyReviewed": 11,
+    "automaticReport": "docs/capturas/impresion-v4-7/verificacion-automatica.json",
+    "visualReport": "docs/capturas/impresion-v4-7/revision-visual.json",
+    "physicalPrinterTested": false,
+    "physicalTabletTested": false
+  },
+  "lastVerifiedDeployment": {
+    "stagingRuntimeCommit": "817a2783da7c4405e9c9609335adfe239a88e3ef",
+    "stagingMigrations": 16,
+    "productionRuntimeCommit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
+    "productionMigrations": 13,
+    "v47DeployedToStaging": false,
+    "v47DeployedToProduction": false,
+    "productionChangedByThisQa": false
+  },
+  "pending": {
+    "finalCommit": true,
+    "finalIntegratedCheck": true,
+    "finalDirectedE2e": true,
+    "fullRegression": true,
+    "isolatedProductionQa": true,
+    "migrations": true,
+    "restoreWithEffectiveApplicationRoleReads": true,
+    "finalEncryptedBackupAndRestore": true,
+    "staging": true,
+    "explicitOperationalApproval": true,
+    "production": true,
+    "physicalTablet": true,
+    "physicalHpPrinter": true
+  }
+}
