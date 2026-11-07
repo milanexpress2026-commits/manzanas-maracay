@@ -1,7 +1,7 @@
 {
   "format": 1,
   "version": "4.7",
-  "status": "ready_for_exact_operational_approval_production_not_active",
+  "status": "production_active_v47_beta_tests_only_v48_stock_ux_review_open",
   "conclusion": "APTA SOLO PARA PRUEBAS",
   "baseCommit": "566ff95fb37625766f73d075cdb0b4fdc3e55173",
   "finalCandidateCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
@@ -93,10 +93,10 @@
   "lastVerifiedDeployment": {
     "stagingRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
     "stagingMigrations": 16,
-    "productionRuntimeCommit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
-    "productionMigrations": 13,
+    "productionRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "productionMigrations": 16,
     "v47DeployedToStaging": true,
-    "v47DeployedToProduction": false,
+    "v47DeployedToProduction": true,
     "productionChangedByThisQa": false,
     "stagingV47ImagesBuilt": true,
     "stagingV47UpgradeStatus": "healthy_verified",
@@ -107,7 +107,8 @@
       "exactOwnCronRestored": true,
       "retryPassed": true,
       "productionModified": false
-    }
+    },
+    "productionHealthyAt": "2026-11-07T03:33:53.831611Z"
   },
   "pending": {
     "finalCommit": false,
@@ -117,16 +118,19 @@
     "isolatedProductionQa": false,
     "migrations": false,
     "restoreWithEffectiveApplicationRoleReads": false,
-    "finalEncryptedBackupAndRestore": true,
+    "finalEncryptedBackupAndRestore": false,
     "staging": false,
-    "explicitOperationalApproval": true,
-    "production": true,
+    "explicitOperationalApproval": false,
+    "production": false,
     "physicalTablet": true,
     "physicalHpPrinter": true,
     "prepublicationEncryptedBackupAndRestore": false,
     "stagingBusinessSmoke": false,
-    "writerWindowBackupAfterStop": true,
-    "postPromotion16BackupRestore": true
+    "writerWindowBackupAfterStop": false,
+    "postPromotion16BackupRestore": false,
+    "productionPositivePdfWithRealSale": true,
+    "v48StockUxP1": true,
+    "v48LastOfficialUiDeployment": true
   },
   "finalLinuxQa": {
     "runtimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
@@ -377,7 +381,7 @@
       "api": "sha256:84bc798589dced1af6c22cc570ea25a3e3cc43fc3ddd643f9c9df3d123dc06c8",
       "web": "sha256:e1be50e62033296424976a0ee9f1e1063fef3c93b171724417df33c5d3d81d3e"
     },
-    "activated": false,
+    "activated": true,
     "prepublicationBackup": {
       "commit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
       "checkedAt": "2026-11-07T03:05:52.645964+00:00",
@@ -418,6 +422,110 @@
       "restoredFromExternalCopy": true,
       "isolatedRestoreCleaned": true,
       "remoteEncryptedCopyVerified": true
+    }
+  },
+  "productionPublication": {
+    "runtimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "release": "phase4-82cd5ab579fb",
+    "healthyAt": "2026-11-07T03:33:53.831611Z",
+    "explicitOwnerApproval": true,
+    "approvedMigrations": ["0013", "0014", "0015"],
+    "ratesCollectorApproved": true,
+    "pushDispatcherWindowApproved": true,
+    "migrationsBefore": 13,
+    "migrationsAfter": 16,
+    "historicalPreservationPassed": true,
+    "activeTabletCountPreserved": 1,
+    "pushDeviceAndNoticeSnapshotsPreserved": true,
+    "dispatcherGuardsBeforeAndAfterStopPassed": true,
+    "dispatcherGuardAfterMigrationPassed": true,
+    "sharedProxyOrDnsChanged": false,
+    "writerWindowBackup": {
+      "checkedAt": "2026-11-07T03:31:26.277834Z",
+      "passed": true,
+      "afterWritersStopped": true,
+      "externalCopyVerified": true,
+      "restoredFromExternalCopy": true
+    },
+    "collector": {
+      "checkedAt": "2026-11-07T03:35:32.038990Z",
+      "scheduled": true,
+      "dedicatedLeastPrivilegeRole": true,
+      "ownNetworkAndCron": true
+    },
+    "postPublicationBackup": {
+      "checkedAt": "2026-11-07T05:21:06.597199Z",
+      "migrations": 16,
+      "externalCopyVerified": true,
+      "remoteEncryptedCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "beforeHistoricalBcvAppend": false,
+      "includesHistoricalBcvObservation": true
+    },
+    "historicalBcvAppend": {
+      "checkedAt": "2026-11-07T04:41:32.252Z",
+      "insertedRows": 1,
+      "rate": "896.12250000",
+      "officialValueDate": "2026-11-06",
+      "nextOfficialValueDate": "2026-11-09",
+      "validFrom": "2026-11-06T04:00:00Z",
+      "validUntilExclusive": "2026-11-09T04:00:00Z",
+      "sourceUrl": "https://www.bcv.org.ve/sites/default/files/EstadisticasGeneral/2_1_2d26_smc.xls",
+      "sourceHash": "b7fbce00d58f5b9819b04b8e5e1d0317ad2d1c01ee2e450bc58f30adc045fdb5",
+      "tlsVerified": true,
+      "explicitUserPolicy": "last_official_until_next_official_value_date",
+      "policyIsNotClaimedAsBcvNorm": true,
+      "verificationBackdated": false,
+      "previousRatesOrPaymentsChanged": false,
+      "runtimeCommitChanged": false,
+      "servicesReplaced": false,
+      "firstAttemptStoppedBeforeContainerOrInsert": true,
+      "operatorMemoryRepresentationGuardCorrected": true,
+      "sameIntentResumed": true
+    },
+    "publicReadOnlySmokeAfterBcv": {
+      "checkedAt": "2026-11-07T05:04:10.208664Z",
+      "passed": true,
+      "checksPassed": 21,
+      "fourPaymentMethodsAvailable": true,
+      "bcvAvailable": true,
+      "usdtAvailable": true,
+      "businessWrites": false,
+      "actualPaymentOperationsTested": false
+    },
+    "publicPdfProbeBeforeBcvAppend": {
+      "checkedAt": "2026-11-07T03:42:36.628044Z",
+      "passed": false,
+      "accessPassed": true,
+      "bcvAvailableAtThatTime": false,
+      "anonymousPdfDenied": true,
+      "positivePdfStatus": "pending_no_real_sale",
+      "paperSizesRequested": [],
+      "pdfPageGeometryParsed": false,
+      "businessWrites": false
+    },
+    "v48Continuation": {
+      "authorized": true,
+      "stockUxP1ReviewOpen": true,
+      "serverOversaleNotEstablishedByTypingVideo": true,
+      "lastOfficialUiWorkingTreeOnly": true,
+      "published": false,
+      "ready": false
+    },
+    "physicalTabletTested": false,
+    "physicalHpPrinterTested": false,
+    "postPublicationBackupBeforeHistoricalBcvAppend": {
+      "checkedAt": "2026-11-07T03:40:44.976258Z",
+      "migrations": 16,
+      "externalCopyVerified": true,
+      "remoteEncryptedCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "collectorAclVerified": true,
+      "effectiveApplicationReadsVerified": true,
+      "acl16RoundtripRestored": true,
+      "beforeHistoricalBcvAppend": true
     }
   }
 }

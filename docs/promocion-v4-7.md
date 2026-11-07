@@ -1,25 +1,25 @@
 # Plan de promoción V4.7
 
-**Estado: preparación; producción aún no autorizada ni actualizada.** El candidato es `82cd5ab579fbbc50cf852774aca47847cc388fa5`, en `feature/cierre-beta-v4-7`. La conclusión sigue siendo **APTA SOLO PARA PRUEBAS** hasta completar la evidencia operativa y obtener la autorización concreta del propietario. Este documento describe la intervención, no registra una aprobación.
+**Estado: V4.7 publicada y saludable en producción.** Runtime `82cd5ab579fbbc50cf852774aca47847cc388fa5`, release `phase4-82cd5ab579fb`, 16 migraciones, desde 2026-11-07T03:33:53.831611Z. La aprobación expresa, ventana, preservación y respaldo posterior están acreditados. La beta general continúa **APTA SOLO PARA PRUEBAS** mientras siga abierta la revisión P1 stock/UX V4.8 y falten pruebas físicas. La secuencia de gates de este documento conserva el procedimiento ejecutado; no solicita repetir la promoción.
 
 ## Fuente, origen y destino
 
-| Elemento                    | Identidad o estado comprobado                                                                                                                                                 |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Producción actual           | `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0`, release `phase4-2a81817fe2c1`, 13 migraciones                                                                                     |
-| Candidato                   | `82cd5ab579fbbc50cf852774aca47847cc388fa5`, release propuesta `phase4-82cd5ab579fb`, 16 migraciones                                                                           |
-| Archivo inmutable SHA-256   | `1fd2f2bed3fd2352b1f8ad33d1303b71baf158b5a87414aba90d46941a79a481`                                                                                                            |
-| Runtime                     | Node `24.22.1`, pin oficial `node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d`                                              |
-| Staging                     | `hotfix-82cd5ab579fb`, saludable, 16 migraciones idénticas, conservación de filas y smoke 21/21 PASS                                                                          |
-| Preparación de producción   | Fuente subida e imágenes finales construidas/verificadas el `2026-11-07T02:06:29.851194Z`; NO activadas                                                                       |
-| Respaldo/restore real final | PASS respaldo actualizado cifrado/recuperado `2026-11-07T03:05:52.645964Z` y ensayo real13→16 `02:22:07.305671Z`; nuevos respaldos durante/después de la promoción pendientes |
-| Autorización operativa      | PENDIENTE: SHA exacto, tres migraciones, recolector, ventana de API/web y dispatcher push                                                                                     |
+| Elemento                    | Identidad o estado comprobado                                                                                                                                                                                        |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Origen anterior             | `2a81817fe2c17130c07b47b04b98c6ce7aaf59b0`, release `phase4-2a81817fe2c1`, 13 migraciones                                                                                                                            |
+| Producción actual           | `82cd5ab579fbbc50cf852774aca47847cc388fa5`, release activa `phase4-82cd5ab579fb`, 16 migraciones                                                                                                                     |
+| Archivo inmutable SHA-256   | `1fd2f2bed3fd2352b1f8ad33d1303b71baf158b5a87414aba90d46941a79a481`                                                                                                                                                   |
+| Runtime                     | Node `24.22.1`, pin oficial `node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d`                                                                                     |
+| Staging                     | `hotfix-82cd5ab579fb`, saludable, 16 migraciones idénticas, conservación de filas y smoke 21/21 PASS                                                                                                                 |
+| Preparación de producción   | Fuente subida e imágenes finales construidas/verificadas el `2026-11-07T02:06:29.851194Z`; activas desde03:33:53.831611Z                                                                                             |
+| Respaldo/restore real final | PASS respaldo actualizado cifrado/recuperado `2026-11-07T03:05:52.645964Z` y ensayo real 13→16 `02:22:07.305671Z`; ventana 03:31:26.277834Z; post16 03:40:44.976258Z y último respaldo con BCV 05:21:06.597199Z PASS |
+| Autorización operativa      | APROBADA expresamente: SHA 82, tres migraciones, recolector y ventana de API/web/dispatcher push                                                                                                                     |
 
 La QA Linux del SHA candidato aprobó **353/353 unitarias**, tipos/builds, **15/15 dirigidos**, **130/130 E2E en una ejecución**, **13/13 producción aislada** y migraciones fresh16/13→16/14→16/15→16. Fuente, lockfile y Node se comprobaron antes y después de cada fase; las bases temporales se retiraron. Véanse [verificación pública](verificacion-v4-7.json), [auditoría](auditoria-v4-7.md) y [matriz](matriz-aceptacion-v4-7.md).
 
 ## Evidencia real previa aprobada
 
-Las imágenes de producción están construidas y verificadas para el SHA exacto; **no están activas**:
+Las imágenes de producción se construyeron y verificaron antes de la ventana; ahora están activas para el SHA exacto:
 
 | Imagen       | Identidad                                                                 |
 | ------------ | ------------------------------------------------------------------------- |
@@ -29,21 +29,21 @@ Las imágenes de producción están construidas y verificadas para el SHA exacto
 
 El respaldo del origen real aprobó el **2026-11-07T02:15:54.628405Z**: copia externa AES-256-GCM con clave protegida por DPAPI, recuperación desde esa copia y el mismo cifrado verificado en almacenamiento propio del VPS. No se publican archivos privados, identificadores de base ni huellas del respaldo.
 
-El ensayo real aislado del candidato aprobó **13→16 el 02:22:07.305671Z**: 36 tablas y sus filas históricas conservadas, acuerdos originales intactos, integridad de esquema13 restaurado y esquema16, consultas efectivas del rol app y privilegios del recolector verificados. No tocó la base real; retiró sus recursos y preservó contenedores preexistentes. El recolector del ensayo permaneció NOLOGIN y no se inventaron tasas.
+El ensayo real aislado del candidato aprobó **13→16 el 02:22:07.305671Z**: 36 tablas y sus filas históricas conservadas, acuerdos originales intactos, integridad de esquema 13 restaurado y esquema 16, consultas efectivas del rol app y privilegios del recolector verificados. No tocó la base real; retiró sus recursos y preservó contenedores preexistentes. El recolector del ensayo permaneció NOLOGIN y no se inventaron tasas.
 
-**`acl16RoundtripRestored: false`** sigue pendiente: todavía no existe evidencia del respaldo posterior a publicar esquema16 y de su recuperación con las ACL finales. El respaldo de la ventana debe ser nuevo y posterior al STOP; el PASS previo no lo sustituye. El smoke comercial DEMO de staging aprobó 21/21 comprobaciones el `2026-11-07T03:17:34.753Z`; el detalle y su límite están registrados más abajo.
+El ensayo previo conserva **`acl16RoundtripRestored: false`**: su alcance era actualización de copia 13→16. El respaldo posterior independiente del03:40:44.976258Z sí verificó el roundtrip 16 con ACL finales y lecturas app. El respaldo de ventana también fue nuevo y posterior al STOP; ningún PASS previo se reutilizó como evidencia de esos pasos.
 
-El respaldo previo se refrescó el **2026-11-07T03:05:52.645964Z**, con copia cifrada PC/VPS, recuperación desde la externa y limpieza PASS. Sigue siendo obligatorio otro respaldo posterior al STOP; no se reutiliza el previo como punto de recuperación de la ventana.
+El respaldo previo se refrescó el **2026-11-07T03:05:52.645964Z**, con copia cifrada PC/VPS, recuperación desde la externa y limpieza PASS. El respaldo nuevo posterior al STOP aprobó a las 03:31:26.277834Z; el previo no se reutilizó como recuperación de la ventana.
 
 Staging también aprobó un **smoke comercial DEMO 21/21 a las 03:17:34.753Z**: recepción de dos cajas con proveedor/costo NULL, venta de una a USD40 manual/crédito, abono USDT40 1:1, existencia una caja y deuda cero. Replays exactos de las tres operaciones, catálogo sin tarifas, dos GET del PDF y comparación de sus lecturas API sin cambios; tasas antes/después y logout PASS. Es un escenario pequeño, sin transacciones de producción ni sustitución de la suite completa.
 
 El intento anterior de las 02:52:10.645Z se detuvo por una expectativa incorrecta del helper sobre la respuesta POST de configuración. Solo había confirmado tres maestros QA. Se corrigió a GET catálogo, pasaron 13 pruebas offline y se reanudó el mismo journal sin duplicar maestros ni cambiar la aplicación. La evidencia de ambos intentos se conserva.
 
-**Preparación cerrada para autorización exacta.** No queda código ni una suite runtime adicional pendiente. Restan la aprobación operativa, los guards/respaldo de la ventana, despliegue y smoke real, respaldo/restore posterior16 y las verificaciones físicas indicadas.
+**Promoción autorizada completada.** Publicación, preservación y respaldo posterior están verificados. Quedan pendientes las pruebas físicas, PDF positivo con venta real y el cierre de la revisión P1 stock/UX V4.8; no se afirma que esa continuación esté lista.
 
-## SQL que se aplicaría
+## SQL aplicado
 
-V4.7 no añade una migración. Producción conserva sus trece SQL previos y recibe únicamente estos tres archivos, en orden. Los dieciséis SQL y el journal se contrastan con la fuente inmutable antes de ejecutar.
+V4.7 no añade una migración. Producción conservó sus trece SQL previos y recibió únicamente estos tres archivos, en orden. Los dieciséis SQL y el journal se contrastan con la fuente inmutable antes de ejecutar.
 
 | Migración                      | SHA-256 exacto                                                     | Cambio principal                                                                                                                                                                                                                                       |
 | ------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -81,7 +81,7 @@ El recolector autorizado usa la imagen exacta, un rol propio de permisos mínimo
 
 La verificación real posterior es autenticada y de solo lectura comercial: release/entorno/readiness, sesión y revocación, catálogo, inventario, cuentas, tasas y rutas privadas, con anónimo denegado. Si existe una venta real, se comprueba también su PDF Carta/A4/descarga; si todavía no hay ventas reales, esa comprobación positiva se marca pendiente sin crear una operación ficticia. No se crean fixtures, clientes, compras, ventas o pagos sintéticos en producción, ni se fuerza un push o WhatsApp. Se conservan la cuenta del propietario y la suscripción de su tablet.
 
-Después de la promoción se necesita otro respaldo real de dieciséis migraciones, cifrado dentro/fuera del VPS y restaurado de manera aislada. Debe comprobar las ACL del recolector, lectura efectiva de la app, restricciones y datos. Ese PASS sigue pendiente; un backup anterior o una exitosa migración sintética no lo acredita.
+Después de la promoción se generó un respaldo real de dieciséis migraciones: cifrado fuera/dentro del VPS, recuperación aislada, ACL del recolector, lecturas app e integridad PASS a las 03:40:44.976258Z. El ensayo previo permanece separado; esta primera copia es anterior a la observación histórica BCV añadida a las 04:41:32Z. El último respaldo, del 05:21:06.597199Z, ya la incluye y aprobó copia externa, recuperación, limpieza aislada y copia cifrada en el VPS.
 
 ## Recuperación si falla
 
@@ -91,4 +91,18 @@ Después de aplicar esquema 16 **no se arranca el código antiguo sobre ese esqu
 
 ## Cierre pendiente
 
-La publicación se acreditará con fecha, SHA e identidades reales, smoke privado, conservación de datos/dispositivos/avisos/servicios ajenos y respaldo posterior restaurado. Hasta entonces, las funciones V4.7 no se presentan como disponibles en la URL real. Tras publicar, el propietario comprobará una operación con mercancía real y el flujo de la [guía HP](guia-impresion-hp-v4-7.md). **Tablet y HP físicas siguen pendientes**: las capturas emuladas y PDF renderizados no certifican impresión en papel ni uso sin supervisión.
+La publicación real queda acreditada con SHA 82, fecha, preservación de historia/dispositivo/avisos, smoke y respaldo posterior. El propietario aún debe completar una operación con mercancía real y la [guía HP](guia-impresion-hp-v4-7.md), después de resolver la revisión P1 de V4.8. **Tablet y HP físicas siguen pendientes**; capturas y renders no certifican impresión ni uso humano.
+
+## Publicación real y pendientes de beta
+
+Producción quedó **activa y saludable el 2026-11-07T03:33:53.831611Z**, en `phase4-82cd5ab579fb`, runtime `82cd5ab579fbbc50cf852774aca47847cc388fa5`, tras autorización expresa del SHA, migraciones, recolector y ventana del dispatcher. La actualización **13→16 PASS** conservó las filas históricas, la cuenta, **una tablet activa** y los avisos; los controles del dispatcher pasaron antes/después de detener escritores y tras migrar. El respaldo nuevo de la ventana aprobó a las **03:31:26.277834Z**. No se sustituyeron servicios ajenos ni se modificaron DNS/Caddy.
+
+El recolector propio quedó programado y verificado a las **03:35:32.038990Z**, con rol de escritura limitado y cron propio. El respaldo posterior de esquema 16 aprobó copia cifrada externa y en el VPS, recuperación aislada, ACL del recolector y lecturas efectivas del rol app a las **03:40:44.976258Z**. Ese primer respaldo es anterior a la observación histórica BCV. El respaldo más reciente aprobó el **2026-11-07T05:21:06.597199Z**, después de incorporarla: incluye esa observación y verificó copia externa cifrada, recuperación desde ella, limpieza aislada y copia cifrada en el VPS.
+
+La primera observación BCV era **897,53830000**, con fecha valor **9/11/2026**; por ser futura, la aplicación la mantuvo fuera de los cobros actuales. A petición expresa del propietario de usar la última tasa oficial, se verificaron con TLS y hash las dos hojas del [histórico oficial BCV](https://www.bcv.org.ve/sites/default/files/EstadisticasGeneral/2_1_2d26_smc.xls): fecha valor **6/11**, **896,12250000**, y siguiente fecha valor **9/11**, **897,53830000**. Se añadió **una observación**, sin cambiar pagos ni tasas anteriores, a las **04:41:32.252Z**, para el intervalo **[2026-11-06T04:00:00Z, 2026-11-09T04:00:00Z)**. Conservar la última oficial hasta la siguiente fecha valor conocida es una **política de la aplicación autorizada por el usuario**, no una norma de fin de semana atribuida al BCV. La observación y la verificación tienen hora real; no se retrofecharon. El primer intento se detuvo antes de crear el contenedor/INSERT por una representación textual del límite de memoria en Compose; se corrigió solo ese guard y se reanudó la misma intención.
+
+El smoke público autenticado de solo lectura del **2026-11-07T05:04:10.208664Z** aprobó **21/21 controles** y disponibilidad de los cuatro métodos: USD, USDT 1:1, Bs. BCV y Bs. USDT compra. Esto verifica acceso y fuentes en ese instante, **no cuatro cobros reales** ni vigencia indefinida de las cotizaciones. El SHA 82 y sus servicios no se reemplazaron para añadir la observación BCV.
+
+El probe PDF de producción del **03:42:36.628044Z** verificó **anónimo 401**. Los GET positivos Carta/A4/descarga quedaron **`pending_no_real_sale`**: no había venta real para probarlos y no se creó una ficticia. Se conserva ese resultado anterior, que también registró BCV no disponible antes de la corrección histórica; no se convierte retrospectivamente en PASS completo.
+
+La beta general permanece **APTA SOLO PARA PRUEBAS**: está abierta la revisión **P1 de disponibilidad/stock y UX V4.8**, autorizada por el propietario. Poder teclear una cantidad excesiva no demuestra una sobreventa aceptada por el servidor; esa distinción y los casos combinados/concurrentes deben verificarse. V4.8 todavía no está lista ni publicada. El fallback visual `lastOfficial` está en el árbol de trabajo para V4.8, **no forma parte del runtime 82 publicado** y no convierte una observación vencida en una cotización válida. Siguen pendientes la operación física en tablet Android, los PDF de la aplicación en HP y la revisión visual del video.
