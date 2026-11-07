@@ -1,6 +1,6 @@
 # Manzanas Maracay · Guía rápida para socios
 
-Guía de V4.8. La publicación de esta versión y las pruebas con la tablet y la impresora físicas se confirman por separado.
+Guía de V4.8, ya publicada para la operación de los socios. [Entra con el acceso habitual](https://manzanas.ganamosclub.net/login). Las comprobaciones físicas de la tablet y la impresora se realizan por separado; puedes trabajar con la aplicación y guardar los PDF mientras las completas.
 
 ## 1. Recibe la mercancía
 
@@ -19,6 +19,8 @@ En **Nueva venta**, elige o crea el cliente. Para cada producto:
 Si te excedes, corrige la cantidad o pulsa **Usar máximo disponible**. La aplicación no reduce lo escrito sin que tú lo elijas. Si otra persona vende o llega nueva mercancía, pulsa **Actualizar existencias**. Una consulta no reserva productos; se comprueban otra vez al guardar. Un conflicto conserva el cliente y los precios para que puedas corregir las cantidades.
 
 Elige **Acuerdo de cobro**: **Promoción / divisa** o **Regular / BCV**. Se conserva aunque el cliente pague después. **Contado** cobra el total; **Crédito** permite dejar saldo sin abono. Fecha acordada y recordatorio son opcionales e independientes. Revisa el resumen y confirma; espera el folio guardado.
+
+**Si «Bolívares a tasa BCV» aparece en gris en Nueva venta:** primero elige **Regular / BCV** en **Acuerdo de cobro**. Escribe manualmente el precio regular que acordaste con el cliente; la aplicación no lo cambia automáticamente. Con una tasa vigente, el método BCV queda habilitado. Si el acuerdo es **Promoción / divisa**, el cobro en bolívares corresponde a **Bolívares a tasa USDT compra**, conservando el precio promocional pactado.
 
 ## 3. Cobra o registra un abono
 

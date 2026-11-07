@@ -1,12 +1,12 @@
 {
   "format": 1,
   "version": "4.8",
-  "status": "third_candidate_qa_in_progress_not_published",
-  "conclusion": "PENDIENTE DE VERIFICACIÓN FINAL",
+  "status": "published_healthy_verified_and_backed_up",
+  "conclusion": "PUBLICADA, VERIFICADA Y RESPALDADA; VALIDACIÓN FÍSICA PENDIENTE",
   "branch": "feature/disponibilidad-v4-8",
   "baseRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
-  "finalCandidateCommit": "6be915e91df84743100e2d332b5e007f393eb521",
-  "finalCandidatePassed": null,
+  "finalCandidateCommit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+  "finalCandidatePassed": true,
   "evidencePolicy": {
     "previousRunsAreNotCombinedIntoOnePassingSuite": true,
     "writtenTestsAreNotProofOfExecution": true,
@@ -19,7 +19,8 @@
     "migrationFilesUnchangedFromBaseline": true,
     "comparison": "git_diff_between_exact_baseline_and_final_candidate",
     "newMigrations": 0,
-    "finalCandidateMigrationRegression": "pending"
+    "finalCandidateMigrationRegression": "passed",
+    "migrationCountVerifiedInFreshDatabase": 16
   },
   "firstLinuxQa": {
     "runtimeCommit": "32823d49787b5a8f58b7ae4df2d9e2385e7b990c",
@@ -185,7 +186,7 @@
       "changesPricesOrQuantities": false,
       "addsMigration": false,
       "regressionSpec": "tests/unit/sale-line-order-v48.test.ts",
-      "finalIntegratedExecution": "pending"
+      "finalIntegratedExecution": "passed_fourth_qa"
     },
     "bcvReferenceAfterBrowserExpiry": {
       "findingSource": "code_review",
@@ -197,59 +198,235 @@
       "addsMigration": false,
       "browserRegressionSpec": "tests/e2e/bcv-reference-v47.spec.ts",
       "browserRegression": "V4.8 BCV vence en la pestaña: conserva la última cifra y fecha sin habilitar VES",
-      "finalIntegratedExecution": "pending"
+      "finalIntegratedExecution": "passed_fourth_qa"
     }
   },
   "finalLinuxQa": {
     "attempt": 4,
-    "runtimeCommit": null,
-    "status": "pending_candidate",
-    "passed": null,
-    "plannedPhases": [
-      "check",
-      "directed-v48",
-      "full-e2e",
-      "production",
-      "migrations"
-    ],
-    "phases": {},
-    "resultsAwaitingFinalCollectedReport": true
+    "runtimeCommit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "status": "passed",
+    "passed": true,
+    "startedAt": "2026-11-07T10:04:34.193Z",
+    "finishedAt": "2026-11-07T10:31:59.974Z",
+    "sourceProof": {
+      "runtimeCommit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+      "bundleSha256": "230509c6edcf1619eeec4e7793aa12c03fb6f94923de6b6fd7fd048377c98871",
+      "bundleBytes": 19174892,
+      "dependencyLockSha256": "117706b8ad1c55399916070770adc8c7f59c63eb6ad18acd9e97426bee6da0d7",
+      "collectedBundleHashVerified": true,
+      "dependencyLockHashMatchesExactGitCommit": true,
+      "runtimeSourceUnchangedBeforeAndAfterEachPhase": true,
+      "dependencyLockUnchangedBeforeAndAfterEachPhase": true
+    },
+    "node": "v24.22.1",
+    "npm": "11.19.1",
+    "playwright": "1.64.1",
+    "phases": {
+      "check": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T10:04:34.456Z",
+        "finishedAt": "2026-11-07T10:05:55.025Z",
+        "postgresStoppedAfter": true,
+        "typecheck": "passed",
+        "apiBuild": "passed",
+        "webBuild": "passed",
+        "unitTests": {
+          "passed": 419,
+          "failed": 0,
+          "total": 419,
+          "files": 39
+        }
+      },
+      "directed-v48": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T10:05:55.392Z",
+        "finishedAt": "2026-11-07T10:10:53.463Z",
+        "postgresStoppedAfter": true,
+        "tests": {
+          "passed": 34,
+          "failed": 0,
+          "total": 34
+        },
+        "freshExclusiveDatabase": true,
+        "databaseStopped": true,
+        "freshPidGone": true,
+        "priorLocalDatabaseUnchanged": true
+      },
+      "full-e2e": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T10:10:53.874Z",
+        "finishedAt": "2026-11-07T10:29:09.584Z",
+        "postgresStoppedAfter": true,
+        "tests": {
+          "passed": 149,
+          "failed": 0,
+          "total": 149
+        },
+        "freshExclusiveDatabase": true,
+        "databaseStopped": true,
+        "freshPidGone": true,
+        "priorLocalDatabaseUnchanged": true
+      },
+      "production": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T10:29:10.435Z",
+        "finishedAt": "2026-11-07T10:31:47.933Z",
+        "postgresStoppedAfter": true,
+        "purpose": "isolated_synthetic_regression",
+        "runtimeCommit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+        "tests": {
+          "passed": 13,
+          "failed": 0,
+          "total": 13,
+          "groups": {
+            "empty": 2,
+            "emptyBusinessJourney": 1,
+            "operationsUi": 4,
+            "operationsApi": 6
+          }
+        },
+        "regressionStartedAt": "2026-11-07T10:29:11.244Z",
+        "regressionFinishedAt": "2026-11-07T10:31:47.907Z",
+        "emptyPassed": true,
+        "emptyUxPassed": true,
+        "operationsPassed": true,
+        "databaseCleaned": true,
+        "emptyBusinessTablesVerified": 21,
+        "limitedMigrationOwner": true
+      },
+      "migrations": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T10:31:48.321Z",
+        "finishedAt": "2026-11-07T10:31:59.659Z",
+        "postgresStoppedAfter": true,
+        "regressionStartedAt": "2026-11-07T10:31:50.868Z",
+        "regressionFinishedAt": "2026-11-07T10:31:59.484Z",
+        "fresh": {
+          "migrationCount": 16,
+          "noSyntheticOperationalData": true,
+          "constraintsValidated": true
+        },
+        "upgrade": {
+          "oldConfirmationNotInvented": true,
+          "cancelledSaleAndReversedPaymentPreserved": true,
+          "preservedTables": 35,
+          "preservedOldMigrationHashes": 11,
+          "closedBoxes": 2,
+          "intactBlisters": 4,
+          "equivalentBlisters": 14,
+          "remainingCostUsd": "84.0000",
+          "originalCostUsd": "90.0000",
+          "unknownPiecesPreserved": true,
+          "costOpeningRows": 0
+        },
+        "v45Upgrade": {
+          "fromMigrationCount": 15,
+          "toMigrationCount": 16,
+          "preservedTables": 35,
+          "historicalKnownCostsPreserved": true,
+          "historicalPricesPreserved": true,
+          "commandReceiptsPreserved": true,
+          "preservedMigrationHashes": 15
+        },
+        "v42Upgrade": {
+          "fromMigrationCount": 14,
+          "toMigrationCount": 16,
+          "historicalRowsPreserved": true,
+          "historicalReferencesAndSuppliersPreserved": true,
+          "historicalReceiptNumbersRemainNull": true,
+          "preservedMigrationHashes": 14,
+          "rateCachePreserved": true
+        },
+        "phase4Upgrade": {
+          "fromMigrationCount": 13,
+          "toMigrationCount": 16,
+          "preservedTables": 35,
+          "preservedPriorMigrationHashes": 13,
+          "runtimeBindingPreserved": true,
+          "oldSalesRemainLegacyBcv": true,
+          "historicalPaymentsNotReclassified": true,
+          "noSyntheticRates": true
+        },
+        "isolatedDatabasesRemoved": 2,
+        "allIsolatedDatabasesCleaned": true
+      }
+    },
+    "postgresAfter": {
+      "postmasterPidFiles": [],
+      "loopbackPostgresPortFree": true,
+      "stopped": true
+    },
+    "resultsAwaitingFinalCollectedReport": false,
+    "testCounting": "directed_tests_are_a_subset_of_full_e2e_not_added_as_distinct_tests",
+    "previewPerformance": {
+      "measurements": [
+        {
+          "phase": "directed-v48",
+          "lines": 50,
+          "boxes": 200,
+          "receipts": 4,
+          "elapsedMs": 96,
+          "readonly": true
+        },
+        {
+          "phase": "full-e2e",
+          "lines": 50,
+          "boxes": 200,
+          "receipts": 4,
+          "elapsedMs": 61,
+          "readonly": true
+        }
+      ],
+      "scope": "isolated_linux_qa_not_a_production_latency_guarantee"
+    }
   },
   "lastVerifiedDeployment": {
-    "stagingRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "stagingRuntimeCommit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
     "stagingMigrations": 16,
-    "productionRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "productionRuntimeCommit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
     "productionMigrations": 16,
-    "v48DeployedToStaging": false,
-    "v48DeployedToProduction": false,
+    "v48DeployedToStaging": true,
+    "v48DeployedToProduction": true,
     "productionChangedByTheseQaRuns": false,
-    "historicalVerification": "docs/verificacion-v4-7.json"
+    "historicalVerification": "docs/verificacion-v4-7.json",
+    "previousRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "stagingHealthyAt": "2026-11-07T11:43:57.035986+00:00",
+    "productionHealthyAt": "2026-11-07T11:58:41.058426+00:00"
   },
   "coverageLimitations": [
     "T01_T02_use_isolated_synthetic_whole_box_SKU_equivalent_to_five_plus_four_not_literal_Gala_80",
     "real_Gala_100_113_and_Forelle_Packham_125_135_are_separate_API_scenarios",
     "browser_viewports_do_not_prove_physical_Android_or_HP_operation",
     "preview_does_not_reserve_stock_and_confirmation_revalidates_in_a_transaction",
-    "no_synthetic_commercial_fixtures_are_run_in_production"
+    "no_synthetic_commercial_fixtures_are_run_in_production",
+    "staging_29_checks_cover_a_selected_synthetic_business_journey_not_all_T01_T20_scenarios",
+    "production_smokes_use_existing_real_data_readonly_no_new_business_fixtures",
+    "public_pdf_content_and_access_pass_do_not_prove_page_geometry_or_physical_printing"
   ],
   "pending": {
-    "finalIntegratedCheck": true,
-    "finalDirectedE2e": true,
-    "fullRegression": true,
-    "isolatedProductionQa": true,
-    "migrationRegression": true,
-    "finalVisualEvidenceReview": true,
-    "stagingDeployment": true,
-    "stagingBusinessSmoke": true,
-    "restoreRehearsalForFinalCandidate": true,
-    "prepublicationBackupAndRestore": true,
-    "explicitOperationalApprovalForFinalSha": true,
-    "productionDeployment": true,
-    "productionPublicSmoke": true,
-    "productionPositivePdfWithExistingRealSale": true,
-    "postPublicationEncryptedBackupAndRestore": true,
+    "finalIntegratedCheck": false,
+    "finalDirectedE2e": false,
+    "fullRegression": false,
+    "isolatedProductionQa": false,
+    "migrationRegression": false,
+    "finalVisualEvidenceReview": false,
+    "stagingDeployment": false,
+    "stagingBusinessSmoke": false,
+    "restoreRehearsalForFinalCandidate": false,
+    "prepublicationBackupAndRestore": false,
+    "explicitOperationalApprovalForFinalSha": false,
+    "productionDeployment": false,
+    "productionPublicSmoke": false,
+    "productionPositivePdfWithExistingRealSale": false,
+    "postPublicationEncryptedBackupAndRestore": false,
     "physicalAndroidTablet": true,
-    "physicalHpPrinter": true
+    "physicalHpPrinter": true,
+    "temporaryQaResourceRemoval": true
   },
   "thirdLinuxQa": {
     "attempt": 3,
@@ -304,7 +481,7 @@
         "classification": "test_serialization_order",
         "cause": "allocation_UUID_display_order_is_not_physical_FIFO_order",
         "expectedAndObservedLotSetEqual": true,
-        "strengthenedPhysicalAuditAssertions": "implemented_pending_fourth_qa"
+        "strengthenedPhysicalAuditAssertions": "passed_fourth_qa_audit_order_exact_lots_quantities_and_final_stock"
       }
     },
     "notExecuted": [
@@ -316,5 +493,313 @@
       "loopbackPostgresPortFree": true,
       "stopped": true
     }
+  },
+  "publicationAuthorization": {
+    "authorizedByUser": true,
+    "candidateCommit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "instruction": "ok actualiza y deja todo listo para que mis socios trabajen",
+    "scope": "publication_after_staging_and_backup_verification",
+    "executionStatus": "executed",
+    "operationalApprovalFileCreatedByThisDocumentation": false,
+    "privateOperationalApprovalRecordedAndAccepted": true
+  },
+  "remotePreparation": {
+    "commit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "archiveSha256": "ad29bcfd9989c3b728eaab5abb333a8449d518ce8d1e51dad001cb9fc0512241",
+    "stagingImagesBuilt": true,
+    "productionImagesBuilt": true,
+    "activeProductionUnchangedDuringPreparation": true
+  },
+  "stagingFirstUpgrade": {
+    "status": "failed_services_held",
+    "failureStage": "post_resume_network_verification",
+    "schemaUnchanged": true,
+    "allPublicRowsPreservedBeforeStart": true,
+    "bothBackupsRestored": true,
+    "manualCollectorObservationAt": "2026-11-07T10:49:29.715Z",
+    "scheduledCollectorObservationAt": "2026-11-07T10:50:11.920Z",
+    "laterInspection": {
+      "all37TableNamesPreserved": true,
+      "changedTables": [
+        "bcv_rates",
+        "usdt_rates"
+      ],
+      "historicalRateHashesPreserved": true,
+      "addedRateRows": 3,
+      "ownApiWebStopped": true,
+      "ownCronHeld": true,
+      "postgresHealthy": true
+    },
+    "recovery": {
+      "status": "passed",
+      "startedAt": "2026-11-07T11:42:27.375345Z",
+      "completedAt": "2026-11-07T11:43:57.035972Z",
+      "sameContainerIds": true,
+      "allNonRateTablesPreserved": true,
+      "historicalRatesAppendOnly": true,
+      "originalFailurePreserved": true,
+      "migrationsExecuted": false,
+      "fixedIdPostResumeVerificationPassed": true,
+      "firstRecoveryPreflight": "rejected_before_mutations_transient_peer_identity_not_preserved",
+      "separateReadonlyPeerInspection": "passed_no_unrelated_change",
+      "secondRecoveryPreflightEvidencePreserved": true
+    }
+  },
+  "visualReview": {
+    "status": "reviewed_no_blocking_issue",
+    "quantityScreens": 4,
+    "documentScreens": 5,
+    "widths": [
+      390,
+      800,
+      1024,
+      1440
+    ],
+    "physicalAndroidVerified": false,
+    "physicalHpVerified": false
+  },
+  "productionPublication": {
+    "commit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "release": "phase4-03b2d6970ea0",
+    "status": "healthy",
+    "healthyAt": "2026-11-07T11:58:41.058426+00:00",
+    "verifiedAt": "2026-11-07T11:58:25.627699+00:00",
+    "ownerAuthorized": true,
+    "codeOnly": true,
+    "migrationExecuted": false,
+    "migrationCount": 16,
+    "schemaUnchanged": true,
+    "allPublicRowsPreservedBeforeStart": true,
+    "comparedPublicTables": 37,
+    "pushDispatcherWindow": {
+      "approved": true,
+      "beforeStopCheckedAt": "2026-11-07T11:54:52.416771+00:00",
+      "afterStopCheckedAt": "2026-11-07T11:55:02.074149+00:00",
+      "afterCodeVerificationCheckedAt": "2026-11-07T11:56:07.216982+00:00",
+      "deviceAndNoticeSnapshotsUnchanged": true,
+      "deviceCount": 1,
+      "activeDeviceCount": 1,
+      "noticesCount": 0,
+      "claimedCount": 0,
+      "uncertainCount": 0,
+      "eligibleCount": 0
+    },
+    "writerWindowBackup": {
+      "checkedAt": "2026-11-07T11:55:16.469908+00:00",
+      "externalCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "remoteEncryptedCopyVerified": true
+    },
+    "collector": {
+      "observationAt": "2026-11-07T11:57:43.381Z",
+      "bcvStatus": "unchanged",
+      "bcvContinuityInserted": false,
+      "usdtStatus": "verified",
+      "cronResumed": true,
+      "heldForReview": false
+    },
+    "postResumeVerification": {
+      "checkedAt": "2026-11-07T11:58:41.058363+00:00",
+      "fixedOwnServicesUnchanged": true,
+      "schedulerProvenanceVerified": true,
+      "httpAndPeerObservationsPreserved": true,
+      "fullAuditCompletedBeforeResume": true
+    },
+    "businessFixturesExecutedInProduction": false
+  },
+  "stagingPublication": {
+    "commit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "release": "hotfix-03b2d6970ea0",
+    "status": "healthy",
+    "healthyAt": "2026-11-07T11:43:57.035986+00:00",
+    "migrationCount": 16,
+    "migrationExecuted": false,
+    "schemaUnchanged": true,
+    "bothBackupsRestored": true,
+    "cronResumed": true,
+    "heldForReview": false,
+    "postResumeVerification": {
+      "checkedAt": "2026-11-07T11:43:57.035928+00:00",
+      "fixedOwnServicesUnchanged": true,
+      "schedulerProvenanceVerified": true,
+      "httpAndPeerObservationsPreserved": true,
+      "fullAuditCompletedBeforeResume": true
+    }
+  },
+  "stagingBusinessSmoke": {
+    "commit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "release": "hotfix-03b2d6970ea0",
+    "checkedAt": "2026-11-07T11:51:34.031Z",
+    "passed": true,
+    "environment": "staging",
+    "syntheticDemoOnly": true,
+    "directDatabaseAccess": false,
+    "productionRequests": false,
+    "automaticRetries": false,
+    "cancelledOrDeletedRecords": false,
+    "operatorReviewRequired": false,
+    "checks": {
+      "clientDemo": true,
+      "directTenRejected": true,
+      "finalDebtZero": true,
+      "finalEmptyStock": true,
+      "fractionAllocationBothOrders": true,
+      "fractionOrdersExcessRejected": true,
+      "fractionOrdersValid": true,
+      "letterPdf": true,
+      "logout": true,
+      "manualCreditSales": true,
+      "oldCookieRejected": true,
+      "paymentReplays": true,
+      "previewNineFits": true,
+      "previewTenRejected": true,
+      "pricesStillAbsent": true,
+      "ratesAfterVerified": true,
+      "ratesBeforeVerified": true,
+      "readOnlyReprintUnchanged": true,
+      "receiptReplays": true,
+      "receiptsNullSupplierAndCost": true,
+      "rejectionPreservedReadModels": true,
+      "reprintedLetterPdf": true,
+      "saleReplays": true,
+      "secureLogin": true,
+      "stagingScope": true,
+      "threeSalesTwoPayments": true,
+      "unpricedConfigurations": true,
+      "usdtOneToOnePayments": true,
+      "wholeFifoFivePlusFour": true
+    },
+    "syntheticExpectedTotals": {
+      "balanceUsd": "0.00",
+      "paidUsdt": "920.00",
+      "payments": 2,
+      "receivedBoxes": 15,
+      "remainingBlisters": 0,
+      "remainingBoxes": 0,
+      "saleUsd": "920.00",
+      "sales": 3,
+      "soldBlisters": 10,
+      "soldClosedBoxes": 13
+    },
+    "checkCount": 29
+  },
+  "productionPublicSmoke": {
+    "commit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "release": "phase4-03b2d6970ea0",
+    "checkedAt": "2026-11-07T11:59:53.187691+00:00",
+    "passed": true,
+    "accessPassed": true,
+    "businessWrites": false,
+    "checks": {
+      "exactRelease": true,
+      "strictHttpsOrigin": true,
+      "healthyActive": true,
+      "loginOptionPresent": true,
+      "privateInvitationValidated": true,
+      "loginAccepted": true,
+      "persistentSecureCookie": true,
+      "authenticatedActiveSession": true,
+      "anonymousDenied": true,
+      "catalogReadable": true,
+      "habitualCatalogReadable": true,
+      "suppliersReadable": true,
+      "clientsReadable": true,
+      "inventoryReadable": true,
+      "salesReadable": true,
+      "paymentsReadable": true,
+      "collectionsReadable": true,
+      "ratesReadable": true,
+      "ratesStatusValidated": true,
+      "logoutAccepted": true,
+      "oldCookieRejected": true
+    },
+    "bcvAvailable": true,
+    "usdtAvailable": true,
+    "allPaymentChoicesReady": true,
+    "ratesReady": {
+      "usd": true,
+      "usdt": true,
+      "vesBcv": true,
+      "vesUsdt": true
+    },
+    "previewStatus": "passed",
+    "previewReadOnly": true,
+    "checkCount": 21,
+    "scope": "point_in_time_access_readonly_queries_and_preview_not_real_sales_or_payments",
+    "ratesAtCheck": {
+      "bcv": {
+        "source": "BCV",
+        "sourceUrl": "https://www.bcv.org.ve/sites/default/files/EstadisticasGeneral/2_1_2d26_smc.xls",
+        "rate": "896.12250000",
+        "validFrom": "2026-11-06T04:00:00.000Z",
+        "validUntil": "2026-11-09T04:00:00.000Z",
+        "fetchedAt": "2026-11-07T04:41:31.985Z",
+        "verifiedAt": "2026-11-07T04:41:32.241Z"
+      },
+      "usdt": {
+        "source": "BINANCE_P2P_BUY",
+        "sourceUrl": "https://www.binance.com/bapi/c2c/v1/public/c2c/agent/quote-price?fiat=VES&asset=USDT&tradeType=BUY",
+        "rate": "1010.20000000",
+        "validFrom": "2026-11-07T11:57:43.362Z",
+        "validUntil": "2026-11-07T12:07:43.362Z",
+        "fetchedAt": "2026-11-07T11:57:43.362Z",
+        "verifiedAt": "2026-11-07T11:57:43.363Z"
+      }
+    }
+  },
+  "productionPdfSmoke": {
+    "commit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "release": "phase4-03b2d6970ea0",
+    "checkedAt": "2026-11-07T12:01:58.181777+00:00",
+    "passed": true,
+    "pdfStatus": "passed",
+    "pdfChecks": {
+      "letterNotePdf": true,
+      "letterDownloadPdf": true,
+      "a4DownloadPdf": true,
+      "anonymousPdfDenied": true,
+      "invalidPdfQueryDenied": true
+    },
+    "businessWrites": false,
+    "paperSizesRequested": [
+      "letter",
+      "a4"
+    ],
+    "pdfPageGeometryParsed": false,
+    "checkCount": 5,
+    "existingRealSaleUsed": true,
+    "physicalPrintVerified": false
+  },
+  "postPublicationBackup": {
+    "commit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "release": "phase4-03b2d6970ea0",
+    "checkedAt": "2026-11-07T12:06:41.828811+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true,
+    "localPlaintextFileCreated": false,
+    "productionBusinessWrites": false,
+    "status": "passed"
+  },
+  "temporaryQaResources": {
+    "environmentCount": 4,
+    "status": "stopped_retained_awaiting_deletion_authorization",
+    "automaticApprovalReviewRejectedRemovalBeforeExecution": true,
+    "removalExecuted": false,
+    "requiresSeparateOwnerAuthorization": true,
+    "blocksPublishedApplicationUse": false
+  },
+  "productionSaleBcvUi": {
+    "checkedAt": "2026-11-07T12:47:48.199Z",
+    "initialBcvDisabled": true,
+    "regularBcvEnabled": true,
+    "rateText": "BCV oficial: 896.12250000 Bs. por USD.",
+    "businessWrites": false,
+    "browser": "isolated_headless_Edge",
+    "viewport": "390x844",
+    "runtimeCommit": "03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df",
+    "interpretation": "BCV requires explicit Regular / BCV agreement; unset or divisa agreement disables the incompatible option. No sale was submitted."
   }
 }
