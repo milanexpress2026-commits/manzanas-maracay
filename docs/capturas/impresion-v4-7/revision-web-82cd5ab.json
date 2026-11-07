@@ -1,0 +1,40 @@
+{
+  "runtimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+  "reviewedAt": "2026-11-07T01:32:56.231642+00:00",
+  "method": "Inspección visual de cinco capturas con view_image; Chromium Linux en QA sintética",
+  "images": [
+    {
+      "name": "confirmacion-390.png",
+      "sha256": "8bde775c399e2b233a900fd8e6e6ca21743f57751e65c74184072c8dcfa43d19",
+      "reviewed": true
+    },
+    {
+      "name": "confirmacion-800.png",
+      "sha256": "7e6d269172b241a5f680da89a339b1562b696adbe876a7de204170902e81bd7c",
+      "reviewed": true
+    },
+    {
+      "name": "confirmacion-1024.png",
+      "sha256": "36af55b1a4d2408d38416c410465331edd8b37f6c0cc7bddb460d727d181aa9c",
+      "reviewed": true
+    },
+    {
+      "name": "confirmacion-1440.png",
+      "sha256": "87916855f386a65bc04aa57cd91a1ca84c98c4ad4da32feb6195b6dd8bd80596",
+      "reviewed": true
+    },
+    {
+      "name": "popup-bloqueado-800.png",
+      "sha256": "166008acdef3b501623aa19f1f95a49404e5d6eae43415a09f1c320092757252",
+      "reviewed": true
+    }
+  ],
+  "result": "PASS: confirmación y acciones PDF legibles, sin solapamiento; alternativa de ventana bloqueada visible. En 390px la tabla de detalle tiene desplazamiento horizontal propio y el saldo permanece visible debajo.",
+  "video": {
+    "name": "abrir-descargar-reimprimir-800.webm",
+    "generated": true,
+    "visuallyReviewed": false
+  },
+  "physicalAndroid": "PENDING",
+  "physicalHP": "PENDING"
+}
