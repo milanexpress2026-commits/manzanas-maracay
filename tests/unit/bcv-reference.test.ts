@@ -5,6 +5,7 @@ import {
   type OfficialRateReference,
 } from '../../apps/web/src/lib/official-rate-reference';
 import { paymentChoiceUnavailable } from '../../apps/web/src/lib/sales-flow';
+import { paymentVesToUsd } from '../../packages/domain/src/index';
 
 const query = vi.hoisted(() => vi.fn());
 vi.mock('pg', () => ({
@@ -65,7 +66,7 @@ describe('última BCV visible y separada del cobro', () => {
     );
   });
 
-  it('una tasa vigente conserva su contrato y no consulta el fallback histórico', async () => {
+  it('una tasa vigente también conserva una referencia sin ID al vencer sin otra consulta', async () => {
     const current = { ...row(), valid_until: new Date('2026-11-09T04:00:00Z') };
     query.mockResolvedValueOnce({ rows: [current] }).mockResolvedValueOnce({ rows: [] });
     const service = new BcvService();
@@ -74,9 +75,29 @@ describe('última BCV visible y separada del cobro', () => {
     expect(status).toMatchObject({
       status: 'available',
       rate: { id: current.id, rate: current.rate },
+      lastOfficial: {
+        usage: 'display_only',
+        source: 'BCV',
+        rate: current.rate,
+        sourceUrl: current.source_url,
+        sourceHash: current.source_hash,
+        fetchedAt: current.fetched_at,
+        verifiedAt: current.verified_at,
+        validFrom: current.valid_from,
+        validUntil: current.valid_until,
+        officialValueDate: '2026-11-06',
+      },
     });
-    expect(status).not.toHaveProperty('lastOfficial');
+    expect(status.lastOfficial).not.toHaveProperty('id');
     expect(last).not.toHaveBeenCalled();
+    expect(query).toHaveBeenCalledTimes(2);
+    const wire = JSON.parse(JSON.stringify(status));
+    expect(officialReferenceDisplay(wire.lastOfficial, current.valid_until)).toMatchObject({
+      amount: '73,125',
+      valueDate: '6/11/26',
+    });
+    expect(() => paymentVesToUsd('100', status.rate!, current.valid_until)).toThrow();
+    expect(query).toHaveBeenCalledTimes(2);
   });
 
   it('cache sin historia, fecha futura, conflicto o fallo de lectura no inventan referencia', async () => {

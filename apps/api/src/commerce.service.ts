@@ -527,6 +527,10 @@ export class CommerceService implements OnModuleDestroy {
         agreedUnitUsd: string;
         totalUsd: string;
       }[] = [];
+      // The historical reader orders by UUID. Assign independent random UUIDs in
+      // byte/hex order to the original request positions, without reordering the
+      // document or physical FIFO dispatch. Existing rows and replay stay intact.
+      const lineIds = data.lines.map(() => randomUUID()).sort();
       for (const input of data.lines) {
         const rule = (
           await client.query(
@@ -566,7 +570,7 @@ export class CommerceService implements OnModuleDestroy {
           .join(' · ');
         lines.push({
           ...input,
-          id: randomUUID(),
+          id: lineIds[lines.length],
           variantId: rule.variant_id,
           description,
           priceBasis: 'priceBasis' in input ? input.priceBasis : 'manual',

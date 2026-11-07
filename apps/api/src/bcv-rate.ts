@@ -69,6 +69,11 @@ export function selectLastOfficialRate(
 ): LastOfficialRate | null {
   const rate = selectTrustedOfficialRate(rows, at, true, parents);
   if (!rate) return null;
+  return officialRateReference(rate);
+}
+
+/** Copy only display fields from an already verified official observation. */
+export function officialRateReference(rate: HistoricalOfficialRate): LastOfficialRate {
   return {
     usage: 'display_only',
     rate: rate.rate,

@@ -6,6 +6,7 @@ import {
   readOfficialRate,
   selectOfficialRate,
   selectLastOfficialRate,
+  officialRateReference,
   selectUsdtRate,
   type OfficialRateCacheRow,
 } from './bcv-rate';
@@ -122,7 +123,9 @@ export class BcvService implements OfficialRateProvider, OnModuleDestroy {
 
   async status(at = new Date()) {
     const rate = await this.getCurrent(at);
-    const lastOfficial = rate ? null : await this.getLastOfficial(at);
+    // Keep a separate nonpayable reference in this response: an open browser
+    // may reach the quote's expiry without fetching another observation.
+    const lastOfficial = rate ? officialRateReference(rate) : await this.getLastOfficial(at);
     const quote = await this.getCurrentUsdt(at);
     const usdt = quote
       ? { status: 'available' as const, rate: quote, verifiedAt: quote.verifiedAt.toISOString() }
@@ -143,7 +146,7 @@ export class BcvService implements OfficialRateProvider, OnModuleDestroy {
             sourceUrl: 'https://www.bcv.org.ve/',
           }),
       usdt,
-      ...(rate ? {} : { lastOfficial }),
+      lastOfficial,
     };
   }
 }

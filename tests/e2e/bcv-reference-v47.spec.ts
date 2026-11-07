@@ -7,6 +7,86 @@ import { commerceHeaders, commercialCustomer } from './helpers/commerce';
 import { manualSale, receiveUnknown, unpricedProduct } from './helpers/operation-v45';
 import { receiptDatabase } from './helpers/receipt-v42';
 
+test('V4.8 BCV vence en la pestaña: conserva la última cifra y fecha sin habilitar VES', async ({
+  page,
+}) => {
+  await loginPage(page);
+  const clock = new Date();
+  await page.clock.install({ time: clock });
+  const officialValueDate = new Date(clock.getTime() - 2 * 86400000).toISOString().slice(0, 10);
+  const reference = {
+    usage: 'display_only',
+    source: 'BCV',
+    rate: '73.12500000',
+    sourceUrl: BCV_SOURCE_URL,
+    sourceHash: 'c'.repeat(64),
+    officialValueDate,
+    validFrom: new Date(clock.getTime() - 60000).toISOString(),
+    validUntil: new Date(clock.getTime() + 300000).toISOString(),
+    fetchedAt: new Date(clock.getTime() - 120000).toISOString(),
+    verifiedAt: new Date(clock.getTime() - 90000).toISOString(),
+  };
+  const { usage: _usage, ...quote } = reference;
+  let rateRequests = 0;
+  const businessPosts: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/(sales|payments)(?:\?|$)/.test(request.url()))
+      businessPosts.push(request.url());
+  });
+  await page.route('**/api/rates/current', (route) => {
+    rateRequests++;
+    return route.fulfill({
+      json: {
+        status: 'available',
+        rate: { id: randomUUID(), ...quote },
+        lastOfficial: reference,
+        usdt: { status: 'unavailable', rate: null },
+      },
+    });
+  });
+  await page.goto('/ventas/nueva');
+  await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('bcv');
+  await page.getByText('Monedas y tasas', { exact: true }).click();
+  await expect(
+    page.getByText('BCV oficial: 73.12500000 Bs. por USD.', { exact: true }),
+  ).toBeVisible();
+  const bolivares = page.getByLabel('Método de cobro', { exact: true }).getByRole('option', {
+    name: 'Bolívares a tasa BCV',
+    exact: true,
+  });
+  await expect(bolivares).toBeEnabled();
+  await expect(page.getByText(/Última BCV oficial verificada:/)).toHaveCount(0);
+
+  // Only the browser clock advances: no cache writes, new observation or refetch.
+  await page.clock.fastForward(300011);
+  await expect(
+    page.getByText('Última BCV oficial verificada: 73,125 Bs. por USD.', { exact: true }),
+  ).toBeVisible();
+  const valueDate = new Intl.DateTimeFormat('es-VE', {
+    dateStyle: 'short',
+    timeZone: 'America/Caracas',
+  }).format(new Date(officialValueDate + 'T04:00:00.000Z'));
+  await expect(
+    page.getByText(`Fecha valor: ${valueDate} · Venezuela.`, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('BCV oficial: 73.12500000 Bs. por USD.', { exact: true }),
+  ).toHaveCount(0);
+  await expect(bolivares).toBeDisabled();
+  await expect(
+    page.getByText(
+      'Referencia histórica; no habilita cobros en bolívares. USD y USDT se aplican 1:1.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Consultar fuente BCV', exact: true }),
+  ).toHaveAttribute('href', BCV_SOURCE_URL);
+  expect(reference).not.toHaveProperty('id');
+  expect(rateRequests).toBe(1);
+  expect(businessPosts).toEqual([]);
+});
+
 type SyntheticObservation = {
   id: string;
   rate: string;

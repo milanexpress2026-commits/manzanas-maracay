@@ -67,7 +67,17 @@ describe('proveedor privado de continuidad BCV', () => {
         validFrom: row.valid_from,
         fetchedAt: parent.fetched_at,
       },
+      lastOfficial: {
+        usage: 'display_only',
+        officialValueDate: '2026-11-06',
+        validFrom: row.valid_from,
+        validUntil: row.valid_until,
+        fetchedAt: parent.fetched_at,
+        verifiedAt: at,
+        sourceHash: parent.source_hash,
+      },
     });
+    expect(status.lastOfficial).not.toHaveProperty('id');
     expect(query.mock.calls[1]?.[1]).toEqual([[parent.id, next.id]]);
   });
 
