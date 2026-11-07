@@ -32,6 +32,11 @@ import {
 import { CommercialJournalError, commercialCommandBody } from '@/lib/commercial-journal';
 import type { AppSession } from './app-shell';
 import { paymentEquivalent } from '@/lib/payment-equivalent';
+import {
+  officialReferenceDisplay,
+  officialRateValueDate,
+  type OfficialRateReference,
+} from '@/lib/official-rate-reference';
 import { caracasDateTime, caracasInstant, normalizedMoney } from '@/lib/commercial-ui';
 import { PaymentMethodSelector } from './payment-method-selector';
 import {
@@ -48,10 +53,12 @@ export type RateValue = {
   validUntil: string;
   verifiedAt?: string;
   source?: string;
+  officialValueDate?: string;
 };
 export type RateStatus = {
   status: 'available' | 'unavailable';
   rate: RateValue | null;
+  lastOfficial?: OfficialRateReference | null;
   message?: string;
   usdt?: { status: 'available' | 'unavailable'; rate: RateValue | null; message?: string };
 };
@@ -117,6 +124,7 @@ export function RateSnapshot({ quote, basis }: { quote: RateValue; basis: 'divis
   const current = useQuoteCurrent(quote);
   const validFrom = new Date(quote.validFrom),
     validUntil = new Date(quote.validUntil);
+  const valueDate = officialRateValueDate(quote.validFrom, quote.officialValueDate);
   return (
     <span>
       <strong>
@@ -125,13 +133,15 @@ export function RateSnapshot({ quote, basis }: { quote: RateValue; basis: 'divis
       </strong>
       <small className={styles.quoteMeta}>
         {current ? 'Vigente' : 'Fuera de vigencia'}
-        {basis === 'bcv' && Number.isFinite(validFrom.valueOf())
+        {basis === 'bcv' && valueDate
           ? ' · Fecha valor: ' +
             new Intl.DateTimeFormat('es-VE', {
               timeZone: 'America/Caracas',
               dateStyle: 'short',
-            }).format(validFrom)
-          : ''}
+            }).format(valueDate)
+          : basis === 'bcv'
+            ? ' · Fecha valor no verificada'
+            : ''}
         .
       </small>
       {time && Number.isFinite(time.valueOf()) ? (
@@ -147,7 +157,17 @@ export function RateSnapshot({ quote, basis }: { quote: RateValue; basis: 'divis
       ) : null}
       {Number.isFinite(validUntil.valueOf()) ? (
         <small className={styles.quoteMeta}>
-          Vigencia en el sistema hasta{' '}
+          Vigencia en el sistema{' '}
+          {Number.isFinite(validFrom.valueOf())
+            ? 'desde ' +
+              new Intl.DateTimeFormat('es-VE', {
+                timeZone: 'America/Caracas',
+                dateStyle: 'short',
+                timeStyle: 'short',
+              }).format(validFrom) +
+              ' '
+            : ''}
+          hasta{' '}
           {new Intl.DateTimeFormat('es-VE', {
             timeZone: 'America/Caracas',
             dateStyle: 'short',
@@ -276,12 +296,34 @@ export function RateNotice({ rate, basis }: { rate: RateStatus | null; basis?: S
   const divisa = basis === 'divisa';
   const selected = divisa ? rate?.usdt : rate;
   const current = useQuoteCurrent(selected?.rate);
+  const reference = !divisa ? officialReferenceDisplay(rate?.lastOfficial) : null;
   return (
     <Alert>
       <Info aria-hidden="true" />
       <AlertDescription>
         {selected?.status === 'available' && selected.rate && current ? (
           <RateSnapshot quote={selected.rate} basis={divisa ? 'divisa' : 'bcv'} />
+        ) : reference ? (
+          <span>
+            <strong>Última BCV oficial verificada: {reference.amount} Bs. por USD.</strong>
+            <small className={styles.quoteMeta}>
+              Fecha valor: {reference.valueDate} · Venezuela.
+            </small>
+            <small className={styles.quoteMeta}>
+              Referencia histórica; no habilita cobros en bolívares. USD y USDT se aplican 1:1.
+            </small>
+            <small className={styles.quoteMeta}>
+              Verificada {reference.verifiedAt} · Venezuela.
+            </small>
+            <a
+              className={styles.quoteSource}
+              href={reference.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Consultar fuente BCV
+            </a>
+          </span>
         ) : (
           <span>
             {divisa ? 'Tasa USDT compra no disponible.' : 'Tasa BCV no disponible.'} No se puede

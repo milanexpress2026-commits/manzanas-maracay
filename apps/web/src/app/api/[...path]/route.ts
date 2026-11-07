@@ -32,6 +32,7 @@ function allowedRoute(method: string, endpoint: string) {
     );
   if (method === 'POST')
     return (
+      endpoint === 'inventory/sale-preview' ||
       /^(auth\/(login|logout)|catalog\/(fruits|varieties|calibers|calibers\/batch|configurations|configurations\/batch|preparation|preparation\/preview)|suppliers|receipts|clients|prices|sales|payments|push\/(subscribe|unsubscribe))$/.test(
         endpoint,
       ) ||

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Headers,
   Inject,
   Param,
@@ -39,6 +40,9 @@ export class InventoryController {
   }
   @Get('inventory/sale-availability') saleAvailability() {
     return this.inventory.saleAvailability();
+  }
+  @Post('inventory/sale-preview') @HttpCode(200) salePreview(@Body() body: unknown) {
+    return this.inventory.salePreview(body);
   }
   @Get('inventory/lots/:id') detail(@Param('id') id: string) {
     return this.inventory.detail(id);

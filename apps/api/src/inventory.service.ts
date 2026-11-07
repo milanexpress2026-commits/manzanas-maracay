@@ -18,9 +18,17 @@ import { authConfig } from './auth/config';
 import { markBusinessCommandRejection } from './command-rejection';
 import {
   countSellablePresentation,
-  presentationCanUseLot,
   type SaleAvailability,
 } from '../../../packages/domain/src/sale-availability';
+import {
+  salePreviewSchema,
+  planPhysicalSale,
+  previewPhysicalSale,
+  type SalePreviewResult,
+  type SalePlannerRule,
+  type SalePlannerLot,
+  type SalePlannerStock,
+} from '../../../packages/domain/src/sale-planner';
 import {
   supplierSchema,
   updateSupplierSchema,
@@ -252,6 +260,93 @@ export class InventoryService implements OnModuleDestroy {
           })),
         ),
       };
+    });
+  }
+  private async saleStock(
+    client: PoolClient,
+    configurationIds: string[],
+    isDemo: boolean,
+    lock: boolean,
+    soldAt: string,
+  ) {
+    const rules = (
+      await client.query<SalePlannerRule>(
+        `select id,variant_id as "variantId",commercial_unit_label as "commercialUnitLabel",
+       allowed_presentations as "allowedPresentations",confirmation_status='confirmed' as confirmed
+       from packing_rules where id=any($1::uuid[]) order by id${lock ? ' for share' : ''}`,
+        [[...new Set(configurationIds)]],
+      )
+    ).rows;
+    const rows = rules.length
+      ? (
+          await client.query<
+            LotRow & {
+              variant_id: string;
+              received_at: Date;
+              created_at: Date;
+              confirmed: boolean;
+              receivedBeforeSale: boolean;
+            }
+          >(
+            `select l.id,l.code,l.blisters_per_box_snapshot,l.inventory_version,l.packing_model_snapshot,
+       l.half_preparation_snapshot,l.allowed_presentations_snapshot,l.unit_cost_usd,
+       l.commercial_unit_label_snapshot,l.variant_id,l.received_at,l.created_at,
+       l.confirmation_status_snapshot='confirmed' as confirmed,l.received_at<=$3::timestamptz as "receivedBeforeSale"
+       from lots l where l.variant_id=any($1::uuid[]) and l.is_demo=$2
+       and exists(select 1 from containers c join stock_balances s on s.container_id=c.id where c.lot_id=l.id and s.quantity>0)
+       order by l.received_at,l.created_at,l.id${lock ? ' for update of l' : ''}`,
+            [[...new Set(rules.map((rule) => rule.variantId))], isDemo, soldAt],
+          )
+        ).rows
+      : [];
+    const containers = rows.length
+      ? (
+          await client.query<ContainerStock>(
+            `${containerSelect} where c.lot_id=any($1::uuid[])${lock ? '' : ' and s.quantity>0'} order by c.id${lock ? ' for update of c,s' : ''}`,
+            [rows.map((row) => row.id)],
+          )
+        ).rows
+      : [];
+    const before = new Map<string, ContainerStock[]>();
+    for (const container of containers) {
+      const list = before.get(container.lotId) ?? [];
+      list.push(container);
+      before.set(container.lotId, list);
+    }
+    const lots: SalePlannerLot[] = rows.map((row, fifoOrder) => ({
+      id: row.id,
+      variantId: row.variant_id,
+      commercialUnitLabel: row.commercial_unit_label_snapshot,
+      packingModel: row.packing_model_snapshot,
+      halfPreparation: row.half_preparation_snapshot,
+      allowedPresentations: row.allowed_presentations_snapshot,
+      blistersPerBox: row.blisters_per_box_snapshot,
+      confirmed: row.confirmed,
+      fifoOrder,
+      receivedBeforeSale: row.receivedBeforeSale,
+      receivedAt: row.received_at.toISOString(),
+      createdAt: row.created_at.toISOString(),
+      containers: before.get(row.id) ?? [],
+    }));
+    const stock: SalePlannerStock = {
+      rules,
+      lots,
+      requireConfirmedLots: authConfig().environment === 'production',
+    };
+    return { stock, before, rows: new Map(rows.map((row) => [row.id, row])) };
+  }
+  async salePreview(body: unknown): Promise<SalePreviewResult> {
+    const input = salePreviewSchema.parse(body);
+    return this.read(async (client) => {
+      const checkedAt = new Date().toISOString();
+      const { stock } = await this.saleStock(
+        client,
+        input.lines.map((line) => line.configurationId),
+        commandIsDemo(false),
+        false,
+        input.soldAt,
+      );
+      return previewPhysicalSale(input, stock, checkedAt);
     });
   }
   async detail(id: string): Promise<LotDetail> {
@@ -1218,128 +1313,51 @@ export class InventoryService implements OnModuleDestroy {
     key: string,
     hash: string,
     isDemo: boolean,
+    soldAt: string,
   ): Promise<SaleAllocation[]> {
     await client.query('select pg_advisory_xact_lock(68493003)');
-    const loaded = new Map<string, { lot: LotRow; before: ContainerStock[]; state: StateMap }>();
-    const allocations: SaleAllocation[] = [];
-    for (const line of lines) {
-      const rule = (
-        await client.query(
-          'select variant_id,allowed_presentations,commercial_unit_label from packing_rules where id=$1 for share',
-          [line.configurationId],
-        )
-      ).rows[0];
-      if (!rule || !rule.allowed_presentations.includes(line.presentation))
-        throw new BadRequestException('La presentación no está autorizada.');
-      const rows = (
-        await client.query(
-          `select id from lots where variant_id=$1 and is_demo=$2
-        and $3=any(allowed_presentations_snapshot) and commercial_unit_label_snapshot is not distinct from $4::text order by received_at,created_at,id for update`,
-          [rule.variant_id, isDemo, line.presentation, rule.commercial_unit_label],
-        )
-      ).rows;
-      let remaining = line.quantity;
-      for (const row of rows) {
-        if (!remaining) break;
-        let entry = loaded.get(row.id);
-        if (!entry) {
-          const lot = await this.lockedLot(client, row.id),
-            before = await this.stock(client, row.id);
-          entry = { lot, before, state: new Map(before.map((c) => [c.id, { ...c }])) };
-          loaded.set(row.id, entry);
-        }
-        const { lot, state } = entry;
-        if (
-          !presentationCanUseLot(line.presentation, {
-            packingModel: lot.packing_model_snapshot,
-            halfPreparation: lot.half_preparation_snapshot,
-            allowedPresentations: lot.allowed_presentations_snapshot,
-            blistersPerBox: lot.blisters_per_box_snapshot,
-          })
-        )
-          continue;
-        while (remaining > 0) {
-          const unit =
-            line.presentation === 'box'
-              ? 'sealed_box'
-              : line.presentation === 'blister'
-                ? 'intact_blister'
-                : 'prepared_half_box';
-          let selected = [...state.values()].find(
-            (c) => c.unit === unit && c.quantity === 1 && c.state === 'sealed',
-          );
-          if (!selected && line.presentation === 'blister' && lot.blisters_per_box_snapshot) {
-            const box = [...state.values()].find(
-              (c) => c.unit === 'sealed_box' && c.quantity === 1 && c.state === 'sealed',
-            );
-            if (box) {
-              this.openBox(state, box, lot.blisters_per_box_snapshot);
-              selected = [...state.values()].find(
-                (c) => c.unit === unit && c.quantity === 1 && c.state === 'sealed',
-              );
-            }
-          }
-          if (
-            !selected &&
-            line.presentation === 'half_box' &&
-            lot.packing_model_snapshot === 'halves' &&
-            lot.half_preparation_snapshot === 'commercial'
-          ) {
-            const box = [...state.values()].find(
-              (c) => c.unit === 'sealed_box' && c.quantity === 1 && c.state === 'sealed',
-            );
-            if (box) {
-              const costs = allocateCost(box.costUsd ?? null, [1, 1]);
-              box.quantity = 0;
-              box.costUsd = '0.0000';
-              box.state = 'open';
-              for (let n = 0; n < 2; n++) {
-                const half = this.newContainer(
-                  lot.id,
-                  box.warehouseId,
-                  'half_box',
-                  'prepared_half_box',
-                  1,
-                  null,
-                  box.id,
-                );
-                half.costUsd = costs[n];
-                state.set(half.id, half);
-                if (n === 0) selected = half;
-              }
-            }
-          }
-          if (!selected) break;
-          allocations.push({
-            saleLineId: line.lineId,
-            lotId: lot.id,
-            containerId: selected.id,
-            movementId: '',
-            quantity: 1,
-            costUsd: selected.costUsd ?? null,
-          });
-          selected.quantity = 0;
-          selected.costUsd = '0.0000';
-          selected.state = 'dispatched';
-          if (selected.countedPieces !== null) selected.countedPieces = 0;
-          remaining--;
-        }
-      }
-      if (remaining)
-        throw new ConflictException(
-          line.presentation === 'half_box'
-            ? 'No hay suficientes medias cajas disponibles. En empaques con conteo, prepáralas primero en Inventario.'
-            : 'No hay suficiente existencia física disponible para esta venta.',
-        );
+    const loaded = await this.saleStock(
+      client,
+      lines.map((line) => line.configurationId),
+      isDemo,
+      true,
+      soldAt,
+    );
+    const input = {
+      soldAt,
+      lines: lines.map((line) => ({
+        lineKey: line.lineId,
+        configurationId: line.configurationId,
+        presentation: line.presentation,
+        quantity: line.quantity,
+      })),
+    };
+    const plan = planPhysicalSale(input, loaded.stock, { newContainerId: randomUUID });
+    if (!plan.valid) {
+      const issue = plan.issues[0]!;
+      if (issue.issueCode === 'configuration_missing') throw new NotFoundException(issue.message);
+      if (['presentation_not_allowed', 'receipt_after_sale'].includes(issue.issueCode))
+        throw new BadRequestException(issue.message);
+      const preview = previewPhysicalSale(input, loaded.stock, new Date().toISOString());
+      const line = preview.lines.find((item) => item.lineKey === issue.lineKey);
+      const position = lines.findIndex((item) => item.lineId === issue.lineKey) + 1;
+      throw new ConflictException(`Línea ${position}: ${line?.message ?? issue.message}`);
     }
-    for (const [lotId, { lot, before, state }] of loaded) {
-      const affected = allocations.filter((a) => a.lotId === lotId);
+    const allocations: SaleAllocation[] = plan.allocations.map((item) => ({
+      saleLineId: item.lineKey,
+      lotId: item.lotId,
+      containerId: item.containerId,
+      movementId: '',
+      quantity: item.quantity,
+      costUsd: item.costUsd,
+    }));
+    for (const [lotId, state] of plan.states) {
+      const affected = allocations.filter((item) => item.lotId === lotId);
       if (!affected.length) continue;
-      this.retireEmptyBoxes(state);
       const movementId = await this.persistMovement(
         client,
-        lot,
-        before,
+        loaded.rows.get(lotId)!,
+        loaded.before.get(lotId)!,
         state,
         'dispatch',
         'Salida por comprobante de venta',
@@ -1347,7 +1365,9 @@ export class InventoryService implements OnModuleDestroy {
         key,
         hash,
       );
-      affected.forEach((a) => (a.movementId = movementId));
+      affected.forEach((item) => {
+        item.movementId = movementId;
+      });
     }
     return allocations;
   }

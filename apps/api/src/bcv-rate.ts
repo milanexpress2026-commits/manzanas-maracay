@@ -1,14 +1,20 @@
 import Decimal from 'decimal.js';
 import type { VerifiedRate } from '../../../packages/domain/src/index';
+import { validateBcvContinuity } from '../../../packages/domain/src/rate-sources';
 
 export type HistoricalOfficialRate = VerifiedRate & {
   id: string;
   sourceUrl: string;
   sourceHash: string;
   fetchedAt: Date;
+  officialValueDate?: string;
 };
 export type HistoricalUsdtRate = Omit<HistoricalOfficialRate, 'source'> & {
   source: 'BINANCE_P2P_BUY';
+};
+/** Display metadata has no payment identifier and cannot authorize a conversion. */
+export type LastOfficialRate = Omit<HistoricalOfficialRate, 'id'> & {
+  usage: 'display_only';
 };
 
 export function selectUsdtRate(
@@ -29,7 +35,8 @@ export function selectUsdtRate(
   );
   if (!checked || row.valid_until.getTime() - row.valid_from.getTime() > 15 * 60 * 1000)
     return null;
-  return { ...checked, source: 'BINANCE_P2P_BUY', sourceUrl: row.source_url };
+  const { officialValueDate: _officialValueDate, ...quote } = checked;
+  return { ...quote, source: 'BINANCE_P2P_BUY', sourceUrl: row.source_url };
 }
 
 export type OfficialRateCacheRow = {
@@ -49,6 +56,43 @@ export type OfficialRateCacheRow = {
 export function selectOfficialRate(
   rows: readonly OfficialRateCacheRow[],
   at: Date,
+  parents: readonly OfficialRateCacheRow[] = [],
+): HistoricalOfficialRate | null {
+  return selectTrustedOfficialRate(rows, at, false, parents);
+}
+
+/** The caller supplies only rows from the latest nonfuture value date. */
+export function selectLastOfficialRate(
+  rows: readonly OfficialRateCacheRow[],
+  at: Date,
+  parents: readonly OfficialRateCacheRow[] = [],
+): LastOfficialRate | null {
+  const rate = selectTrustedOfficialRate(rows, at, true, parents);
+  if (!rate) return null;
+  return officialRateReference(rate);
+}
+
+/** Copy only display fields from an already verified official observation. */
+export function officialRateReference(rate: HistoricalOfficialRate): LastOfficialRate {
+  return {
+    usage: 'display_only',
+    rate: rate.rate,
+    source: rate.source,
+    sourceUrl: rate.sourceUrl,
+    sourceHash: rate.sourceHash,
+    fetchedAt: rate.fetchedAt,
+    verifiedAt: rate.verifiedAt,
+    validFrom: rate.validFrom,
+    validUntil: rate.validUntil,
+    officialValueDate: rate.officialValueDate,
+  };
+}
+
+function selectTrustedOfficialRate(
+  rows: readonly OfficialRateCacheRow[],
+  at: Date,
+  allowExpiredForDisplay: boolean,
+  parents: readonly OfficialRateCacheRow[],
 ): HistoricalOfficialRate | null {
   if (!Number.isFinite(at.getTime()) || rows.length !== 1) return null;
   const row = rows[0];
@@ -80,9 +124,15 @@ export function selectOfficialRate(
       row.fetched_at > row.verified_at ||
       row.verified_at > at ||
       at < row.valid_from ||
-      at >= row.valid_until
+      (!allowExpiredForDisplay && at >= row.valid_until)
     )
       return null;
+    // Reserve the whole verifier family: a truncated/versioned marker must not
+    // fall through as an ordinary historical verifier and bypass its parents.
+    const officialValueDate = row.verified_by.trim().toLowerCase().startsWith('bcv-continuity')
+      ? validateBcvContinuity(row, parents)
+      : new Date(row.valid_from.getTime() - 4 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (!officialValueDate) return null;
     return {
       id: row.id,
       rate: value.toFixed(8),
@@ -93,6 +143,7 @@ export function selectOfficialRate(
       verifiedAt: new Date(row.verified_at),
       validFrom: new Date(row.valid_from),
       validUntil: new Date(row.valid_until),
+      officialValueDate,
     };
   } catch {
     return null;
@@ -102,10 +153,12 @@ export function selectOfficialRate(
 export async function readOfficialRate(
   readRows: (at: Date) => Promise<OfficialRateCacheRow[]>,
   at: Date,
+  readParents?: (rows: readonly OfficialRateCacheRow[]) => Promise<OfficialRateCacheRow[]>,
 ): Promise<HistoricalOfficialRate | null> {
   if (!Number.isFinite(at.getTime())) return null;
   try {
-    return selectOfficialRate(await readRows(at), at);
+    const rows = await readRows(at);
+    return selectOfficialRate(rows, at, readParents ? await readParents(rows) : []);
   } catch {
     // Missing cache/permissions/database is never a reason to invent or reuse a stale rate.
     return null;
