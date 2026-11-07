@@ -107,9 +107,9 @@ test('cliente fuera de los primeros 200: búsqueda, paginación, borrador y enla
   await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText(target.name);
   await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
+  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
   const sale: SaleDetail = await (
-    await page.request.get(`/api/sales/${page.url().split('/').at(-1)}`)
+    await page.request.get(`/api/sales/${new URL(page.url()).pathname.split('/').at(-1)}`)
   ).json();
   expect(sale).toMatchObject({ clientId: target.id, totalUsd: '40.00', balanceUsd: '0.00' });
 });

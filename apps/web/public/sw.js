@@ -48,6 +48,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
+  // A private API/PDF navigation must never be replaced by the cached HTML page.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
   if (url.origin === self.location.origin && url.pathname === LOGO) {
     event.respondWith(
       caches.open(CACHE).then(async (cache) => (await cache.match(LOGO)) || fetch(event.request)),

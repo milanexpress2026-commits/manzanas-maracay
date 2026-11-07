@@ -240,8 +240,8 @@ test('QA V4.5 vacía: cinco productos sin costo/proveedor/lista, precio manual, 
     await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('USD 80,00');
     await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
-    const saleId = page.url().split('/').at(-1)!;
+    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
+    const saleId = new URL(page.url()).pathname.split('/').at(-1)!;
     const sale: SaleDetail = await (await page.request.get('/api/sales/' + saleId)).json();
     expect(sale.condition).toBe('cash');
     expect(sale.totalUsd).toBe('80.00');
@@ -283,8 +283,8 @@ test('QA V4.5 vacía: cinco productos sin costo/proveedor/lista, precio manual, 
     await expect(page.locator('#sale-method')).toHaveCount(0);
     await page.getByRole('button', { name: 'Revisar y registrar crédito' }).click();
     await page.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
-    const creditId = page.url().split('/').at(-1)!;
+    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
+    const creditId = new URL(page.url()).pathname.split('/').at(-1)!;
     const credit: SaleDetail = await (await page.request.get('/api/sales/' + creditId)).json();
     expect(credit).toMatchObject({
       totalUsd: '43.00',

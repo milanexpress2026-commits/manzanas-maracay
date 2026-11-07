@@ -6,7 +6,7 @@ import type {
   Presentation,
 } from '../../../packages/domain/src/commerce';
 import type { Configuration, ReceiptResult, Supplier } from '../../../packages/domain/src/index';
-export const commerceHeaders = (key = randomUUID()) => ({
+export const commerceHeaders = (key: string = randomUUID()) => ({
   Origin: 'http://127.0.0.1:3200',
   'Idempotency-Key': key,
 });

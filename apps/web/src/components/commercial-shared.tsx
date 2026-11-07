@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
 import Decimal from 'decimal.js';
 import { AlertCircle, Download, HandCoins, Info, UserPlus, ChevronDown } from 'lucide-react';
@@ -22,7 +22,15 @@ import { Textarea } from './ui/textarea';
 import { Field, FieldGroup, FieldLabel, FieldDescription } from './ui/field';
 import { Alert, AlertDescription } from './ui/alert';
 import { FormError, SaveButton, LoadError, LoadingRows } from './operations-ui';
-import { useCommand, useRemote, displayMoney, displayDate, ApiError } from '@/lib/inventory-api';
+import {
+  useCommand,
+  useDurableCommercialCommand,
+  useRemote,
+  displayMoney,
+  displayDate,
+} from '@/lib/inventory-api';
+import { CommercialJournalError, commercialCommandBody } from '@/lib/commercial-journal';
+import type { AppSession } from './app-shell';
 import { paymentEquivalent } from '@/lib/payment-equivalent';
 import { caracasDateTime, caracasInstant, normalizedMoney } from '@/lib/commercial-ui';
 import { PaymentMethodSelector } from './payment-method-selector';
@@ -431,15 +439,17 @@ export function ClientDialog({
   );
 }
 export function PaymentDialog({
+  session,
   clientId,
   saleId,
   onClose,
   onSaved,
 }: {
+  session: AppSession;
   clientId: string;
   saleId?: string;
   onClose: () => void;
-  onSaved: (payment: PaymentDetail) => Promise<void>;
+  onSaved: (payment: PaymentDetail) => Promise<void> | void;
 }) {
   const account = useRemote<ClientAccount>('/api/clients/' + clientId),
     rate = useRemote<RateStatus>('/api/rates/current');
@@ -454,7 +464,27 @@ export function PaymentDialog({
   const [reviewAttempted, setReviewAttempted] = useState(false);
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
   const [review, setReview] = useState<ReturnType<typeof paymentSchema.parse> | null>(null);
-  const command = useCommand();
+  const command = useDurableCommercialCommand(
+    session.environment + ':' + session.user.id,
+    'payment',
+  );
+  const restoredCommandKey = useRef<string | null>(null);
+  const foreignPending =
+    !!command.pending && commercialCommandBody(command.pending).clientId !== clientId;
+  useEffect(() => {
+    if (
+      !command.pending ||
+      command.busy ||
+      foreignPending ||
+      restoredCommandKey.current === command.pending.key
+    )
+      return;
+    restoredCommandKey.current = command.pending.key;
+    setReview(paymentSchema.parse(commercialCommandBody(command.pending)));
+    setReviewAttempted(true);
+    setReviewQuote(null);
+    setReviewInformation(null);
+  }, [command.pending, command.busy, foreignPending]);
   useEffect(() => setDate(caracasDateTime()), []);
   const invoices =
     account.data?.sales.filter(
@@ -558,11 +588,10 @@ export function PaymentDialog({
       }
       try {
         setReviewAttempted(true);
-        const result = await command.run<PaymentDetail>('/api/payments', review);
+        const result = await command.run<PaymentDetail>(review);
         await onSaved(result);
       } catch (error) {
-        if (error instanceof ApiError && [400, 409, 422].includes(error.status))
-          setReviewAttempted(false);
+        if (error instanceof CommercialJournalError && error.editable) setReviewAttempted(false);
       }
       return;
     }
@@ -633,7 +662,7 @@ export function PaymentDialog({
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !command.busy && !reviewAttempted) onClose();
+        if (!open && !command.busy) onClose();
       }}
     >
       <DialogContent className="catalog-dialog">
@@ -648,9 +677,20 @@ export function PaymentDialog({
           <LoadError error={account.error} retry={() => void account.reload()} />
         ) : null}
         {!account.data && account.loading ? <LoadingRows /> : null}
-        {account.data ? (
+        <FormError
+          message={
+            command.storageError ||
+            (foreignPending
+              ? 'Hay un abono pendiente de otro cliente. Cierra este formulario y usa «Recuperar abono pendiente» antes de registrar otro.'
+              : '')
+          }
+        />
+        {account.data || review ? (
           <form onSubmit={submit}>
-            <fieldset disabled={command.busy} className={styles.payment}>
+            <fieldset
+              disabled={command.busy || !command.ready || !!command.storageError || foreignPending}
+              className={styles.payment}
+            >
               <FieldGroup>
                 {review ? (
                   <div className="receipt-review">
@@ -677,7 +717,10 @@ export function PaymentDialog({
                     <ul>
                       {review.applications.map((a) => (
                         <li key={a.saleId}>
-                          <strong>{invoices.find((s) => s.id === a.saleId)?.number}</strong>
+                          <strong>
+                            {account.data?.sales.find((s) => s.id === a.saleId)?.number ??
+                              'Comprobante seleccionado'}
+                          </strong>
                           <span>{displayMoney(a.amountUsd)}</span>
                         </li>
                       ))}
@@ -685,6 +728,12 @@ export function PaymentDialog({
                     <p>
                       Se emitirá un recibo digital. No se enviará ningún mensaje automáticamente.
                     </p>
+                    {command.pending ? (
+                      <p role="status">
+                        Solicitud conservada. Confirmar recupera o completa este mismo abono aunque
+                        el saldo o la cotización hayan cambiado.
+                      </p>
+                    ) : null}
                   </div>
                 ) : (
                   <>
@@ -855,14 +904,19 @@ export function PaymentDialog({
                   </>
                 )}
                 <FormError message={command.error} />
+                {command.authNeeded ? (
+                  <Link href="/login">Iniciar sesión para recuperar este abono</Link>
+                ) : null}
                 <div className="form-actions">
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={command.busy || reviewAttempted}
-                    onClick={() => (review ? setReview(null) : onClose())}
+                    disabled={command.busy}
+                    onClick={() =>
+                      reviewAttempted ? onClose() : review ? setReview(null) : onClose()
+                    }
                   >
-                    {review ? 'Volver a editar' : 'Cancelar'}
+                    {reviewAttempted ? 'Cerrar resumen' : review ? 'Volver a editar' : 'Cancelar'}
                   </Button>
                   <SaveButton busy={command.busy}>
                     {review ? 'Confirmar abono' : 'Revisar abono'}
@@ -874,6 +928,46 @@ export function PaymentDialog({
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+export function PendingPaymentRecovery({
+  session,
+  onSaved,
+}: {
+  session: AppSession;
+  onSaved: (payment: PaymentDetail) => Promise<void> | void;
+}) {
+  const command = useDurableCommercialCommand(
+    session.environment + ':' + session.user.id,
+    'payment',
+  );
+  const [open, setOpen] = useState(false);
+  if (command.storageError) return <FormError message={command.storageError} />;
+  if (!command.pending) return null;
+  const pending = paymentSchema.parse(commercialCommandBody(command.pending));
+  return (
+    <>
+      <section className="saved-notice" aria-label="Abono pendiente de confirmación">
+        <p>
+          Hay un abono pendiente de confirmación en este dispositivo. Recupéralo antes de registrar
+          otro.
+        </p>
+        <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+          Recuperar abono pendiente
+        </Button>
+      </section>
+      {open ? (
+        <PaymentDialog
+          session={session}
+          clientId={pending.clientId}
+          onClose={() => setOpen(false)}
+          onSaved={async (payment) => {
+            setOpen(false);
+            await onSaved(payment);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 export function PaymentSaved({ payment }: { payment: PaymentDetail }) {

@@ -8,8 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import styles from './login.module.css';
 import type { AppEnvironment } from '@mm/domain';
+import { internalReturnPath } from '@/lib/auth-return';
 
-export function LoginForm({ environment }: { environment: AppEnvironment }) {
+export function LoginForm({
+  environment,
+  returnTo,
+}: {
+  environment: AppEnvironment;
+  returnTo?: string;
+}) {
   const production = environment === 'production';
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -31,7 +38,9 @@ export function LoginForm({ environment }: { environment: AppEnvironment }) {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message ?? 'No se pudo iniciar sesión.');
-      window.location.assign(production ? '/inicio' : '/catalogo');
+      window.location.assign(
+        internalReturnPath(returnTo) ?? (production ? '/inicio' : '/catalogo'),
+      );
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : 'No se pudo conectar. Vuelve a intentar.',

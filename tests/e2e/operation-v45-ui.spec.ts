@@ -76,9 +76,9 @@ for (const [width, method, agreement, currency, amount] of [
       path: `docs/capturas/operacion-simple-v4-5/revision-${width}-${method}.png`,
     });
     await review.getByRole('button', { name: 'Confirmar venta', exact: true }).click();
-    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
+    await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
     const sale: SaleDetail = await (
-      await page.request.get('/api/sales/' + page.url().split('/').at(-1)!)
+      await page.request.get('/api/sales/' + new URL(page.url()).pathname.split('/').at(-1)!)
     ).json();
     expect(sale).toMatchObject({
       totalUsd: '40.00',
@@ -100,7 +100,10 @@ for (const [width, method, agreement, currency, amount] of [
       });
     if (method === 'ves_usdt') expect(payment.usdtRate?.id).toBe(rates.usdt.id);
     if (method === 'ves_bcv') expect(payment.bcvRate?.id).toBe(rates.bcv.id);
-    await expect(page.getByRole('link', { name: 'Descargar PDF', exact: true })).toBeVisible();
+    await page.getByText('Comprobante y tamaño de papel', { exact: true }).click();
+    await expect(
+      page.getByRole('link', { name: 'Descargar comprobante de venta', exact: true }),
+    ).toBeVisible();
     await page.screenshot({
       path: `docs/capturas/operacion-simple-v4-5/comprobante-${width}-${method}.png`,
       fullPage: true,
@@ -138,5 +141,5 @@ test('V4.5 USDT sigue disponible con equivalencia Bs no disponible; no envía un
   expect(body.initialPayment).toMatchObject({ currency: 'USDT', amount: '40.00' });
   expect(body.initialPayment.rateId).toBeUndefined();
   expect(body.initialPayment.informationalUsdtRateId).toBeUndefined();
-  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
+  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
 });

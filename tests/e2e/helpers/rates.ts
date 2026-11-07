@@ -6,7 +6,7 @@ import { BCV_SOURCE_URL, USDT_SOURCE_URL } from '../../../packages/domain/src/ra
 dotenv.config({ quiet: true });
 /** Synthetic immutable cache rows, confined to the project's disposable E2E database. */
 export async function syntheticPaymentRates(
-  options: { bcv?: string; usdt?: string; expired?: boolean } = {},
+  options: { bcv?: string; usdt?: string; expired?: boolean; validForMs?: number } = {},
 ) {
   const url = new URL(process.env.MIGRATION_DATABASE_URL!);
   if (
@@ -26,7 +26,9 @@ export async function syntheticPaymentRates(
       throw new Error('La base debe estar vinculada a test.');
     const now = Date.now();
     const stamp = new Date(now - (options.expired ? 11 * 60000 : 1000)).toISOString();
-    const until = new Date(now + (options.expired ? -60000 : 9 * 60000)).toISOString();
+    const until = new Date(
+      now + (options.expired ? -60000 : (options.validForMs ?? 9 * 60000)),
+    ).toISOString();
     const bcv = {
       id: randomUUID(),
       rate: options.bcv ?? '60.00000000',

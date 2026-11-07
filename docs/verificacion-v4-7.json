@@ -1,0 +1,531 @@
+{
+  "format": 1,
+  "version": "4.7",
+  "status": "production_active_v47_beta_tests_only_v48_stock_ux_review_open",
+  "conclusion": "APTA SOLO PARA PRUEBAS",
+  "baseCommit": "566ff95fb37625766f73d075cdb0b4fdc3e55173",
+  "finalCandidateCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+  "firstLinuxQa": {
+    "runtimeCommit": "9a666214d186f62b73e07947a1dee1eee0535adc",
+    "startedAt": "2026-11-07T00:22:46.757Z",
+    "finishedAt": "2026-11-07T00:29:16.937Z",
+    "passed": false,
+    "runtimeSourceUnchangedBeforeAndAfter": true,
+    "dependencyLockUnchangedBeforeAndAfter": true,
+    "node": "v24.22.1",
+    "npm": "11.19.1",
+    "playwright": "1.64.1",
+    "check": {
+      "passed": true,
+      "startedAt": "2026-11-07T00:22:47.268Z",
+      "finishedAt": "2026-11-07T00:24:14.172Z",
+      "typecheck": "passed",
+      "apiBuild": "passed",
+      "webBuild": "passed",
+      "unitTests": {
+        "passed": 351,
+        "failed": 0,
+        "total": 351
+      }
+    },
+    "directed": {
+      "status": "failed",
+      "startedAt": "2026-11-07T00:24:14.465Z",
+      "finishedAt": "2026-11-07T00:29:16.548Z",
+      "passed": 14,
+      "failed": 1,
+      "total": 15,
+      "failure": {
+        "spec": "tests/e2e/document-printing-v47.spec.ts",
+        "viewportWidth": 390,
+        "cause": "fixture_omitted_divisa_agreement_selection",
+        "applicationValidationObservedCorrect": true,
+        "oneLineFixtureCorrectionPrepared": true,
+        "timeoutIncreased": false,
+        "rerunAfterCorrection": "passed_on_final_candidate"
+      }
+    },
+    "stoppedAfterFailure": true,
+    "notExecuted": ["full_regression", "isolated_production_qa", "migrations"],
+    "postgresAfter": {
+      "stopped": true,
+      "postmasterPidFilesPresent": false,
+      "loopbackPortFree": true
+    }
+  },
+  "correctionsAfterFirstQa": {
+    "reviewBodyMustMatchCapturedCommand": {
+      "finding": "SEC-03",
+      "severity": "P1",
+      "implemented": true,
+      "regressionsFailedBeforePatch": 2,
+      "regressionsPassedAfterPatch": 2,
+      "journalAndRejectionUnitTests": {
+        "passed": 37,
+        "failed": 0,
+        "total": 37
+      },
+      "webTypecheck": "passed",
+      "extendedE2eTypecheck": "passed",
+      "extendedE2eExecution": "passed_in_final_directed_and_full_regression",
+      "preservesOriginalRequestBytesAndKey": true,
+      "mismatchedReviewSendsNoPost": true,
+      "addsMigration": false,
+      "verifiedRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5"
+    }
+  },
+  "dependencies": {
+    "productionNpmAuditReportedVulnerabilities": 0,
+    "nodeImagePin": "node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d",
+    "auditIsNotProofOfRuntimeDeployment": true
+  },
+  "pdfEvidence": {
+    "unitTestsPassed": 15,
+    "webDeliveryUnitTestsPassed": 15,
+    "syntheticDocuments": 12,
+    "renderedPages": 37,
+    "publicPagesVisuallyReviewed": 11,
+    "automaticReport": "docs/capturas/impresion-v4-7/verificacion-automatica.json",
+    "visualReport": "docs/capturas/impresion-v4-7/revision-visual.json",
+    "physicalPrinterTested": false,
+    "physicalTabletTested": false
+  },
+  "lastVerifiedDeployment": {
+    "stagingRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "stagingMigrations": 16,
+    "productionRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "productionMigrations": 16,
+    "v47DeployedToStaging": true,
+    "v47DeployedToProduction": true,
+    "productionChangedByThisQa": false,
+    "stagingV47ImagesBuilt": true,
+    "stagingV47UpgradeStatus": "healthy_verified",
+    "stagingV47UpgradeIncident": {
+      "applicationCodeDefect": false,
+      "firstAttemptStoppedBeforeApplicationShutdownOrMigration": true,
+      "privatePreflightQueryCorrected": true,
+      "exactOwnCronRestored": true,
+      "retryPassed": true,
+      "productionModified": false
+    },
+    "productionHealthyAt": "2026-11-07T03:33:53.831611Z"
+  },
+  "pending": {
+    "finalCommit": false,
+    "finalIntegratedCheck": false,
+    "finalDirectedE2e": false,
+    "fullRegression": false,
+    "isolatedProductionQa": false,
+    "migrations": false,
+    "restoreWithEffectiveApplicationRoleReads": false,
+    "finalEncryptedBackupAndRestore": false,
+    "staging": false,
+    "explicitOperationalApproval": false,
+    "production": false,
+    "physicalTablet": true,
+    "physicalHpPrinter": true,
+    "prepublicationEncryptedBackupAndRestore": false,
+    "stagingBusinessSmoke": false,
+    "writerWindowBackupAfterStop": false,
+    "postPromotion16BackupRestore": false,
+    "productionPositivePdfWithRealSale": true,
+    "v48StockUxP1": true,
+    "v48LastOfficialUiDeployment": true
+  },
+  "finalLinuxQa": {
+    "runtimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "startedAt": "2026-11-07T00:49:59.091Z",
+    "finishedAt": "2026-11-07T01:11:29.969Z",
+    "passed": true,
+    "phasesPassed": 5,
+    "runtimeSourceUnchangedBeforeAndAfterEachPhase": true,
+    "dependencyLockUnchangedBeforeAndAfterEachPhase": true,
+    "node": "v24.22.1",
+    "npm": "11.19.1",
+    "playwright": "1.64.1",
+    "phases": {
+      "check": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T00:49:59.405Z",
+        "finishedAt": "2026-11-07T00:51:11.069Z",
+        "typecheck": "passed",
+        "apiBuild": "passed",
+        "webBuild": "passed",
+        "unitTests": {
+          "passed": 353,
+          "failed": 0,
+          "total": 353,
+          "files": 32
+        }
+      },
+      "directed-v47": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T00:51:11.433Z",
+        "finishedAt": "2026-11-07T00:53:30.416Z",
+        "tests": {
+          "passed": 15,
+          "failed": 0,
+          "total": 15
+        },
+        "apiCases": 4,
+        "recoveryCases": 3,
+        "documentCases": 8,
+        "freshExclusiveDatabase": true,
+        "databaseStopped": true
+      },
+      "full-e2e": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T00:53:30.818Z",
+        "finishedAt": "2026-11-07T01:08:24.100Z",
+        "tests": {
+          "passed": 130,
+          "failed": 0,
+          "total": 130
+        },
+        "singleExecution": true,
+        "reportedDurationMinutes": 14.8,
+        "freshExclusiveDatabase": true,
+        "databaseStopped": true,
+        "priorLocalDatabaseUnchanged": true
+      },
+      "production": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T01:08:24.426Z",
+        "finishedAt": "2026-11-07T01:11:17.666Z",
+        "purpose": "isolated_synthetic_regression",
+        "tests": {
+          "passed": 13,
+          "failed": 0,
+          "total": 13,
+          "verifiedSubrunCounts": [2, 1, 4, 6]
+        },
+        "originalScriptReport": {
+          "startedAt": "2026-11-07T01:08:24.913Z",
+          "finishedAt": "2026-11-07T01:11:17.626Z",
+          "emptyPassed": true,
+          "emptyUxPassed": true,
+          "operationsPassed": true,
+          "databaseCleaned": true,
+          "emptyBusinessTablesVerified": 21,
+          "limitedMigrationOwner": true
+        }
+      },
+      "migrations": {
+        "passed": true,
+        "exitCode": 0,
+        "startedAt": "2026-11-07T01:11:18.071Z",
+        "finishedAt": "2026-11-07T01:11:29.654Z",
+        "freshMigrationCount": 16,
+        "freshNoSyntheticOperationalData": true,
+        "constraintsValidated": true,
+        "upgradeFromCounts": [13, 14, 15],
+        "upgradeToCount": 16,
+        "preservedHistoricalTables": 35,
+        "priorMigrationHashesPreserved": true,
+        "historicalKnownCostsPreserved": true,
+        "historicalPricesPreserved": true,
+        "commandReceiptsPreserved": true,
+        "historicalReceiptNumbersRemainNull": true,
+        "runtimeBindingPreserved": true,
+        "historicalPaymentsNotReclassified": true,
+        "noSyntheticRates": true,
+        "temporaryDatabasesRemoved": 2,
+        "realProductionDatabaseTouched": false,
+        "realBackupRestoreVerifiedByThisRun": false
+      }
+    },
+    "postgresAfter": {
+      "stopped": true,
+      "postmasterPidFilesPresent": false,
+      "loopbackPortFree": true
+    }
+  },
+  "uiEvidence": {
+    "confirmationScreenshotsReviewed": 4,
+    "popupBlockedScreenshotReviewed": true,
+    "reviewedViewportWidths": [390, 800, 1024, 1440],
+    "reviewedWithoutOverlappingActions": true,
+    "detailTableAt390UsesInternalHorizontalScroll": true,
+    "videoGenerated": true,
+    "videoVisuallyReviewed": false,
+    "physicalTabletTested": false,
+    "physicalPrinterTested": false,
+    "visualReport": "docs/capturas/impresion-v4-7/revision-web-82cd5ab.json",
+    "reviewedAt": "2026-11-07T01:32:56.231642+00:00"
+  },
+  "stagingVerification": {
+    "runtimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "verifiedAt": "2026-11-07T01:36:56.485675+00:00",
+    "healthy": true,
+    "migrationsBefore": 16,
+    "migrationsAfter": 16,
+    "migrationBytesAndRecordsUnchanged": true,
+    "allPreservationFingerprintsAndCountsEqual": true,
+    "backupBeforeRestored": true,
+    "backupAfterRestored": true,
+    "integrity": {
+      "active_devices": 0,
+      "pending_notices": 0,
+      "empty_nonzero_costs": 0,
+      "cost_projection_errors": 0,
+      "unvalidated_constraints": 0
+    },
+    "images": {
+      "tools": "sha256:c65aee8909352f46612927952b70c29f8e64c37b168fcb9baed08c9dee4a0168",
+      "api": "sha256:d8d7092359f898e309d3213ea77007fcc0d9ff94fc6bc9556dd103e7c53d733d",
+      "web": "sha256:071c6df6b4593a26cbca8ebbdb68bbda876e082ff4362ef6d51b20892cfc208a"
+    },
+    "ownRateCronResumed": true,
+    "ratesVerifiedAt": "2026-11-07T01:37:10.296780+00:00",
+    "authAndPdfSmoke": {
+      "checkedAt": "2026-11-07T01:38:11.473606+00:00",
+      "passed": true,
+      "baselineChecksPassed": 16,
+      "pdfChecksPassed": 5,
+      "totalChecksPassed": 21,
+      "currentBcvVerified": true,
+      "currentUsdtVerified": true,
+      "pdfChecks": {
+        "letterNotePdf": true,
+        "letterDownloadPdf": true,
+        "a4DownloadPdf": true,
+        "anonymousPdfDenied": true,
+        "invalidPdfQueryDenied": true
+      },
+      "paperSizesRequested": ["letter", "a4"],
+      "pdfPageGeometryParsed": false,
+      "businessWrites": false,
+      "productionRequests": false
+    },
+    "businessLifecycleRepeatedInStaging": true,
+    "businessSmoke": {
+      "automaticRetries": false,
+      "cancelledOrDeletedRecords": false,
+      "checkedAt": "2026-11-07T03:17:34.753Z",
+      "checks": {
+        "clientDemo": true,
+        "creditManualSale": true,
+        "finalDebtZero": true,
+        "finalStockOne": true,
+        "letterPdf": true,
+        "logout": true,
+        "oldCookieRejected": true,
+        "oneSaleOnePayment": true,
+        "paymentReplay": true,
+        "pricesStillAbsent": true,
+        "ratesAfterVerified": true,
+        "ratesBeforeVerified": true,
+        "readOnlyReprintUnchanged": true,
+        "receiptNullSupplierAndCost": true,
+        "receiptReplay": true,
+        "reprintedLetterPdf": true,
+        "saleReplay": true,
+        "secureLogin": true,
+        "stagingScope": true,
+        "unpricedConfiguration": true,
+        "usdtOneToOnePayment": true
+      },
+      "commit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+      "directDatabaseAccess": false,
+      "environment": "staging",
+      "operatorReviewRequired": false,
+      "passed": true,
+      "productionRequests": false,
+      "release": "hotfix-82cd5ab579fb",
+      "syntheticDemoOnly": true,
+      "syntheticExpectedTotals": {
+        "balanceUsd": "0.00",
+        "paidUsdt": "40.00",
+        "receivedBoxes": 2,
+        "remainingBoxes": 1,
+        "saleUsd": "40.00",
+        "soldBoxes": 1
+      },
+      "checksPassed": 21,
+      "singleSmallSyntheticScenario": true,
+      "fullSuiteRepeatedInStaging": false,
+      "comparisonScope": "own_sale_client_account_lot_and_configuration_via_api",
+      "priorAttempt": {
+        "checkedAt": "2026-11-07T02:52:10.645Z",
+        "passed": false,
+        "cause": "operator_expected_prices_in_post_configuration_response",
+        "createdMasters": 3,
+        "receiptSalePaymentNotAttempted": true,
+        "correctedHelperUsesGetCatalog": true,
+        "applicationChanged": false,
+        "sameJournalBodiesAndKeysResumed": true,
+        "confirmedMastersReused": true,
+        "offlineTestsAfterHelperFix": 13
+      }
+    }
+  },
+  "qaResourceCleanup": {
+    "containersRemoved": 2,
+    "volumesRemoved": 2,
+    "networksRemoved": 2,
+    "readOnlyPreservationRecheckAt": "2026-11-07T01:47:47.266030+00:00",
+    "preexistingContainersPreserved": true,
+    "comparedWithVerifiedStagingAfterSnapshot": true,
+    "initialComparisonObservedOwnScheduledCollectorTransient": true
+  },
+  "publicationPlan": "docs/promocion-v4-7.md",
+  "productionPreparation": {
+    "runtimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "imagesBuiltAt": "2026-11-07T02:06:29.851194Z",
+    "images": {
+      "tools": "sha256:231f63fe74e06566df287cd10b9aa8814082ceac48888532e8d13504e71e0994",
+      "api": "sha256:84bc798589dced1af6c22cc570ea25a3e3cc43fc3ddd643f9c9df3d123dc06c8",
+      "web": "sha256:e1be50e62033296424976a0ee9f1e1063fef3c93b171724417df33c5d3d81d3e"
+    },
+    "activated": true,
+    "prepublicationBackup": {
+      "commit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
+      "checkedAt": "2026-11-07T03:05:52.645964+00:00",
+      "externalCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "remoteEncryptedCopyVerified": true
+    },
+    "encryption": {
+      "algorithm": "AES-256-GCM",
+      "externalKeyProtection": "Windows DPAPI",
+      "encryptedCopiesOutsideAndInsideVpsVerified": true
+    },
+    "realBackupUpgradeRehearsal": {
+      "commit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+      "checkedAt": "2026-11-07T02:22:07.305671+00:00",
+      "passed": true,
+      "migrationsBefore": 13,
+      "migrationsAfter": 16,
+      "tablesPreserved": 36,
+      "historicalRowsPreserved": true,
+      "legacyAgreementsPreserved": true,
+      "rateCacheInitiallyEmpty": true,
+      "collectorNoLogin": true,
+      "isolatedRestore13Verified": true,
+      "isolatedIntegrity16Verified": true,
+      "collectorPrivilegesVerified": true,
+      "restoredApplicationReadVerified": true,
+      "temporaryResourcesCleaned": true,
+      "liveDatabaseTouched": false,
+      "acl16RoundtripRestored": false,
+      "preexistingContainersPreserved": true
+    },
+    "previousPrepublicationBackup": {
+      "commit": "2a81817fe2c17130c07b47b04b98c6ce7aaf59b0",
+      "checkedAt": "2026-11-07T02:15:54.628405+00:00",
+      "externalCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "remoteEncryptedCopyVerified": true
+    }
+  },
+  "productionPublication": {
+    "runtimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "release": "phase4-82cd5ab579fb",
+    "healthyAt": "2026-11-07T03:33:53.831611Z",
+    "explicitOwnerApproval": true,
+    "approvedMigrations": ["0013", "0014", "0015"],
+    "ratesCollectorApproved": true,
+    "pushDispatcherWindowApproved": true,
+    "migrationsBefore": 13,
+    "migrationsAfter": 16,
+    "historicalPreservationPassed": true,
+    "activeTabletCountPreserved": 1,
+    "pushDeviceAndNoticeSnapshotsPreserved": true,
+    "dispatcherGuardsBeforeAndAfterStopPassed": true,
+    "dispatcherGuardAfterMigrationPassed": true,
+    "sharedProxyOrDnsChanged": false,
+    "writerWindowBackup": {
+      "checkedAt": "2026-11-07T03:31:26.277834Z",
+      "passed": true,
+      "afterWritersStopped": true,
+      "externalCopyVerified": true,
+      "restoredFromExternalCopy": true
+    },
+    "collector": {
+      "checkedAt": "2026-11-07T03:35:32.038990Z",
+      "scheduled": true,
+      "dedicatedLeastPrivilegeRole": true,
+      "ownNetworkAndCron": true
+    },
+    "postPublicationBackup": {
+      "checkedAt": "2026-11-07T05:21:06.597199Z",
+      "migrations": 16,
+      "externalCopyVerified": true,
+      "remoteEncryptedCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "beforeHistoricalBcvAppend": false,
+      "includesHistoricalBcvObservation": true
+    },
+    "historicalBcvAppend": {
+      "checkedAt": "2026-11-07T04:41:32.252Z",
+      "insertedRows": 1,
+      "rate": "896.12250000",
+      "officialValueDate": "2026-11-06",
+      "nextOfficialValueDate": "2026-11-09",
+      "validFrom": "2026-11-06T04:00:00Z",
+      "validUntilExclusive": "2026-11-09T04:00:00Z",
+      "sourceUrl": "https://www.bcv.org.ve/sites/default/files/EstadisticasGeneral/2_1_2d26_smc.xls",
+      "sourceHash": "b7fbce00d58f5b9819b04b8e5e1d0317ad2d1c01ee2e450bc58f30adc045fdb5",
+      "tlsVerified": true,
+      "explicitUserPolicy": "last_official_until_next_official_value_date",
+      "policyIsNotClaimedAsBcvNorm": true,
+      "verificationBackdated": false,
+      "previousRatesOrPaymentsChanged": false,
+      "runtimeCommitChanged": false,
+      "servicesReplaced": false,
+      "firstAttemptStoppedBeforeContainerOrInsert": true,
+      "operatorMemoryRepresentationGuardCorrected": true,
+      "sameIntentResumed": true
+    },
+    "publicReadOnlySmokeAfterBcv": {
+      "checkedAt": "2026-11-07T05:04:10.208664Z",
+      "passed": true,
+      "checksPassed": 21,
+      "fourPaymentMethodsAvailable": true,
+      "bcvAvailable": true,
+      "usdtAvailable": true,
+      "businessWrites": false,
+      "actualPaymentOperationsTested": false
+    },
+    "publicPdfProbeBeforeBcvAppend": {
+      "checkedAt": "2026-11-07T03:42:36.628044Z",
+      "passed": false,
+      "accessPassed": true,
+      "bcvAvailableAtThatTime": false,
+      "anonymousPdfDenied": true,
+      "positivePdfStatus": "pending_no_real_sale",
+      "paperSizesRequested": [],
+      "pdfPageGeometryParsed": false,
+      "businessWrites": false
+    },
+    "v48Continuation": {
+      "authorized": true,
+      "stockUxP1ReviewOpen": true,
+      "serverOversaleNotEstablishedByTypingVideo": true,
+      "lastOfficialUiWorkingTreeOnly": true,
+      "published": false,
+      "ready": false
+    },
+    "physicalTabletTested": false,
+    "physicalHpPrinterTested": false,
+    "postPublicationBackupBeforeHistoricalBcvAppend": {
+      "checkedAt": "2026-11-07T03:40:44.976258Z",
+      "migrations": 16,
+      "externalCopyVerified": true,
+      "remoteEncryptedCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "collectorAclVerified": true,
+      "effectiveApplicationReadsVerified": true,
+      "acl16RoundtripRestored": true,
+      "beforeHistoricalBcvAppend": true
+    }
+  }
+}

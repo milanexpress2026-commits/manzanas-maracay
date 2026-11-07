@@ -192,4 +192,53 @@ BEGIN
   FOR item IN SELECT id FROM sales LOOP PERFORM validate_commercial_sale(item.id); END LOOP;
   FOR item IN SELECT id FROM payments LOOP PERFORM validate_commercial_payment(item.id); END LOOP;
 END $$;
+-- Exercise restored permissions under the real application role. The expected
+-- counts are captured with bootstrap visibility, so an accidental RLS filter
+-- cannot make a populated restored database look empty. Only this transaction
+-- holds the comparison; no business rows, ACLs or login credentials are changed.
+DO $$
+DECLARE relation_name text; actual_count bigint; expected jsonb := '{}'::jsonb;
+BEGIN
+  FOREACH relation_name IN ARRAY ARRAY['fruits','varieties','calibers','product_variants',
+    'packing_rules','suppliers','warehouses','purchases','purchase_lines','lots','containers',
+    'stock_balances','inventory_movements','inventory_entries','inventory_cost_entries',
+    'inventory_cost_openings','clients','sales','sale_lines','sale_allocations','payments',
+    'payment_applications','sale_cancellations','payment_reversals','sale_date_events',
+    'command_receipts','price_lists','price_items','receivables','push_devices',
+    'push_notices','app_users','auth_sessions','auth_login_buckets',
+    'runtime_environment','bcv_rates'] LOOP
+    EXECUTE format('SELECT count(*) FROM public.%I', relation_name) INTO actual_count;
+    expected := expected || jsonb_build_object(relation_name, actual_count);
+  END LOOP;
+  IF to_regclass('public.usdt_rates') IS NOT NULL THEN
+    SELECT count(*) INTO actual_count FROM usdt_rates;
+    expected := expected || jsonb_build_object('usdt_rates', actual_count);
+  END IF;
+  PERFORM set_config('mm.restore_expected_counts', expected::text, true);
+END $$;
+SET LOCAL ROLE mm_prod_app;
+DO $$
+DECLARE relation_name text; actual_count bigint;
+  expected jsonb := current_setting('mm.restore_expected_counts')::jsonb;
+BEGIN
+  IF current_user <> 'mm_prod_app'
+    OR current_setting('transaction_read_only') <> 'on'
+    OR public.mm_runtime_environment() <> 'production' THEN
+    RAISE EXCEPTION 'Restored application role/read-only environment not active';
+  END IF;
+  FOR relation_name IN SELECT jsonb_object_keys(expected) LOOP
+    EXECUTE format('SELECT count(*) FROM public.%I', relation_name) INTO actual_count;
+    IF actual_count IS DISTINCT FROM (expected->>relation_name)::bigint THEN
+      RAISE EXCEPTION 'Restored application cannot read all expected rows in %', relation_name;
+    END IF;
+  END LOOP;
+  -- These joins exercise the columns used for stock and receivables, rather
+  -- than relying only on catalog declarations of SELECT privileges.
+  PERFORM l.id, c.id, s.quantity, s.unit FROM lots l
+    JOIN containers c ON c.lot_id=l.id JOIN stock_balances s ON s.container_id=c.id LIMIT 1;
+  PERFORM s.id, s.client_id, s.total_usd, p.amount_usd FROM sales s
+    LEFT JOIN payment_applications p ON p.sale_id=s.id LIMIT 1;
+  PERFORM u.id, u.username FROM app_users u LIMIT 1;
+END $$;
+RESET ROLE;
 COMMIT;

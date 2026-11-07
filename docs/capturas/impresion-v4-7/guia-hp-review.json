@@ -1,0 +1,17 @@
+{
+  "file": "docs/guia-impresion-hp-v4-7.pdf",
+  "pages": 1,
+  "paper": "letter",
+  "sha256": "1a62f58c8e501d1baf00229f3c1cea28fe96d8327cc5a1336f9557cfce7976ee",
+  "requiredLabelsVerified": true,
+  "physicalTabletTested": false,
+  "physicalPrinterTested": false,
+  "publicationVerifiedByThisGuide": false,
+  "visualReview": "passed",
+  "reviewedAt": "2026-11-06T23:47:41.822616+00:00",
+  "clippingOrOverlapObserved": false,
+  "renderedPages": 1,
+  "renderSha256": "36e11a150ffe9e7490002c73d4b12a439aeab2b989b43b5f4c9388f0a81ee6a4",
+  "bodyFontSizePoints": 11,
+  "outputBytes": 613237
+}

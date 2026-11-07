@@ -15,6 +15,7 @@ import { applyPresentationPrices } from './commerce-prices';
 import { resolveReceiptProduct, type ReceiptRule } from './catalog-receipt';
 import { assertBusinessWritesReady, commandIsDemo } from './production-state';
 import { authConfig } from './auth/config';
+import { markBusinessCommandRejection } from './command-rejection';
 import {
   countSellablePresentation,
   presentationCanUseLot,
@@ -310,6 +311,7 @@ export class InventoryService implements OnModuleDestroy {
       throw new BadRequestException('Falta una clave válida para guardar sin duplicados.');
     const hash = createHash('sha256').update(JSON.stringify({ kind, data, actor })).digest('hex');
     const client = await this.pool.connect();
+    const phase = { kind, callbackStarted: false, commitStarted: false, rollbackConfirmed: false };
     try {
       await client.query('begin');
       await client.query("set local lock_timeout='5s'");
@@ -322,20 +324,29 @@ export class InventoryService implements OnModuleDestroy {
           throw new ConflictException(
             'Esta solicitud ya se usó con otros datos o por otra persona.',
           );
+        phase.commitStarted = true;
         await client.query('commit');
         return receipt.response as T;
       }
       // Same lock as the database's tree triggers, acquired before individual lot/stock rows.
       if (inventory) await client.query('select pg_advisory_xact_lock(68493003)');
+      phase.callbackStarted = true;
       const result = await fn(client, hash);
       await client.query(
         'insert into command_receipts(key,request_hash,response) values($1,$2,$3::jsonb)',
         [key, hash, JSON.stringify(result)],
       );
+      phase.commitStarted = true;
       await client.query('commit');
       return result;
     } catch (error) {
-      await client.query('rollback').catch(() => undefined);
+      await client
+        .query('rollback')
+        .then(() => {
+          phase.rollbackConfirmed = true;
+        })
+        .catch(() => undefined);
+      markBusinessCommandRejection(error, key, phase);
       if (['40P01', '40001', '55P03'].includes((error as { code?: string }).code ?? ''))
         throw new ConflictException(
           'Hay otra operación en curso. Reintenta con la misma solicitud.',

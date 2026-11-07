@@ -233,14 +233,14 @@ test('venta UI a crédito sin asiento cero, reintento idempotente, abono elegido
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar venta', exact: true })
     .click();
-  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+$/);
+  await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+(?:\?guardada=1)?$/);
   expect(keys).toHaveLength(2);
   expect(keys[1]).toBe(keys[0]);
   expect(saved?.payments).toEqual([]);
   expect(saved?.totalUsd).toBe('80.00');
   expect(saved?.costUsd).toBeNull();
   await historicalSaleCost(saved!.id, '50.0000');
-  const saleId = page.url().split('/').at(-1)!;
+  const saleId = new URL(page.url()).pathname.split('/').at(-1)!;
   await expect(page.getByRole('button', { name: 'Cobrar por WhatsApp' })).toBeDisabled();
   // This UI scenario explicitly exercises unavailable quotes, independent of provider/network state.
   await page.route('**/api/rates/current', (route) =>

@@ -1,4 +1,6 @@
-FROM node:24-bookworm-slim AS dependencies
+ARG NODE_IMAGE=node:24.22.1-bookworm-slim@sha256:e1582112fb9f152ed38eefcd712efc93fee1becb519fdfa57574d5e07eaa5e7d
+FROM ${NODE_IMAGE} AS dependencies
+RUN node -e "const [a,b,c]=process.versions.node.split('.').map(Number); if(a!==24 || b<22 || (b===22 && c<1)) throw Error('Node 24.22.1 or newer patched Node 24 is required')"
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
@@ -32,7 +34,7 @@ USER node
 ENTRYPOINT ["node", "scripts/staging-runtime.mjs"]
 CMD ["api"]
 
-FROM node:24-bookworm-slim AS web
+FROM ${NODE_IMAGE} AS web
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 MM_APP_ENV=staging PORT=3100 HOSTNAME=0.0.0.0
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./

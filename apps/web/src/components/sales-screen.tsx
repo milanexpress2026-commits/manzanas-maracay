@@ -40,7 +40,8 @@ import {
   type RateStatus,
   type RateValue,
 } from './commercial-shared';
-import { useRemote, useCommand, displayMoney, ApiError } from '@/lib/inventory-api';
+import { useRemote, useDurableCommercialCommand, displayMoney } from '@/lib/inventory-api';
+import { CommercialJournalError, commercialCommandBody } from '@/lib/commercial-journal';
 import { paymentEquivalent } from '@/lib/payment-equivalent';
 import { useClientDirectory } from '@/lib/use-client-directory';
 import {
@@ -69,6 +70,10 @@ import {
 import styles from './sales-flow.module.css';
 export function SalesScreen({ session }: { session: AppSession }) {
   const sales = useRemote<SaleSummary[]>('/api/sales?limit=200');
+  const pendingSale = useDurableCommercialCommand(
+    session.environment + ':' + session.user.id,
+    'sale',
+  );
   const [query, setQuery] = useState('');
   const rows = (sales.data ?? []).filter((s) =>
     (s.number + ' ' + s.clientName)
@@ -90,6 +95,15 @@ export function SalesScreen({ session }: { session: AppSession }) {
             </Link>
           </Button>
         </div>
+        <FormError message={pendingSale.storageError} />
+        {pendingSale.pending ? (
+          <section className="saved-notice" aria-label="Venta pendiente de confirmación">
+            <p>Hay una venta pendiente de confirmación en este dispositivo.</p>
+            <Button asChild variant="outline">
+              <Link href="/ventas/nueva">Recuperar venta pendiente</Link>
+            </Button>
+          </section>
+        ) : null}
         {sales.error ? <LoadError error={sales.error} retry={() => void sales.reload()} /> : null}
         {sales.loading && !sales.data ? <LoadingRows /> : null}
         {sales.data ? (
@@ -154,8 +168,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
   const [reviewTotals, setReviewTotals] = useState({ total: '0.00', balance: '0.00' });
   const [review, setReview] = useState<ReturnType<typeof manualSaleSchema.parse> | null>(null);
-  const command = useCommand();
   const scope = session.environment + ':' + session.user.id;
+  const command = useDurableCommercialCommand(scope, 'sale');
+  const restoredCommandKey = useRef<string | null>(null);
   const initialized = useRef(false);
   useEffect(() => {
     if (initialized.current) return;
@@ -182,6 +197,34 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       if (requestedClient && /^[a-f0-9-]{36}$/i.test(requestedClient)) setClientId(requestedClient);
     }
   }, [scope]);
+  useEffect(() => {
+    if (!command.pending || command.busy || restoredCommandKey.current === command.pending.key)
+      return;
+    const pending = command.pending;
+    const saved = manualSaleSchema.parse(commercialCommandBody(pending));
+    restoredCommandKey.current = pending.key;
+    setClientId(saved.clientId);
+    setBasis(saved.settlementBasis);
+    setCondition(saved.condition);
+    setReview(saved);
+    setReviewAttempted(true);
+    setReviewQuote(null);
+    setReviewInformation(null);
+    const total = saved.lines.reduce(
+      (sum, line) =>
+        sum.add(
+          new Decimal(line.agreedUnitUsd)
+            .mul(line.quantity)
+            .toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
+        ),
+      new Decimal(0),
+    );
+    setReviewTotals({
+      total: pending.summary?.totalUsd ?? total.toFixed(2),
+      balance: pending.summary?.balanceUsd ?? total.toFixed(2),
+    });
+    setRestored(true);
+  }, [command.pending, command.busy]);
   const activeClients = clients.options.filter((client) => client.active);
   const configurations =
     catalog.data?.configurations.filter(
@@ -335,12 +378,14 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       }
       try {
         setReviewAttempted(true);
-        const result = await command.run<SaleDetail>('/api/sales', review);
+        const result = await command.run<SaleDetail>(review, {
+          totalUsd: reviewTotals.total,
+          balanceUsd: reviewTotals.balance,
+        });
         clearSaleDraft();
-        router.push('/ventas/' + result.id);
+        router.push('/ventas/' + result.id + '?guardada=1');
       } catch (error) {
-        if (error instanceof ApiError && [400, 409, 422].includes(error.status))
-          setReviewAttempted(false);
+        if (error instanceof CommercialJournalError && error.editable) setReviewAttempted(false);
       }
       return;
     }
@@ -475,7 +520,11 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         </div>
         {restored ? (
           <div className={styles.restored} role="status">
-            <span>Recuperamos el borrador al volver. Revisa precios y existencias.</span>
+            <span>
+              {command.pending
+                ? 'Recuperamos una venta pendiente de confirmación. Conservamos sus datos originales.'
+                : 'Recuperamos el borrador al volver. Revisa precios y existencias.'}
+            </span>
             <Button type="button" variant="ghost" onClick={() => setRestored(false)}>
               Entendido
             </Button>
@@ -493,7 +542,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         {!ready && (catalog.loading || clients.loading) ? <LoadingRows /> : null}
         {ready ? (
           <form onSubmit={submit} className={styles.layout}>
-            <fieldset disabled={command.busy} className={styles.main}>
+            <fieldset
+              disabled={
+                command.busy || !command.ready || !!command.storageError || !!command.pending
+              }
+              className={styles.main}
+            >
               <section className={styles.surface} aria-label="Cliente y condición de venta">
                 <Field className={styles.customerSearch}>
                   <FieldLabel htmlFor="sale-client-search">Buscar cliente</FieldLabel>
@@ -873,7 +927,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                 </div>
               </dl>
               {quantityText ? <p className={styles.muted}>{quantityText}</p> : null}
-              <fieldset disabled={command.busy} className={styles.payment}>
+              <fieldset
+                disabled={
+                  command.busy || !command.ready || !!command.storageError || !!command.pending
+                }
+                className={styles.payment}
+              >
                 {condition === 'credit' ? (
                   <label className={styles.paymentToggle}>
                     <input
@@ -1022,7 +1081,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                   </div>
                 </dl>
               ) : null}
-              <FormError message={!review ? command.error : ''} />
+              <FormError message={command.storageError || (!review ? command.error : '')} />
               <SaveButton busy={command.busy}>
                 {condition === 'cash' ? 'Revisar y cobrar' : 'Revisar y registrar crédito'}
               </SaveButton>
@@ -1072,7 +1131,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               <form onSubmit={submit} className={styles.review}>
                 <p>
                   <strong>
-                    {activeClients.find((client) => client.id === review.clientId)?.name}
+                    {activeClients.find((client) => client.id === review.clientId)?.name ??
+                      'Cliente de la solicitud pendiente'}
                   </strong>
                   <small>
                     {review.condition === 'cash' ? 'Contado' : 'Crédito'} ·{' '}
@@ -1084,9 +1144,13 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     <li key={index}>
                       <span>
                         <strong>
-                          {productLabel(
-                            configurations.find((config) => config.id === line.configurationId)!,
-                          )}
+                          {configurations.some((config) => config.id === line.configurationId)
+                            ? productLabel(
+                                configurations.find(
+                                  (config) => config.id === line.configurationId,
+                                )!,
+                              )
+                            : 'Producto de la solicitud pendiente'}
                         </strong>
                         <small>
                           {line.quantity}{' '}
@@ -1167,7 +1231,17 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     o completar la venta sin duplicarla.
                   </p>
                 ) : null}
-                <FormError message={command.error} />
+                {command.pending ? (
+                  <p role="status">
+                    Solicitud conservada en este dispositivo. Confirmar recupera o completa esta
+                    misma venta, incluso si cambió el inventario o venció la cotización. No cambies
+                    sus datos.
+                  </p>
+                ) : null}
+                <FormError message={command.storageError || command.error} />
+                {command.authNeeded ? (
+                  <Link href="/login">Iniciar sesión para recuperar esta venta</Link>
+                ) : null}
                 <div className="form-actions">
                   <Button
                     type="button"
@@ -1177,7 +1251,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                   >
                     Volver a editar
                   </Button>
-                  <SaveButton busy={command.busy}>Confirmar venta</SaveButton>
+                  <Button
+                    type="submit"
+                    disabled={command.busy || !command.ready || !!command.storageError}
+                  >
+                    {command.busy ? 'Guardando…' : 'Confirmar venta'}
+                  </Button>
                 </div>
               </form>
             ) : null}

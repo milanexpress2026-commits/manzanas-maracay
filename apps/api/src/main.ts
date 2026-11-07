@@ -29,6 +29,7 @@ import { PushModule } from './push.module';
 import { initializeRuntimeEnvironment } from './production-state';
 import { OperationsModule } from './operations.module';
 import { databaseConnectionTimeout, databaseDiagnosticCode } from './database-failure';
+import { businessCommandRejection } from './command-rejection';
 @Catch()
 class ApiErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
@@ -77,7 +78,11 @@ class ApiErrors implements ExceptionFilter {
       }
       if (status === 500) console.error('API operation failed', databaseDiagnosticCode(code));
     }
-    host.switchToHttp().getResponse().status(status).json({ message, statusCode: status });
+    host
+      .switchToHttp()
+      .getResponse()
+      .status(status)
+      .json({ message, statusCode: status, ...businessCommandRejection(error) });
   }
 }
 @Controller('api')

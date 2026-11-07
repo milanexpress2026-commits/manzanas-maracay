@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { webAuthConfig } from '@/lib/server-auth';
+import { privateHeaders, privateJson, pdfProxyResponse } from '@/lib/private-response';
 export const dynamic = 'force-dynamic';
 const UUID = '[0-9a-fA-F-]{36}';
 
@@ -75,12 +76,8 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const { path } = await context.params;
   const endpoint = path.join('/');
   if (request.method === 'DELETE')
-    return NextResponse.json(
-      { message: 'No se permite borrar operaciones ni documentos.' },
-      { status: 403, headers: { 'Cache-Control': 'no-store' } },
-    );
-  if (!allowedRoute(request.method, endpoint))
-    return NextResponse.json({ message: 'Ruta no disponible.' }, { status: 404 });
+    return privateJson('No se permite borrar operaciones ni documentos.', 403);
+  if (!allowedRoute(request.method, endpoint)) return privateJson('Ruta no disponible.', 404);
   const config = webAuthConfig();
   const read = request.method === 'GET';
   if (!read) {
@@ -92,21 +89,18 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     }
     const origin = request.headers.get('origin');
     if (!origin || !allowed.has(origin) || request.headers.get('sec-fetch-site') === 'cross-site')
-      return NextResponse.json(
-        { message: 'La solicitud no viene de esta aplicación.' },
-        { status: 403 },
-      );
+      return privateJson('La solicitud no viene de esta aplicación.', 403);
     if (!request.headers.get('content-type')?.startsWith('application/json'))
-      return NextResponse.json({ message: 'Formato inválido.' }, { status: 415 });
+      return privateJson('Formato inválido.', 415);
   }
   const body = read ? undefined : await limitedBody(request);
-  if (body === null)
-    return NextResponse.json({ message: 'El formulario es demasiado grande.' }, { status: 413 });
+  if (body === null) return privateJson('El formulario es demasiado grande.', 413);
   const token = request.cookies.get(config.cookieName)?.value;
   try {
     const response = await fetch(`${config.apiBase}/api/${endpoint}${request.nextUrl.search}`, {
       method: request.method,
       cache: 'no-store',
+      redirect: 'error',
       signal: AbortSignal.timeout(15000),
       headers: {
         'Content-Type': 'application/json',
@@ -119,30 +113,22 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     });
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
+      ...privateHeaders,
     };
     const cookie = response.headers.get('set-cookie');
     if (cookie && ['auth/login', 'auth/logout'].includes(endpoint)) headers['Set-Cookie'] = cookie;
     if (response.status === 429) headers['Retry-After'] = '60';
     if (
-      response.ok &&
-      (new RegExp(`^(sales|payments)/${UUID}/document$`).test(endpoint) ||
-        new RegExp(`^sales/${UUID}/delivery-note$`).test(endpoint)) &&
-      response.headers.get('content-type')?.startsWith('application/pdf')
+      new RegExp(`^(sales|payments)/${UUID}/document$`).test(endpoint) ||
+      new RegExp(`^sales/${UUID}/delivery-note$`).test(endpoint)
     ) {
-      headers['Content-Type'] = 'application/pdf';
-      headers['Content-Disposition'] =
-        response.headers.get('content-disposition') ?? 'attachment; filename="comprobante.pdf"';
-      return new NextResponse(await response.arrayBuffer(), { status: response.status, headers });
+      return await pdfProxyResponse(response, `documento-${path[1]}.pdf`);
     }
     return new NextResponse(await response.text(), { status: response.status, headers });
   } catch {
-    return NextResponse.json(
-      {
-        message: 'No se pudo conectar con el servidor. Conserva el formulario y vuelve a intentar.',
-      },
-      { status: 503 },
+    return privateJson(
+      'No se pudo conectar con el servidor. Conserva el formulario y vuelve a intentar.',
+      503,
     );
   }
 }
