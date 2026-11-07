@@ -309,13 +309,61 @@ test('V4.8 T07/T19 históricos 4/5/5 no dependen del orden; fecha anterior recha
     saleBody(client, rule, cart(blister, box)),
   );
   expect(sale.lines[0]!.presentation).toBe('blister');
-  expect(sale.lines[0]!.allocations.every((a) => a.lotId === later[1]!.lots[0]!.id)).toBe(true);
-  expect(sale.lines[1]!.allocations.map((a) => a.lotId)).toEqual([
-    first.lots[0]!.id,
-    later[0]!.lots[0]!.id,
+  expect(sale.lines[1]!.presentation).toBe('box');
+  const blisterAllocations = sale.lines[0]!.allocations,
+    boxAllocations = sale.lines[1]!.allocations;
+  expect(blisterAllocations).toHaveLength(5);
+  expect(
+    blisterAllocations.every((a) => a.lotId === later[1]!.lots[0]!.id && a.quantity === 1),
+  ).toBe(true);
+  expect(boxAllocations).toHaveLength(2);
+  for (const id of [first.lots[0]!.id, later[0]!.lots[0]!.id]) {
+    const allocations = boxAllocations.filter((a) => a.lotId === id);
+    expect(allocations).toHaveLength(1);
+    expect(allocations[0]!.quantity).toBe(1);
+  }
+  // The public reader orders allocations by transaction timestamp/random UUID,
+  // not FIFO. The immutable confirmation audit stores the original physical plan.
+  // Check that order directly, then match every persisted allocation and residual.
+  const physicalPlan = await receiptDatabase(async (db) => {
+    const audit = await db.query<{
+      allocations: SaleDetail['lines'][number]['allocations'];
+    }>(
+      `select after->'allocations' as allocations from audit_events
+       where entity_type='sale' and entity_id=$1 and action='confirm'`,
+      [sale.id],
+    );
+    expect(audit.rows).toHaveLength(1);
+    return audit.rows[0]!.allocations;
+  });
+  expect(
+    physicalPlan.map(({ saleLineId, lotId, quantity }) => ({ saleLineId, lotId, quantity })),
+  ).toEqual([
+    { saleLineId: sale.lines[1]!.id, lotId: first.lots[0]!.id, quantity: 1 },
+    { saleLineId: sale.lines[1]!.id, lotId: later[0]!.lots[0]!.id, quantity: 1 },
+    ...Array.from({ length: 5 }, () => ({
+      saleLineId: sale.lines[0]!.id,
+      lotId: later[1]!.lots[0]!.id,
+      quantity: 1,
+    })),
   ]);
-  expect((await lot(request, first.lots[0]!.id)).lot.blistersPerBox).toBe(4);
-  expect((await lot(request, later[0]!.lots[0]!.id)).lot.blistersPerBox).toBe(5);
+  const publicAllocations = [...blisterAllocations, ...boxAllocations];
+  expect(new Set(publicAllocations.map((a) => a.containerId)).size).toBe(7);
+  expect(publicAllocations).toEqual(expect.arrayContaining(physicalPlan));
+  for (const [id, blistersPerBox] of [
+    [first.lots[0]!.id, 4],
+    [later[0]!.lots[0]!.id, 5],
+    [later[1]!.lots[0]!.id, 5],
+  ] as const) {
+    const detail = await lot(request, id);
+    expect(detail.lot).toMatchObject({
+      blistersPerBox,
+      closedBoxes: 0,
+      intactBlisters: 0,
+      openBoxes: 0,
+    });
+    expect(detail.containers.every((container) => container.quantity === 0)).toBe(true);
+  }
   // PostgreSQL preserves microseconds; JavaScript Date alone cannot distinguish
   // these two FIFO arrivals or the exact sale/receipt boundary.
   const precise = await product(request);

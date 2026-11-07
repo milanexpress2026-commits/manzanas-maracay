@@ -1,0 +1,320 @@
+{
+  "format": 1,
+  "version": "4.8",
+  "status": "third_candidate_qa_in_progress_not_published",
+  "conclusion": "PENDIENTE DE VERIFICACIÓN FINAL",
+  "branch": "feature/disponibilidad-v4-8",
+  "baseRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+  "finalCandidateCommit": "6be915e91df84743100e2d332b5e007f393eb521",
+  "finalCandidatePassed": null,
+  "evidencePolicy": {
+    "previousRunsAreNotCombinedIntoOnePassingSuite": true,
+    "writtenTestsAreNotProofOfExecution": true,
+    "historicalV47PassDoesNotApproveV48": true,
+    "privateOperationalDataOmitted": true
+  },
+  "schema": {
+    "baselineMigrationCount": 16,
+    "candidateMigrationCount": 16,
+    "migrationFilesUnchangedFromBaseline": true,
+    "comparison": "git_diff_between_exact_baseline_and_final_candidate",
+    "newMigrations": 0,
+    "finalCandidateMigrationRegression": "pending"
+  },
+  "firstLinuxQa": {
+    "runtimeCommit": "32823d49787b5a8f58b7ae4df2d9e2385e7b990c",
+    "startedAt": "2026-11-07T07:33:46.335Z",
+    "finishedAt": "2026-11-07T07:38:46.959Z",
+    "passed": false,
+    "runtimeSourceUnchangedBeforeAndAfterEachPhase": true,
+    "dependencyLockUnchangedBeforeAndAfterEachPhase": true,
+    "node": "v24.22.1",
+    "npm": "11.19.1",
+    "playwright": "1.64.1",
+    "check": {
+      "passed": true,
+      "exitCode": 0,
+      "startedAt": "2026-11-07T07:33:46.606Z",
+      "finishedAt": "2026-11-07T07:35:02.735Z",
+      "typecheck": "passed",
+      "apiBuild": "passed",
+      "webBuild": "passed",
+      "unitTests": {
+        "passed": 418,
+        "failed": 0,
+        "total": 418,
+        "files": 38
+      }
+    },
+    "directed": {
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-07T07:35:03.354Z",
+      "finishedAt": "2026-11-07T07:38:46.646Z",
+      "tests": {
+        "passed": 28,
+        "failed": 3,
+        "total": 31
+      },
+      "failures": [
+        {
+          "spec": "tests/e2e/stock-v48-api.spec.ts",
+          "test": "V4.8 T07/T08 opciones reales: manzana 100/113 y pera Forelle/Packham 125/135 conservan remanentes y media pendiente",
+          "classification": "test_fixture",
+          "cause": "case_sensitive_Forelle_lookup_did_not_match_preserved_FORELLE_catalogue_name"
+        },
+        {
+          "spec": "tests/e2e/stock-v48-ui.spec.ts",
+          "test": "V4.8 T14/T15 390px: presentación obligatoria, cantidad estricta y cero existencias accesibles",
+          "classification": "test_fixture",
+          "cause": "fixture_used_fruitId_absent_from_packing_creation_response",
+          "observedResponseStatus": 400,
+          "expectedFixtureCreationStatus": 201
+        },
+        {
+          "spec": "tests/e2e/stock-v48-ui.spec.ts",
+          "test": "V4.8 T14/T15 800px: presentación obligatoria, cantidad estricta y cero existencias accesibles",
+          "classification": "test_fixture",
+          "cause": "fixture_used_fruitId_absent_from_packing_creation_response",
+          "observedResponseStatus": 400,
+          "expectedFixtureCreationStatus": 201
+        }
+      ],
+      "freshExclusiveDatabase": true,
+      "databaseStopped": true,
+      "priorLocalDatabaseUnchanged": true
+    },
+    "stoppedAfterFailure": true,
+    "notExecuted": [
+      "full_regression",
+      "isolated_production_qa",
+      "migrations"
+    ],
+    "postgresAfter": {
+      "stopped": true,
+      "postmasterPidFilesPresent": false,
+      "loopbackPortFree": true
+    }
+  },
+  "correctionsAfterFirstQa": {
+    "commit": "8beac4429ea19c9ba921db7924786f41725516f8",
+    "applicationRuntimeChanged": false,
+    "fixtureIdentityReadFromCatalogue": true,
+    "fixtureUsesExistingCaseInsensitiveIdentity": true,
+    "timeoutIncreased": false,
+    "acceptanceCoverageAdded": [
+      "T03_POST_four_boxes_rejected_after_six_of_nine_sold",
+      "T05_Gala_150_traditional_and_bulk_identity_separation",
+      "T13_draft_keeps_nine_while_another_session_sells_seven",
+      "T14_T15_viewports_390_800_1024_1440"
+    ],
+    "originalThreeFixtureFailuresPassedOnSecondRun": true
+  },
+  "secondLinuxQa": {
+    "runtimeCommit": "8beac4429ea19c9ba921db7924786f41725516f8",
+    "startedAt": "2026-11-07T08:04:29.725Z",
+    "finishedAt": "2026-11-07T08:10:00.988Z",
+    "passed": false,
+    "runtimeSourceUnchangedBeforeAndAfterEachPhase": true,
+    "dependencyLockUnchangedBeforeAndAfterEachPhase": true,
+    "node": "v24.22.1",
+    "npm": "11.19.1",
+    "playwright": "1.64.1",
+    "check": {
+      "passed": true,
+      "exitCode": 0,
+      "startedAt": "2026-11-07T08:04:29.961Z",
+      "finishedAt": "2026-11-07T08:05:44.612Z",
+      "typecheck": "passed",
+      "apiBuild": "passed",
+      "webBuild": "passed",
+      "unitTests": {
+        "passed": 418,
+        "failed": 0,
+        "total": 418,
+        "files": 38
+      }
+    },
+    "directed": {
+      "status": "failed",
+      "exitCode": 1,
+      "startedAt": "2026-11-07T08:05:44.947Z",
+      "finishedAt": "2026-11-07T08:10:00.616Z",
+      "tests": {
+        "passed": 31,
+        "failed": 2,
+        "total": 33
+      },
+      "failures": [
+        {
+          "spec": "tests/e2e/stock-v48-api.spec.ts",
+          "test": "V4.8 T06/T09 cajas y fracciones comparten stock; ambos órdenes conservan las líneas",
+          "classification": "application_document_order",
+          "cause": "random_sale_line_UUIDs_did_not_preserve_input_order_in_ORDER_BY_id"
+        },
+        {
+          "spec": "tests/e2e/stock-v48-ui.spec.ts",
+          "test": "V4.8 T04: dos líneas del mismo producto comparten las 9 cajas y conservan precios distintos",
+          "classification": "application_document_order",
+          "cause": "random_sale_line_UUIDs_did_not_preserve_input_order_in_ORDER_BY_id"
+        }
+      ],
+      "freshExclusiveDatabase": true,
+      "databaseStopped": true,
+      "priorLocalDatabaseUnchanged": true
+    },
+    "stoppedAfterFailure": true,
+    "notExecuted": [
+      "full_regression",
+      "isolated_production_qa",
+      "migrations"
+    ],
+    "postgresAfter": {
+      "stopped": true,
+      "postmasterPidFilesPresent": false,
+      "loopbackPortFree": true
+    }
+  },
+  "correctionsAfterSecondQa": {
+    "commit": "6be915e91df84743100e2d332b5e007f393eb521",
+    "saleLineOrder": {
+      "implemented": true,
+      "generatesIndependentRandomUuidsThenAssignsSortedIdsInInputOrder": true,
+      "assignmentInsideIdempotentCommandBeforePhysicalPlanning": true,
+      "historicalRowsAndExistingReaderUnchanged": true,
+      "changesPricesOrQuantities": false,
+      "addsMigration": false,
+      "regressionSpec": "tests/unit/sale-line-order-v48.test.ts",
+      "finalIntegratedExecution": "pending"
+    },
+    "bcvReferenceAfterBrowserExpiry": {
+      "findingSource": "code_review",
+      "implemented": true,
+      "availableStatusAlsoIncludesDisplayOnlyReferenceWithoutPaymentId": true,
+      "preservesOriginalOfficialValueDate": true,
+      "expiredQuoteCannotAuthorizeVes": true,
+      "changesPaymentsOrUsdtRules": false,
+      "addsMigration": false,
+      "browserRegressionSpec": "tests/e2e/bcv-reference-v47.spec.ts",
+      "browserRegression": "V4.8 BCV vence en la pestaña: conserva la última cifra y fecha sin habilitar VES",
+      "finalIntegratedExecution": "pending"
+    }
+  },
+  "finalLinuxQa": {
+    "attempt": 4,
+    "runtimeCommit": null,
+    "status": "pending_candidate",
+    "passed": null,
+    "plannedPhases": [
+      "check",
+      "directed-v48",
+      "full-e2e",
+      "production",
+      "migrations"
+    ],
+    "phases": {},
+    "resultsAwaitingFinalCollectedReport": true
+  },
+  "lastVerifiedDeployment": {
+    "stagingRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "stagingMigrations": 16,
+    "productionRuntimeCommit": "82cd5ab579fbbc50cf852774aca47847cc388fa5",
+    "productionMigrations": 16,
+    "v48DeployedToStaging": false,
+    "v48DeployedToProduction": false,
+    "productionChangedByTheseQaRuns": false,
+    "historicalVerification": "docs/verificacion-v4-7.json"
+  },
+  "coverageLimitations": [
+    "T01_T02_use_isolated_synthetic_whole_box_SKU_equivalent_to_five_plus_four_not_literal_Gala_80",
+    "real_Gala_100_113_and_Forelle_Packham_125_135_are_separate_API_scenarios",
+    "browser_viewports_do_not_prove_physical_Android_or_HP_operation",
+    "preview_does_not_reserve_stock_and_confirmation_revalidates_in_a_transaction",
+    "no_synthetic_commercial_fixtures_are_run_in_production"
+  ],
+  "pending": {
+    "finalIntegratedCheck": true,
+    "finalDirectedE2e": true,
+    "fullRegression": true,
+    "isolatedProductionQa": true,
+    "migrationRegression": true,
+    "finalVisualEvidenceReview": true,
+    "stagingDeployment": true,
+    "stagingBusinessSmoke": true,
+    "restoreRehearsalForFinalCandidate": true,
+    "prepublicationBackupAndRestore": true,
+    "explicitOperationalApprovalForFinalSha": true,
+    "productionDeployment": true,
+    "productionPublicSmoke": true,
+    "productionPositivePdfWithExistingRealSale": true,
+    "postPublicationEncryptedBackupAndRestore": true,
+    "physicalAndroidTablet": true,
+    "physicalHpPrinter": true
+  },
+  "thirdLinuxQa": {
+    "attempt": 3,
+    "runtimeCommit": "6be915e91df84743100e2d332b5e007f393eb521",
+    "startedAt": "2026-11-07T09:10:15.256Z",
+    "finishedAt": "2026-11-07T09:35:27.016Z",
+    "passed": false,
+    "provenance": {
+      "runtimeCommit": "6be915e91df84743100e2d332b5e007f393eb521",
+      "runtimeSourceUnchanged": true,
+      "dependencyLockUnchanged": true,
+      "node": "v24.22.1",
+      "npm": "11.19.1",
+      "playwright": "1.64.1",
+      "directedSpecs": [
+        "tests/e2e/bcv-reference-v47.spec.ts",
+        "tests/e2e/beta-v47-api.spec.ts",
+        "tests/e2e/commercial-recovery-v47.spec.ts",
+        "tests/e2e/document-printing-v47.spec.ts",
+        "tests/e2e/stock-v48-api.spec.ts",
+        "tests/e2e/stock-v48-ui.spec.ts"
+      ]
+    },
+    "check": {
+      "passed": true,
+      "unitTests": {
+        "passed": 419,
+        "failed": 0,
+        "total": 419
+      },
+      "typecheck": "passed",
+      "apiBuild": "passed",
+      "webBuild": "passed"
+    },
+    "directed": {
+      "passed": true,
+      "tests": {
+        "passed": 34,
+        "failed": 0,
+        "total": 34
+      }
+    },
+    "fullRegression": {
+      "passed": false,
+      "tests": {
+        "passed": 148,
+        "failed": 1,
+        "total": 149
+      },
+      "failure": {
+        "spec": "tests/e2e/stock-v48-api.spec.ts",
+        "classification": "test_serialization_order",
+        "cause": "allocation_UUID_display_order_is_not_physical_FIFO_order",
+        "expectedAndObservedLotSetEqual": true,
+        "strengthenedPhysicalAuditAssertions": "implemented_pending_fourth_qa"
+      }
+    },
+    "notExecuted": [
+      "isolated_production_qa",
+      "migrations"
+    ],
+    "postgresAfter": {
+      "postmasterPidFiles": [],
+      "loopbackPostgresPortFree": true,
+      "stopped": true
+    }
+  }
+}
