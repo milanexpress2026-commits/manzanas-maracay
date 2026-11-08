@@ -112,7 +112,10 @@ for (const width of [390, 800])
     page,
   }) => {
     await loginPage(page);
-    const product = await unpricedProduct(page.request, 'blister');
+    const created = await unpricedProduct(page.request, 'blister');
+    const initialCatalog = (await (await page.request.get('/api/catalog')).json()) as Catalog;
+    const product = initialCatalog.configurations.find((item) => item.id === created.id)!;
+    expect(product).toBeDefined();
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/catalogo?producto=' + product.id);
     await page
