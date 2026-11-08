@@ -97,9 +97,9 @@ test('V4.9 celular: preparar y revisar con reloj adelantado y esperar un minuto 
   await line.getByLabel('Producto', { exact: true }).selectOption(product.id);
   await line.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');
   await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
-  await page.clock.runFor(65_000);
+  await page.clock.fastForward(65_000);
   await page.getByRole('button', { name: 'Revisar y cobrar', exact: true }).click();
-  await page.clock.runFor(65_000);
+  await page.clock.fastForward(65_000);
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Confirmar venta', exact: true })

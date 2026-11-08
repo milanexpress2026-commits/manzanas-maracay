@@ -426,7 +426,7 @@ export class InventoryService implements OnModuleDestroy {
           );
         if (['sale', 'payment', 'receipt', 'simple-receipt', 'quick-receipt'].includes(kind)) {
           const reset = await client.query(
-            "select 1 from audit_events where entity_type='operation_reset' and action='owner_authorized_operation_reset' and created_at >= $1 limit 1",
+            "select 1 from command_receipts where response->>'kind'='owner_authorized_operation_reset' and created_at >= $1 limit 1",
             [receipt.created_at],
           );
           if (reset.rowCount)

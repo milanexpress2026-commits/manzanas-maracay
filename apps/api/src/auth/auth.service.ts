@@ -146,7 +146,7 @@ export class AuthService implements OnModuleDestroy {
   }
   async info(user: SessionUser): Promise<SessionInfo> {
     const { rows } = await this.pool.query<{ id: string }>(
-      "select id from audit_events where entity_type='operation_reset' and action='owner_authorized_operation_reset' order by created_at desc,id desc limit 1",
+      "select key as id from command_receipts where response->>'kind'='owner_authorized_operation_reset' order by created_at desc,key desc limit 1",
     );
     const digest = rows[0]
       ? createHash('sha256')

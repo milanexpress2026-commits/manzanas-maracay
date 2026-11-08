@@ -109,7 +109,6 @@ test('operación por UI: proveedor, producto confirmado, recepción, precios, cl
   await productDialog.getByRole('button', { name: 'Guardar fruta', exact: true }).click();
   await productDialog.getByLabel('Variedad', { exact: true }).selectOption('none');
   await productDialog.getByLabel('Calibre', { exact: true }).selectOption('none');
-  await productDialog.getByRole('button', { name: 'Continuar al empaque' }).click();
   await productDialog.getByLabel('Presentación de la caja').selectOption('whole');
   await productDialog.getByRole('button', { name: 'Revisar producto' }).click();
   await productDialog.getByRole('button', { name: 'Guardar producto', exact: true }).click();
