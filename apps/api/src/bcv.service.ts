@@ -147,6 +147,7 @@ export class BcvService implements OfficialRateProvider, OnModuleDestroy {
           }),
       usdt,
       lastOfficial,
+      checkedAt: at.toISOString(),
     };
   }
 }

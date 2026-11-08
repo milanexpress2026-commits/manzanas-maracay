@@ -336,9 +336,11 @@ export class InventoryService implements OnModuleDestroy {
     return { stock, before, rows: new Map(rows.map((row) => [row.id, row])) };
   }
   async salePreview(body: unknown): Promise<SalePreviewResult> {
-    const input = salePreviewSchema.parse(body);
+    const requested = salePreviewSchema.parse(body);
     return this.read(async (client) => {
       const checkedAt = new Date().toISOString();
+      const input =
+        requested.dateMode === 'automatic' ? { ...requested, soldAt: checkedAt } : requested;
       const { stock } = await this.saleStock(
         client,
         input.lines.map((line) => line.configurationId),
@@ -412,13 +414,26 @@ export class InventoryService implements OnModuleDestroy {
       await client.query("set local lock_timeout='5s'");
       await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [key]);
       const receipt = (
-        await client.query('select request_hash,response from command_receipts where key=$1', [key])
+        await client.query(
+          'select request_hash,response,created_at from command_receipts where key=$1',
+          [key],
+        )
       ).rows[0];
       if (receipt) {
         if (receipt.request_hash !== hash)
           throw new ConflictException(
             'Esta solicitud ya se usó con otros datos o por otra persona.',
           );
+        if (['sale', 'payment', 'receipt', 'simple-receipt', 'quick-receipt'].includes(kind)) {
+          const reset = await client.query(
+            "select 1 from audit_events where entity_type='operation_reset' and action='owner_authorized_operation_reset' and created_at >= $1 limit 1",
+            [receipt.created_at],
+          );
+          if (reset.rowCount)
+            throw new ConflictException(
+              'Esta operación pertenece al período que se vació. Vuelve al inicio para comenzar un registro nuevo.',
+            );
+        }
         phase.commitStarted = true;
         await client.query('commit');
         return receipt.response as T;

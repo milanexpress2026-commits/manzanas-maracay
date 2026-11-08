@@ -58,7 +58,7 @@ export function ReceiptScreen({
   initialOptionKey?: string;
   returnToSale?: boolean;
 }) {
-  const scope = deviceScope(session.environment, session.user.id);
+  const scope = deviceScope(session.environment, session.operationScopeId ?? session.user.id);
   const storageKey = RECEIPT_STORAGE_PREFIX + scope;
   const options = useRemote<HabitualCatalogOptions>('/api/catalog/options');
   const catalog = useRemote<Catalog>('/api/catalog');

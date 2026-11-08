@@ -74,7 +74,11 @@ export function CatalogScreen({ session }: { session: AppSession }) {
     [search, setSearch] = useState(''),
     [fruitFilter, setFruitFilter] = useState('all'),
     [selectedId, setSelectedId] = useState('');
-  const [form, setForm] = useState<{ kind: FormKind; editing?: Configuration } | null>(null),
+  const [form, setForm] = useState<{
+      kind: FormKind;
+      editing?: Configuration;
+      fromProduct?: Configuration;
+    } | null>(null),
     [guide, setGuide] = useState(false),
     [offline, setOffline] = useState(false);
   const [rename, setRename] = useState<{ id: string; name: string } | null>(null);
@@ -619,6 +623,16 @@ export function CatalogScreen({ session }: { session: AppSession }) {
                   <Settings2 data-icon="inline-start" />
                   Editar empaque
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    triggerRef.current = document.activeElement as HTMLElement;
+                    setForm({ kind: 'configurations', fromProduct: selected });
+                  }}
+                >
+                  <Plus aria-hidden="true" />
+                  Agregar calibre a este producto
+                </Button>
                 {selected.notes ? <p className="packing-notes">{selected.notes}</p> : null}
               </>
             ) : (
@@ -692,13 +706,14 @@ export function CatalogScreen({ session }: { session: AppSession }) {
               {form?.kind === 'configurations'
                 ? form.editing
                   ? 'Los cambios se aplican a próximas recepciones.'
-                  : 'Crea o elige el producto, define su empaque y revisa antes de guardar.'
+                  : 'Fruta, variedad, calibre y empaque en un solo formulario. No necesitas abrir otros menús.'
                 : 'Agrega un registro al catálogo de frutas importadas.'}
             </DialogDescription>
           </DialogHeader>
           {form?.kind === 'configurations' && !form.editing ? (
             <ProductForm
               catalog={catalog}
+              fromProduct={form.fromProduct}
               onCancel={closeForm}
               onBusyChange={setFormBusy}
               returnToSale={returnToSale}

@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
+import { quoteNow, type QuoteClock } from '@/lib/quote-clock';
 import Link from 'next/link';
 import Decimal from 'decimal.js';
 import { AlertCircle, Download, HandCoins, Info, UserPlus, ChevronDown } from 'lucide-react';
@@ -46,6 +47,7 @@ import {
 } from '@/lib/sales-flow';
 import styles from './sales-flow.module.css';
 export type RateValue = {
+  clockAnchor?: QuoteClock;
   id: string;
   rate: string;
   sourceUrl: string;
@@ -56,6 +58,7 @@ export type RateValue = {
   officialValueDate?: string;
 };
 export type RateStatus = {
+  checkedAt?: string;
   status: 'available' | 'unavailable';
   rate: RateValue | null;
   lastOfficial?: OfficialRateReference | null;
@@ -63,18 +66,61 @@ export type RateStatus = {
   usdt?: { status: 'available' | 'unavailable'; rate: RateValue | null; message?: string };
 };
 export function useQuoteCurrent(quote: RateValue | null | undefined) {
-  const [clock, setClock] = useState(() => Date.now());
+  const [, setClock] = useState(() => Date.now());
   useEffect(() => {
-    const now = Date.now();
+    const now = quoteNow(quote?.clockAnchor);
     setClock(now);
     const timers = [Date.parse(quote?.validFrom ?? ''), Date.parse(quote?.validUntil ?? '')]
       .filter((time) => time > now)
       .map((time) =>
-        window.setTimeout(() => setClock(Date.now()), Math.min(time - now + 10, 2_147_483_647)),
+        window.setTimeout(
+          () => setClock(quoteNow(quote?.clockAnchor)),
+          Math.min(time - now + 10, 2_147_483_647),
+        ),
       );
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [quote?.id, quote?.validFrom, quote?.validUntil]);
+  }, [quote?.id, quote?.validFrom, quote?.validUntil, quote?.clockAnchor]);
+  const clock = quoteNow(quote?.clockAnchor);
   return !!quote && Date.parse(quote.validFrom) <= clock && clock < Date.parse(quote.validUntil);
+}
+
+export function useCurrentRates() {
+  const remote = useRemote<RateStatus>('/api/rates/current');
+  const data = useMemo(() => {
+    if (!remote.data) return null;
+    const clockAnchor =
+      remote.data.checkedAt && Number.isFinite(Date.parse(remote.data.checkedAt))
+        ? { serverMs: Date.parse(remote.data.checkedAt), monotonicMs: performance.now() }
+        : undefined;
+    return {
+      ...remote.data,
+      rate: remote.data.rate ? { ...remote.data.rate, clockAnchor } : null,
+      usdt: remote.data.usdt
+        ? {
+            ...remote.data.usdt,
+            rate: remote.data.usdt.rate ? { ...remote.data.usdt.rate, clockAnchor } : null,
+          }
+        : undefined,
+    };
+  }, [remote.data]);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(timer);
+      timer = setTimeout(() => void remote.reload(), 150);
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    const interval = setInterval(refresh, 60_000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [remote.reload]);
+  return { ...remote, data };
 }
 
 export function UsdtReference({
@@ -494,7 +540,7 @@ export function PaymentDialog({
   onSaved: (payment: PaymentDetail) => Promise<void> | void;
 }) {
   const account = useRemote<ClientAccount>('/api/clients/' + clientId),
-    rate = useRemote<RateStatus>('/api/rates/current');
+    rate = useCurrentRates();
   const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>('usd_cash'),
     [amount, setAmount] = useState(''),
     [date, setDate] = useState(''),
@@ -507,7 +553,7 @@ export function PaymentDialog({
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
   const [review, setReview] = useState<ReturnType<typeof paymentSchema.parse> | null>(null);
   const command = useDurableCommercialCommand(
-    session.environment + ':' + session.user.id,
+    session.environment + ':' + (session.operationScopeId ?? session.user.id),
     'payment',
   );
   const restoredCommandKey = useRef<string | null>(null);
@@ -664,6 +710,7 @@ export function PaymentDialog({
       amount: normalizedMoney(amount),
       method,
       receivedAt,
+      dateMode: dateEdited ? 'manual' : 'automatic',
       ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
       ...(currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
         ? { informationalUsdtRateId: rate.data.usdt.rate.id }
@@ -844,6 +891,19 @@ export function PaymentDialog({
                               setDateEdited(true);
                             }}
                           />
+                          <FieldDescription>
+                            La hora se guarda automáticamente al confirmar. Cambia este campo solo
+                            para un cobro anterior.
+                          </FieldDescription>
+                          {dateEdited ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setDateEdited(false)}
+                            >
+                              Usar fecha automática
+                            </Button>
+                          ) : null}
                         </Field>
                       </details>
                     </div>
@@ -980,7 +1040,7 @@ export function PendingPaymentRecovery({
   onSaved: (payment: PaymentDetail) => Promise<void> | void;
 }) {
   const command = useDurableCommercialCommand(
-    session.environment + ':' + session.user.id,
+    session.environment + ':' + (session.operationScopeId ?? session.user.id),
     'payment',
   );
   const [open, setOpen] = useState(false);

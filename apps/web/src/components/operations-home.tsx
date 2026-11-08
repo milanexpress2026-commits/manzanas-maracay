@@ -15,12 +15,12 @@ import type { OperationsOverview } from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
 import { Button } from './ui/button';
 import { LoadError, LoadingRows, PageFooter } from './operations-ui';
-import { RateNotice, type RateStatus } from './commercial-shared';
+import { RateNotice, useCurrentRates } from './commercial-shared';
 import { useRemote, displayMoney } from '@/lib/inventory-api';
 
 export function OperationsHome({ session }: { session: AppSession }) {
   const overview = useRemote<OperationsOverview>('/api/operations/overview');
-  const rate = useRemote<RateStatus>('/api/rates/current');
+  const rate = useCurrentRates();
   const [date, setDate] = useState('');
   useEffect(
     () =>

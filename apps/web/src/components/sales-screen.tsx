@@ -56,6 +56,7 @@ import {
   addCaracasDays,
 } from '@/lib/commercial-ui';
 import { PaymentMethodSelector } from './payment-method-selector';
+import { useCurrentRates } from './commercial-shared';
 import {
   paymentChoiceDetails,
   paymentChoiceUnavailable,
@@ -74,7 +75,7 @@ import styles from './sales-flow.module.css';
 export function SalesScreen({ session }: { session: AppSession }) {
   const sales = useRemote<SaleSummary[]>('/api/sales?limit=200');
   const pendingSale = useDurableCommercialCommand(
-    session.environment + ':' + session.user.id,
+    session.environment + ':' + (session.operationScopeId ?? session.user.id),
     'sale',
   );
   const [query, setQuery] = useState('');
@@ -146,7 +147,7 @@ export function SalesScreen({ session }: { session: AppSession }) {
 export function NewSaleScreen({ session }: { session: AppSession }) {
   const router = useRouter();
   const catalog = useRemote<Catalog>('/api/catalog');
-  const rate = useRemote<RateStatus>('/api/rates/current');
+  const rate = useCurrentRates();
   const [clientId, setClientId] = useState('');
   const clients = useClientDirectory(clientId);
   const [newClient, setNewClient] = useState(false);
@@ -170,7 +171,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
   const [reviewTotals, setReviewTotals] = useState({ total: '0.00', balance: '0.00' });
   const [review, setReview] = useState<ReturnType<typeof manualSaleSchema.parse> | null>(null);
-  const scope = session.environment + ':' + session.user.id;
+  const scope = session.environment + ':' + (session.operationScopeId ?? session.user.id);
   const command = useDurableCommercialCommand(scope, 'sale');
   const [checkingStock, setCheckingStock] = useState(false);
   const checkingRef = useRef(false);
@@ -252,6 +253,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     if (review)
       return {
         soldAt: review.soldAt,
+        dateMode: review.dateMode,
         lines: review.lines.map((line, index) => ({
           lineKey: stockKey(lines[index]?.key ?? index + 1),
           configurationId: line.configurationId,
@@ -269,6 +271,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     try {
       return {
         soldAt: soldAt ?? saleReviewInstant(date, dateEdited),
+        dateMode: dateEdited ? 'manual' : 'automatic',
         lines: lines.map((line) => ({
           lineKey: stockKey(line.key),
           configurationId: line.configurationId,
@@ -588,6 +591,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       clientId,
       condition,
       soldAt,
+      dateMode: dateEdited ? 'manual' : 'automatic',
       notes,
       dueDate: condition === 'credit' && balance.gt(0) && due ? due : null,
       reminderDate: condition === 'credit' && balance.gt(0) && reminder ? reminder : null,
@@ -604,6 +608,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               amount: normalizedMoney(received),
               method,
               receivedAt: reviewedAt.toISOString(),
+              dateMode: 'automatic',
               ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
               ...(currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
                 ? { informationalUsdtRateId: rate.data.usdt.rate.id }
@@ -1085,8 +1090,13 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     <FieldDescription>
                       {dateEdited
                         ? 'Se usará la fecha y hora que indicaste.'
-                        : 'Se usará la hora actual al revisar la venta.'}
+                        : 'La fecha y hora se guardan automáticamente al confirmar. Puedes preparar la venta con calma.'}
                     </FieldDescription>
+                    {dateEdited ? (
+                      <Button type="button" variant="outline" onClick={() => setDateEdited(false)}>
+                        Usar fecha automática
+                      </Button>
+                    ) : null}
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="sale-notes">Observaciones de la venta</FieldLabel>

@@ -7,6 +7,7 @@ import { presentationCanUseLot, type SaleLotSnapshot } from './sale-availability
 export const salePreviewSchema = z
   .object({
     soldAt: z.iso.datetime({ offset: true }),
+    dateMode: z.enum(['automatic', 'manual']).optional(),
     lines: z
       .array(
         z

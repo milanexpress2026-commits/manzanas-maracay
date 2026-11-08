@@ -122,7 +122,11 @@ export class AuthService implements OnModuleDestroy {
     return {
       token,
       rememberSession: input.rememberSession,
-      info: this.info({ id: user.id, username: user.username, displayName: user.display_name }),
+      info: await this.info({
+        id: user.id,
+        username: user.username,
+        displayName: user.display_name,
+      }),
     };
   }
 
@@ -140,8 +144,24 @@ export class AuthService implements OnModuleDestroy {
     if (!rows[0]) throw new UnauthorizedException('Tu sesión terminó. Vuelve a iniciar sesión.');
     return { id: rows[0].id, username: rows[0].username, displayName: rows[0].display_name };
   }
-  info(user: SessionUser): SessionInfo {
-    return { user, environment: authConfig().environment, operationsReady: operationsReady() };
+  async info(user: SessionUser): Promise<SessionInfo> {
+    const { rows } = await this.pool.query<{ id: string }>(
+      "select id from audit_events where entity_type='operation_reset' and action='owner_authorized_operation_reset' order by created_at desc,id desc limit 1",
+    );
+    const digest = rows[0]
+      ? createHash('sha256')
+          .update(user.id + ':' + rows[0].id)
+          .digest('hex')
+      : null;
+    const operationScopeId = digest
+      ? `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`
+      : user.id;
+    return {
+      user,
+      environment: authConfig().environment,
+      operationsReady: operationsReady(),
+      operationScopeId,
+    };
   }
   async logout(token: string | undefined) {
     if (token)

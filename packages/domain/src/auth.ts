@@ -35,4 +35,6 @@ export type SessionInfo = {
   user: SessionUser;
   environment: AppEnvironment;
   operationsReady: boolean;
+  /** Separates local business drafts after an owner-authorized operational reset. */
+  operationScopeId?: string;
 };
