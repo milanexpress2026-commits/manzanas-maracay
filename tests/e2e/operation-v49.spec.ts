@@ -91,6 +91,7 @@ test('V4.9 celular: preparar y revisar con reloj adelantado y esperar un minuto 
   await page.clock.install({ time: new Date(Date.now() + 7_200_000) });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ventas/nueva');
+  await expect(page.locator('input[type="datetime-local"]')).toHaveCount(0);
   await chooseSaleClient(page, client);
   const line = page.getByRole('region', { name: 'Producto 1', exact: true });
   await line.getByLabel('Producto', { exact: true }).selectOption(product.id);
