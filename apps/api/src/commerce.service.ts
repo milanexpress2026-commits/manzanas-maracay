@@ -16,6 +16,7 @@ import {
   clientSchema,
   updateClientSchema,
   commerceListSchema,
+  saleListSchema,
   saleSchema,
   paymentSchema,
   changeSaleDatesSchema,
@@ -240,11 +241,33 @@ export class CommerceService implements OnModuleDestroy {
     } as PaymentSummary;
   }
   private async salesFor(client: PoolClient, query: unknown = {}): Promise<SaleSummary[]> {
-    const filter = commerceListSchema.parse(query);
+    const filter = saleListSchema.parse(query);
+    const pending = filter.status === 'pending' || filter.collection !== undefined;
+    const due = 'case when dates.id is null then s.due_date else dates.due_date end';
+    const reminder = 'case when dates.id is null then s.reminder_date else dates.reminder_date end';
+    const agenda =
+      filter.collection === 'today'
+        ? `and (${due}=$5::date or ${reminder}=$5::date)`
+        : filter.collection === 'upcoming'
+          ? `and (${due}>$5::date or ${reminder}>$5::date)`
+          : filter.collection === 'overdue'
+            ? `and ${due}<$5::date`
+            : 'and $5::date is not null';
     const rows = (
       await client.query(
-        `${saleSelect} where ($1::uuid is null or s.client_id=$1) and ($2::text is null or s.number ilike '%'||$2||'%' or s.client_snapshot->>'name' ilike '%'||$2||'%') order by s.sold_at desc,s.id limit $3 offset $4`,
-        [filter.clientId ?? null, filter.search ?? null, filter.limit, filter.offset],
+        `${saleSelect} where ($1::uuid is null or s.client_id=$1)
+        and ($2::text is null or s.number ilike '%'||$2||'%' or s.client_snapshot->>'name' ilike '%'||$2||'%')
+        ${pending ? 'and cancel.id is null and s.total_usd>coalesce(paid.amount,0)' : ''} ${agenda}
+        order by (s.id=$6::uuid) desc nulls last,
+        ${pending ? `coalesce(${reminder},${due}) nulls last,s.sold_at` : 's.sold_at desc'},s.id limit $3 offset $4`,
+        [
+          filter.clientId ?? null,
+          filter.search ?? null,
+          filter.limit,
+          filter.offset,
+          businessDate(),
+          filter.prioritizeId ?? null,
+        ],
       )
     ).rows;
     return rows.map((row) => this.saleSummary(row));
@@ -1015,28 +1038,27 @@ export class CommerceService implements OnModuleDestroy {
       const today = businessDate();
       const totals = (
         await client.query(
-          'select coalesce(sum(balance_usd),0)::numeric(18,2)::text as total,coalesce(sum(balance_usd) filter(where due_date<$1::date),0)::numeric(18,2)::text as overdue,count(*)::integer as count from receivables where balance_usd>0',
+          `select coalesce(sum("balanceUsd"::numeric),0)::numeric(18,2)::text as total,
+          coalesce(sum("balanceUsd"::numeric) filter(where "dueDate"::date<$1::date),0)::numeric(18,2)::text as overdue,
+          count(*)::integer as count,
+          count(*) filter(where "dueDate"::date=$1::date or "reminderDate"::date=$1::date)::integer as "todayCount"
+          from (${saleSelect}) account where status='confirmed' and "balanceUsd"::numeric>0`,
           [today],
         )
       ).rows[0];
-      const rows = (
-        await client.query(`${saleSelect} where cancel.id is null and s.total_usd>coalesce(paid.amount,0)
-        order by coalesce(case when dates.id is null then s.reminder_date else dates.reminder_date end,case when dates.id is null then s.due_date else dates.due_date end) nulls last,s.sold_at,s.id limit 200`)
-      ).rows;
-      const invoices = rows.map((row) => this.saleSummary(row));
+      const invoices = await this.salesFor(client, { collection: 'all', limit: 200 });
       return {
         today,
         timezone: 'America/Caracas',
         totalUsd: totals.total,
         overdueUsd: totals.overdue,
         totalInvoices: totals.count,
+        todayCount: totals.todayCount,
         truncated: totals.count > invoices.length,
         invoices,
-        todayInvoices: invoices.filter((s) => s.reminderDate === today || s.dueDate === today),
-        upcomingInvoices: invoices.filter(
-          (s) => (s.reminderDate && s.reminderDate > today) || (s.dueDate && s.dueDate > today),
-        ),
-        overdueInvoices: invoices.filter((s) => s.dueDate && s.dueDate < today),
+        todayInvoices: await this.salesFor(client, { collection: 'today', limit: 200 }),
+        upcomingInvoices: await this.salesFor(client, { collection: 'upcoming', limit: 200 }),
+        overdueInvoices: await this.salesFor(client, { collection: 'overdue', limit: 200 }),
       };
     });
   }

@@ -15,6 +15,8 @@ import {
 } from './commercial-shared';
 import { CollectionPush } from './collection-push';
 import { useRemote, displayMoney } from '@/lib/inventory-api';
+import { usePagedList } from '@/lib/use-paged-list';
+import { Button } from './ui/button';
 export function CollectionsScreen({ session }: { session: AppSession }) {
   const collections = useRemote<CollectionsOverview>('/api/collections'),
     rate = useRemote<RateStatus>('/api/rates/current');
@@ -22,15 +24,8 @@ export function CollectionsScreen({ session }: { session: AppSession }) {
     [selected, setSelected] = useState<SaleSummary | null>(null),
     [payment, setPayment] = useState<PaymentDetail | null>(null);
   const data = collections.data;
-  const rows = data
-    ? tab === 'today'
-      ? data.todayInvoices
-      : tab === 'upcoming'
-        ? data.upcomingInvoices
-        : tab === 'overdue'
-          ? data.overdueInvoices
-          : data.invoices
-    : [];
+  const invoices = usePagedList<SaleSummary>('/api/sales?collection=' + tab);
+  const rows = invoices.data ?? [];
   return (
     <AppShell session={session} current="/cobranza">
       <main id="app-main" className="main-content operations-page">
@@ -46,7 +41,7 @@ export function CollectionsScreen({ session }: { session: AppSession }) {
           session={session}
           onSaved={async (value) => {
             setPayment(value);
-            await collections.reload();
+            await Promise.all([collections.reload(), invoices.reload()]);
           }}
         />
         {collections.error ? (
@@ -71,7 +66,7 @@ export function CollectionsScreen({ session }: { session: AppSession }) {
               <article>
                 <CalendarDays aria-hidden="true" />
                 <span>Para revisar hoy</span>
-                <strong>{data.todayInvoices.length}</strong>
+                <strong>{data.todayCount ?? data.todayInvoices.length}</strong>
                 <small>Pagos pactados y recordatorios internos</small>
               </article>
             </div>
@@ -85,23 +80,30 @@ export function CollectionsScreen({ session }: { session: AppSession }) {
                   <TabsTrigger value="all">Todas pendientes</TabsTrigger>
                 </TabsList>
                 <TabsContent value={tab}>
+                  {invoices.error ? (
+                    <LoadError error={invoices.error} retry={() => void invoices.reload()} />
+                  ) : null}
+                  {invoices.loading ? <LoadingRows /> : null}
                   {rows.length ? (
                     <SaleTable sales={rows} onPayment={setSelected} />
-                  ) : (
+                  ) : invoices.data && !invoices.loading && !invoices.error ? (
                     <div className="commercial-empty">
                       <CalendarDays aria-hidden="true" />
                       <h2>No hay comprobantes en esta vista</h2>
                       <p>Los comprobantes pagados dejan de aparecer como pendientes.</p>
                     </div>
-                  )}
+                  ) : null}
+                  {invoices.hasMore ? (
+                    <Button
+                      variant="outline"
+                      disabled={invoices.loading}
+                      onClick={() => void invoices.loadMore()}
+                    >
+                      Cargar más pendientes
+                    </Button>
+                  ) : null}
                 </TabsContent>
               </Tabs>
-              {data.truncated ? (
-                <p className="inline-explanation">
-                  Se muestran los primeros 200 comprobantes pendientes. Consulta la ficha del
-                  cliente para su cuenta individual.
-                </p>
-              ) : null}
             </section>
             <CollectionPush />
           </>
@@ -117,7 +119,7 @@ export function CollectionsScreen({ session }: { session: AppSession }) {
           onSaved={async (p) => {
             setPayment(p);
             setSelected(null);
-            await collections.reload();
+            await Promise.all([collections.reload(), invoices.reload()]);
           }}
         />
       ) : null}

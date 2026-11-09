@@ -70,18 +70,15 @@ import {
   type SaleDraftLine,
 } from '@/lib/sales-flow';
 import styles from './sales-flow.module.css';
+import { usePagedList } from '@/lib/use-paged-list';
 export function SalesScreen({ session }: { session: AppSession }) {
-  const sales = useRemote<SaleSummary[]>('/api/sales?limit=200');
+  const [query, setQuery] = useState('');
+  const sales = usePagedList<SaleSummary>('/api/sales?search=' + encodeURIComponent(query.trim()));
   const pendingSale = useDurableCommercialCommand(
     session.environment + ':' + (session.operationScopeId ?? session.user.id),
     'sale',
   );
-  const [query, setQuery] = useState('');
-  const rows = (sales.data ?? []).filter((s) =>
-    (s.number + ' ' + s.clientName)
-      .toLocaleLowerCase('es')
-      .includes(query.toLocaleLowerCase('es').trim()),
-  );
+  const rows = sales.data ?? [];
   return (
     <AppShell session={session} current="/ventas">
       <main id="app-main" className="main-content operations-page">
@@ -106,21 +103,22 @@ export function SalesScreen({ session }: { session: AppSession }) {
             </Button>
           </section>
         ) : null}
+        <div className="commercial-toolbar">
+          <div className="search-field">
+            <Search aria-hidden="true" />
+            <Input
+              aria-label="Buscar ventas"
+              maxLength={120}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar comprobante o cliente…"
+            />
+          </div>
+        </div>
         {sales.error ? <LoadError error={sales.error} retry={() => void sales.reload()} /> : null}
         {sales.loading && !sales.data ? <LoadingRows /> : null}
         {sales.data ? (
           <>
-            <div className="commercial-toolbar">
-              <div className="search-field">
-                <Search aria-hidden="true" />
-                <Input
-                  aria-label="Buscar ventas"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar comprobante o cliente…"
-                />
-              </div>
-            </div>
             <section className="operations-panel" aria-label="Ventas registradas">
               {rows.length ? (
                 <SaleTable sales={rows} />
@@ -135,6 +133,15 @@ export function SalesScreen({ session }: { session: AppSession }) {
                 </div>
               )}
             </section>
+            {sales.hasMore ? (
+              <Button
+                variant="outline"
+                disabled={sales.loading}
+                onClick={() => void sales.loadMore()}
+              >
+                Cargar más ventas
+              </Button>
+            ) : null}
           </>
         ) : null}
         <PageFooter />

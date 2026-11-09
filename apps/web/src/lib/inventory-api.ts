@@ -34,7 +34,7 @@ export async function readApi<T>(url: string, signal?: AbortSignal): Promise<T> 
   return decode<T>(await fetch(url, { cache: 'no-store', signal }));
 }
 export function useRemote<T>(url: string) {
-  const [data, setData] = useState<T | null>(null),
+  const [result, setResult] = useState<{ url: string; value: T } | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState('');
   const sequence = useRef(0),
@@ -47,7 +47,7 @@ export function useRemote<T>(url: string) {
     setError('');
     try {
       const result = await readApi<T>(url, controller.current.signal);
-      if (id === sequence.current) setData(result);
+      if (id === sequence.current) setResult({ url, value: result });
     } catch (e) {
       if (id === sequence.current && !(e instanceof DOMException && e.name === 'AbortError'))
         setError(e instanceof Error ? e.message : 'No se pudo conectar con el servidor.');
@@ -62,7 +62,7 @@ export function useRemote<T>(url: string) {
       controller.current?.abort();
     };
   }, [reload]);
-  return { data, loading, error, reload };
+  return { data: result?.url === url ? result.value : null, loading, error, reload };
 }
 // The same body retains its command key after a failed request. A confirmed action gets a new key.
 export function useCommand() {
@@ -188,7 +188,7 @@ export function useDurableCommercialCommand(scope: string, kind: CommercialComma
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Idempotency-Key': commandKey },
               body: json,
-              signal: AbortSignal.timeout(20000),
+              signal: AbortSignal.timeout(65000),
             }),
           changed: () => window.dispatchEvent(new Event(COMMERCIAL_JOURNAL_EVENT)),
         },

@@ -424,7 +424,12 @@ export class InventoryService implements OnModuleDestroy {
           throw new ConflictException(
             'Esta solicitud ya se usó con otros datos o por otra persona.',
           );
-        if (['sale', 'payment', 'receipt', 'simple-receipt', 'quick-receipt'].includes(kind)) {
+        if (
+          ['sale', 'payment', 'receipt', 'simple-receipt', 'quick-receipt'].includes(kind) ||
+          /^(sale-dates|sale-cancel|payment-reverse|open-box|withdraw-blisters|open-blister|prepare-half|split-halves|adjust|reverse):/.test(
+            kind,
+          )
+        ) {
           const reset = await client.query(
             "select 1 from command_receipts where response->>'kind'='owner_authorized_operation_reset' and created_at >= $1 limit 1",
             [receipt.created_at],
