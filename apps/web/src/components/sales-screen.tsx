@@ -51,11 +51,11 @@ import {
   productLabel,
   presentationNames,
   normalizedMoney,
-  caracasDateTime,
   caracasDate,
   addCaracasDays,
 } from '@/lib/commercial-ui';
 import { PaymentMethodSelector } from './payment-method-selector';
+import { useCurrentRates } from './commercial-shared';
 import {
   paymentChoiceDetails,
   paymentChoiceUnavailable,
@@ -64,7 +64,6 @@ import {
   salePresentations,
   changeSaleLine,
   saleLineTotal,
-  saleReviewInstant,
   keepSaleDraft,
   takeSaleDraft,
   clearSaleDraft,
@@ -74,7 +73,7 @@ import styles from './sales-flow.module.css';
 export function SalesScreen({ session }: { session: AppSession }) {
   const sales = useRemote<SaleSummary[]>('/api/sales?limit=200');
   const pendingSale = useDurableCommercialCommand(
-    session.environment + ':' + session.user.id,
+    session.environment + ':' + (session.operationScopeId ?? session.user.id),
     'sale',
   );
   const [query, setQuery] = useState('');
@@ -146,14 +145,12 @@ export function SalesScreen({ session }: { session: AppSession }) {
 export function NewSaleScreen({ session }: { session: AppSession }) {
   const router = useRouter();
   const catalog = useRemote<Catalog>('/api/catalog');
-  const rate = useRemote<RateStatus>('/api/rates/current');
+  const rate = useCurrentRates();
   const [clientId, setClientId] = useState('');
   const clients = useClientDirectory(clientId);
   const [newClient, setNewClient] = useState(false);
   const [condition, setCondition] = useState<'cash' | 'credit'>('cash');
   const [basis, setBasis] = useState<'divisa' | 'bcv' | ''>('');
-  const [date, setDate] = useState('');
-  const [dateEdited, setDateEdited] = useState(false);
   const [due, setDue] = useState('');
   const [reminder, setReminder] = useState('');
   const [notes, setNotes] = useState('');
@@ -170,7 +167,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const reviewQuoteCurrent = useQuoteCurrent(reviewQuote);
   const [reviewTotals, setReviewTotals] = useState({ total: '0.00', balance: '0.00' });
   const [review, setReview] = useState<ReturnType<typeof manualSaleSchema.parse> | null>(null);
-  const scope = session.environment + ':' + session.user.id;
+  const scope = session.environment + ':' + (session.operationScopeId ?? session.user.id);
   const command = useDurableCommercialCommand(scope, 'sale');
   const [checkingStock, setCheckingStock] = useState(false);
   const checkingRef = useRef(false);
@@ -185,8 +182,6 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     if (draft) {
       setClientId(draft.clientId);
       setCondition(draft.condition);
-      setDate(draft.date);
-      setDateEdited(draft.dateEdited);
       setDue(draft.due);
       setReminder(draft.reminder);
       setNotes(draft.notes);
@@ -198,7 +193,6 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       setRestored(true);
       setBasis(draft.settlementBasis ?? '');
     } else {
-      setDate(caracasDateTime());
       const requestedClient = new URL(window.location.href).searchParams.get('cliente');
       if (requestedClient && /^[a-f0-9-]{36}$/i.test(requestedClient)) setClientId(requestedClient);
     }
@@ -252,6 +246,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     if (review)
       return {
         soldAt: review.soldAt,
+        dateMode: review.dateMode,
         lines: review.lines.map((line, index) => ({
           lineKey: stockKey(lines[index]?.key ?? index + 1),
           configurationId: line.configurationId,
@@ -268,7 +263,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       return null;
     try {
       return {
-        soldAt: soldAt ?? saleReviewInstant(date, dateEdited),
+        soldAt: soldAt ?? new Date().toISOString(),
+        dateMode: 'automatic',
         lines: lines.map((line) => ({
           lineKey: stockKey(line.key),
           configurationId: line.configurationId,
@@ -282,7 +278,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   }
   const preview = useSalePreview(
     JSON.stringify([
-      dateEdited ? date : 'automatic',
+      'automatic',
       review?.soldAt ?? null,
       lines.map(({ key, configurationId, presentation, quantity }) => [
         key,
@@ -294,7 +290,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     () => previewInput(),
     ready && command.ready && !command.pending && !reviewAttempted,
   );
-  const warningDate = review?.soldAt ?? (dateEdited ? date : 'automatic');
+  const warningDate = review?.soldAt ?? 'automatic';
   useEffect(() => {
     if (!preview.fresh || !preview.result) return;
     for (const line of lines) {
@@ -394,8 +390,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       clientId,
       settlementBasis: basis,
       condition,
-      date,
-      dateEdited,
+      date: '',
+      dateEdited: false,
       due,
       reminder,
       notes,
@@ -574,20 +570,15 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       command.setError('Contado debe liquidar el total. Para un abono parcial, elige Crédito.');
       return;
     }
-    let soldAt: string;
     const reviewedAt = new Date();
-    try {
-      soldAt = saleReviewInstant(date, dateEdited, reviewedAt);
-    } catch (error) {
-      command.setError(error instanceof Error ? error.message : 'Revisa la fecha de venta.');
-      return;
-    }
+    const soldAt = reviewedAt.toISOString();
     const parsed = manualSaleSchema.safeParse({
       schemaVersion: 2,
       settlementBasis: basis,
       clientId,
       condition,
       soldAt,
+      dateMode: 'automatic',
       notes,
       dueDate: condition === 'credit' && balance.gt(0) && due ? due : null,
       reminderDate: condition === 'credit' && balance.gt(0) && reminder ? reminder : null,
@@ -604,6 +595,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               amount: normalizedMoney(received),
               method,
               receivedAt: reviewedAt.toISOString(),
+              dateMode: 'automatic',
               ...(currency === 'VES' && activeRate ? { rateId: activeRate.id } : {}),
               ...(currency === 'USDT' && quotes.usdt && rate.data?.usdt?.rate
                 ? { informationalUsdtRateId: rate.data.usdt.rate.id }
@@ -1069,25 +1061,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                   Más opciones
                   <ChevronDown aria-hidden="true" />
                 </summary>
+                <p className={styles.muted}>
+                  La fecha y hora se registran automáticamente al confirmar la venta.
+                </p>
                 <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="sale-date">Fecha y hora de venta en Venezuela</FieldLabel>
-                    <Input
-                      id="sale-date"
-                      required
-                      type="datetime-local"
-                      value={date}
-                      onChange={(event) => {
-                        setDate(event.target.value);
-                        setDateEdited(true);
-                      }}
-                    />
-                    <FieldDescription>
-                      {dateEdited
-                        ? 'Se usará la fecha y hora que indicaste.'
-                        : 'Se usará la hora actual al revisar la venta.'}
-                    </FieldDescription>
-                  </Field>
                   <Field>
                     <FieldLabel htmlFor="sale-notes">Observaciones de la venta</FieldLabel>
                     <Textarea
@@ -1206,18 +1183,14 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() =>
-                            setDue(addCaracasDays(date.slice(0, 10) || caracasDate(), 7))
-                          }
+                          onClick={() => setDue(addCaracasDays(caracasDate(), 7))}
                         >
                           7 días
                         </Button>
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() =>
-                            setDue(addCaracasDays(date.slice(0, 10) || caracasDate(), 15))
-                          }
+                          onClick={() => setDue(addCaracasDays(caracasDate(), 15))}
                         >
                           15 días
                         </Button>

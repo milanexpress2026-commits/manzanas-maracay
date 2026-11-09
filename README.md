@@ -1,12 +1,14 @@
 # Manzanas Maracay
 
-Aplicación privada para una distribuidora venezolana de frutas importadas: recepción de mercancía, inventario por empaque y lote, ventas con precio manual, clientes, crédito, abonos y documentos comerciales PDF.
+Aplicación privada para recepción de frutas, inventario, ventas, clientes, crédito, abonos y notas de entrega.
 
-**Producción actual: V4.8 publicada y saludable**, código `03b2d6970ea0f3d1a0a6dc60d0bfbdff68e442df`, con **16 migraciones, sin migraciones nuevas en esta actualización**. [Entrar a Manzanas Maracay](https://manzanas.ganamosclub.net/login). La publicación autorizada conservó el acceso y los datos existentes. La raíz dirige al acceso o al inicio privado; `/demo` permanece deshabilitada en producción. [Verificación V4.8](docs/verificacion-v4-8.json) y [publicación](docs/promocion-v4-8.md).
+**V4.9 publicada y verificada**, runtime `e4edd2385614c41673209b20dd431df95444b10a`, con 16 migraciones conservadas. [Entrar a Manzanas Maracay](https://manzanas.ganamosclub.net/login). Las ventas toman automáticamente la hora de Venezuela al finalizar. Catálogo reúne fruta, variedad, calibre y empaque en un formulario, con alta de calibre desde el producto y transiciones breves entre menús.
 
-**V4.8 aprobada y publicada:** rama `feature/disponibilidad-v4-8`, [PR #9](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/9). La cuarta QA aprobó **419 unitarias, 34 dirigidas, 149 E2E en una ejecución y 13 casos de producción aislada**, además de tipos/builds y migraciones; staging aprobó **29 comprobaciones**. La versión comprueba la disponibilidad del carrito completo, cantidades y refresco de existencias, y conserva el borrador ante conflictos. También muestra la última BCV oficial fechada y aplica continuidad acotada por la siguiente fecha valor oficial verificada. **Comprobación pública posterior: 21/21 PASS**, con vista previa de existencias de solo lectura y cuatro métodos disponibles en ese instante. La nota PDF de una venta real existente aprobó **5/5 controles** por HTTPS, incluyendo Carta/A4; no se crearon operaciones comerciales. **Respaldo posterior aprobado el 7 de noviembre de 2026 a las 12:06:41 UTC:** copia externa verificada, recuperación desde esa copia, limpieza del entorno de restauración y copia cifrada en el VPS comprobadas. [Auditoría](docs/auditoria-v4-8.md), [matriz](docs/matriz-aceptacion-v4-8.md) y [evidencia](docs/verificacion-v4-8.json).
+El reinicio operativo autorizado dejó mercancía, ventas, abonos y saldos en cero, conservando catálogo, clientes, proveedores, acceso, configuración y tablet. Los socios deben iniciar sesión otra vez y comenzar por Recepciones. No repetir el reinicio: la base puede contener operaciones nuevas desde esta publicación.
 
-El repositorio público está autorizado: [milanexpress2026-commits/manzanas-maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). La versión anterior V4.7, código `82cd5ab579fbbc50cf852774aca47847cc388fa5` del [PR #8](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/8), queda como antecedente; la producción actual usa V4.8. Un commit documental posterior no cambia por sí solo el código desplegado. Las pruebas físicas de tablet/impresora se registran por separado y no impiden el acceso de los socios a la operación publicada.
+Validación: 421 unitarias, tipos/builds, 153 casos E2E cubiertos entre una corrida de 152/153 y dos repeticiones aprobadas del caso de volumen, 13 pruebas de producción aislada, migraciones, 29 controles comerciales de staging y 21 controles reales. Respaldo posterior cifrado y restaurado. [Cambios y límites de la evidencia](docs/operacion-diaria-v4-9.md) · [Verificación](docs/verificacion-v4-9.json) · [PR #10](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/10).
+
+V4.8 y versiones anteriores son antecedentes conservados en su documentación y en Git. El repositorio público no contiene accesos ni datos privados. Un commit documental posterior no cambia el runtime desplegado.
 
 ## Uso diario
 
@@ -15,7 +17,7 @@ El repositorio público está autorizado: [milanexpress2026-commits/manzanas-mar
 3. **Cobrar (`/cobranza`)**: aplicar el abono a los comprobantes elegidos. El precio y el acuerdo originales se conservan. El crédito puede comenzar sin abono; fecha acordada y recordatorio se gestionan por separado.
 4. **Entregar o imprimir**: abrir la nota de entrega desde la venta confirmada. Ver, descargar o reimprimir no vuelve a vender ni descuenta existencias. El comprobante de venta y el recibo de abono son documentos separados.
 
-[Manual de la versión publicada](docs/manual-socios-v4-8.md) · [Guía de impresión HP](docs/guia-impresion-hp-v4-7.md) · [Guía HP de una hoja en PDF](docs/guia-impresion-hp-v4-7.pdf).
+[Manual de la versión publicada](docs/manual-socios-v4-9.md) · [Guía de impresión HP](docs/guia-impresion-hp-v4-7.md) · [Guía HP de una hoja en PDF](docs/guia-impresion-hp-v4-7.pdf).
 
 ## Cobros y tasas
 

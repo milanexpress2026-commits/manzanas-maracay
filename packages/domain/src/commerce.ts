@@ -172,6 +172,7 @@ export const initialPaymentSchema = z
     amount: paymentAmountSchema,
     method: text.min(2).max(80),
     receivedAt: z.iso.datetime({ offset: true }),
+    dateMode: z.enum(['automatic', 'manual']).optional(),
     rateId: z.uuid().optional(),
     informationalUsdtRateId: z.uuid().optional(),
   })
@@ -261,6 +262,7 @@ export const manualSaleSchema = z
     condition: z.enum(['cash', 'credit']),
     settlementBasis: z.enum(['divisa', 'bcv']),
     soldAt: z.iso.datetime({ offset: true }),
+    dateMode: z.enum(['automatic', 'manual']).optional(),
     dueDate: z.iso.date().nullable().default(null),
     reminderDate: z.iso.date().nullable().default(null),
     notes: note,

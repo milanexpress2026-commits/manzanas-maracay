@@ -57,7 +57,8 @@ test('V4.8 BCV vence en la pestaña: conserva la última cifra y fecha sin habil
   await expect(bolivares).toBeEnabled();
   await expect(page.getByText(/Última BCV oficial verificada:/)).toHaveCount(0);
 
-  // Only the browser clock advances: no cache writes, new observation or refetch.
+  // The visible tab refreshes automatically; the mock returns the same observation.
+  const requestsBeforeExpiration = rateRequests;
   await page.clock.fastForward(300011);
   await expect(
     page.getByText('Última BCV oficial verificada: 73,125 Bs. por USD.', { exact: true }),
@@ -83,7 +84,7 @@ test('V4.8 BCV vence en la pestaña: conserva la última cifra y fecha sin habil
     page.getByRole('link', { name: 'Consultar fuente BCV', exact: true }),
   ).toHaveAttribute('href', BCV_SOURCE_URL);
   expect(reference).not.toHaveProperty('id');
-  expect(rateRequests).toBe(1);
+  await expect.poll(() => rateRequests).toBeGreaterThan(requestsBeforeExpiration);
   expect(businessPosts).toEqual([]);
 });
 

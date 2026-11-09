@@ -13,6 +13,7 @@ import {
   getHabitualTemplate,
   habitualPacking,
   type Catalog,
+  type Configuration,
   type Caliber,
   type Fruit,
   type Variety,
@@ -53,8 +54,10 @@ export function ProductForm({
   onBusyChange,
   returnToSale = false,
   caliberMemory,
+  fromProduct,
 }: {
   catalog: Catalog;
+  fromProduct?: Configuration;
   onCancel: () => void;
   onSaved: (configurationId: string) => Promise<void>;
   onBusyChange: (busy: boolean) => void;
@@ -63,18 +66,26 @@ export function ProductForm({
 }) {
   const [local, setLocal] = useState(catalog);
   const [step, setStep] = useState(1);
-  const [fruitId, setFruitId] = useState('');
-  const [varietyId, setVarietyId] = useState('');
+  const [fruitId, setFruitId] = useState(fromProduct?.fruitId ?? '');
+  const [varietyId, setVarietyId] = useState(fromProduct ? (fromProduct.varietyId ?? 'none') : '');
   const [caliberId, setCaliberId] = useState('');
-  const [family, setFamily] = useState<CatalogFamily>('other');
+  const [family, setFamily] = useState<CatalogFamily>(
+    fromProduct
+      ? fromProduct.commercialLine === 'A granel'
+        ? 'bulk'
+        : catalogFamilyFor(fromProduct.fruit)
+      : 'other',
+  );
   const [chosenCalibers, setChosenCalibers] = useState<string[]>([]);
-  const [model, setModel] = useState<PackingModel | ''>('');
-  const [half, setHalf] = useState<HalfPreparation>('pending');
-  const [presentations, setPresentations] = useState<Presentation[]>(['box']);
+  const [model, setModel] = useState<PackingModel | ''>(fromProduct?.packingModel ?? '');
+  const [half, setHalf] = useState<HalfPreparation>(fromProduct?.halfPreparation ?? 'pending');
+  const [presentations, setPresentations] = useState<Presentation[]>(
+    fromProduct?.allowedPresentations ?? ['box'],
+  );
   const [blisters, setBlisters] = useState('');
-  const [weight, setWeight] = useState('');
+  const [weight, setWeight] = useState(fromProduct?.boxWeightKg ?? '');
   const [confirmed, setConfirmed] = useState(false);
-  const [line, setLine] = useState('Estándar');
+  const [line, setLine] = useState(fromProduct?.commercialLine ?? 'Estándar');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -318,13 +329,13 @@ export function ProductForm({
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (submitting.current) return;
-    const issue = step === 1 ? validateProduct() : validateProduct() || validatePacking();
+    const issue = validateProduct() || validatePacking();
     if (issue) {
       setError(issue);
       return;
     }
     if (step < 3) {
-      move(step + 1);
+      move(3);
       return;
     }
     await perform(async () => {
@@ -383,21 +394,14 @@ export function ProductForm({
     );
   return (
     <form onSubmit={submit} className={styles.form} noValidate>
-      <ol className={styles.steps} aria-label="Pasos para agregar producto">
-        {['Producto', 'Empaque', 'Revisar'].map((label, index) => (
-          <li key={label} aria-current={step === index + 1 ? 'step' : undefined}>
-            <span aria-hidden="true">{index + 1}</span>
-            {label}
-          </li>
-        ))}
-      </ol>
       <h3 className={styles.stepTitle} ref={stepTitle} tabIndex={-1}>
-        {step === 1
-          ? '¿Qué producto vas a agregar?'
-          : step === 2
-            ? '¿Cómo viene la caja?'
-            : 'Revisa antes de guardar'}
+        {step < 3 ? 'Producto y empaque en un solo lugar' : 'Revisa antes de guardar'}
       </h3>
+      {step < 3 ? (
+        <p>
+          Elige o crea la fruta, variedad y calibre aquí mismo. Después confirma cómo viene la caja.
+        </p>
+      ) : null}
       <FormError message={error} />
       {notice ? (
         <p role="status" className={styles.notice}>
@@ -405,326 +409,327 @@ export function ProductForm({
         </p>
       ) : null}
       <fieldset disabled={busy} className={styles.fields}>
-        {step === 1 ? (
-          <FieldGroup>
-            <ProductCatalogField
-              id="product-fruit"
-              label="Fruta"
-              noun="fruta"
-              value={fruitId}
-              options={local.fruits.map((row) => ({ id: row.id, label: row.name }))}
-              onChange={(id) => chooseFruit(id)}
-              onCreate={(name) => createMaster('fruits', name)}
-              busy={busy}
-              initialCreate={!local.fruits.length}
-              placeholder="Ej.: Manzana, Pera, Kiwi"
-              help="La fruta es Manzana; Gala es su variedad. Usa el nombre que maneja el negocio."
-            />
-            {fruitId ? (
-              <>
-                <ProductCatalogField
-                  id="product-variety"
-                  label="Variedad"
-                  noun="variedad"
-                  value={varietyId}
-                  options={varieties.map((row) => ({ id: row.id, label: row.name }))}
-                  onChange={(id) => {
-                    setVarietyId(id);
-                    setConfirmed(false);
-                  }}
-                  onCreate={(name) => createMaster('varieties', name)}
-                  busy={busy}
-                  optional
-                  placeholder={
-                    family === 'pear'
-                      ? 'Ej.: Forelle, Packcam'
+        {step < 3 ? (
+          <>
+            <FieldGroup>
+              <ProductCatalogField
+                id="product-fruit"
+                label="Fruta"
+                noun="fruta"
+                value={fruitId}
+                options={local.fruits.map((row) => ({ id: row.id, label: row.name }))}
+                onChange={(id) => chooseFruit(id)}
+                onCreate={(name) => createMaster('fruits', name)}
+                busy={busy}
+                initialCreate={!local.fruits.length}
+                placeholder="Ej.: Manzana, Pera, Kiwi"
+                help="La fruta es Manzana; Gala es su variedad. Usa el nombre que maneja el negocio."
+              />
+              {fruitId ? (
+                <>
+                  <ProductCatalogField
+                    id="product-variety"
+                    label="Variedad"
+                    noun="variedad"
+                    value={varietyId}
+                    options={varieties.map((row) => ({ id: row.id, label: row.name }))}
+                    onChange={(id) => {
+                      setVarietyId(id);
+                      setConfirmed(false);
+                    }}
+                    onCreate={(name) => createMaster('varieties', name)}
+                    busy={busy}
+                    optional
+                    placeholder={
+                      family === 'pear'
+                        ? 'Ej.: Forelle, Packcam'
+                        : family === 'grape'
+                          ? 'Ej.: Roja, Morada'
+                          : 'Ej.: Gala, Amarilla'
+                    }
+                    help={
+                      family === 'kiwi'
+                        ? 'Kiwi puede registrarse sin variedad: elige No aplica.'
+                        : 'El nombre comercial distingue variedades; no cambia productos ya registrados.'
+                    }
+                  />
+                  <Field>
+                    <FieldLabel htmlFor="product-family">Tipo de producto</FieldLabel>
+                    <NativeSelect
+                      id="product-family"
+                      value={family}
+                      onChange={(event) => chooseFamily(event.target.value as CatalogFamily)}
+                    >
+                      {Object.entries(familyLabels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                    <FieldDescription>
+                      Orienta las sugerencias. La fruta y variedad conservan sus nombres.
+                    </FieldDescription>
+                  </Field>
+                  <ProductCatalogField
+                    id="product-caliber"
+                    label="Calibre"
+                    noun="calibre"
+                    value={caliberId}
+                    options={calibers.map((row) => ({ id: row.id, label: row.label }))}
+                    onChange={(id) => {
+                      setCaliberId(id);
+                      setConfirmed(false);
+                    }}
+                    onCreate={(name) => createMaster('calibers', name)}
+                    busy={busy}
+                    optional
+                    placeholder="Ej.: 100"
+                    help={
+                      family === 'kiwi' || family === 'grape'
+                        ? 'Puede no aplicar. No se cuentan frutas ni racimos.'
+                        : 'Es una clasificación de tamaño, nunca la cantidad de frutas o blíster.'
+                    }
+                  />
+                  {suggestions ? (
+                    <details className={styles.options} key={family}>
+                      <summary>
+                        Calibres habituales de {familyLabels[family].toLocaleLowerCase('es')}
+                      </summary>
+                      <p>
+                        Revisa el conjunto y agrega solo los que utiliza el negocio. Los que ya
+                        existen se reutilizan.
+                      </p>
+                      <div className={styles.calibers}>
+                        {suggestions.map((label) => (
+                          <label key={label}>
+                            <input
+                              type="checkbox"
+                              checked={chosenCalibers.includes(label)}
+                              onChange={(event) =>
+                                chooseCalibers(
+                                  event.target.checked
+                                    ? [...chosenCalibers, label]
+                                    : chosenCalibers.filter((value) => value !== label),
+                                )
+                              }
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={!chosenCalibers.length || busy}
+                        onClick={() => void addSuggestedCalibers()}
+                      >
+                        Agregar calibres seleccionados
+                      </Button>
+                    </details>
+                  ) : null}
+                </>
+              ) : null}
+            </FieldGroup>
+            <FieldGroup>
+              <p className={styles.productName}>{productName}</p>
+              {['kiwi', 'grape', 'bulk'].includes(family) ? (
+                <div className={styles.suggestion}>
+                  <p>
+                    {family === 'kiwi'
+                      ? 'Kiwi: caja de 10 kg y media de 5 kg, sin conteo de piezas.'
                       : family === 'grape'
-                        ? 'Ej.: Roja, Morada'
-                        : 'Ej.: Gala, Amarilla'
-                  }
-                  help={
-                    family === 'kiwi'
-                      ? 'Kiwi puede registrarse sin variedad: elige No aplica.'
-                      : 'El nombre comercial distingue variedades; no cambia productos ya registrados.'
-                  }
-                />
-                <Field>
-                  <FieldLabel htmlFor="product-family">Tipo de producto</FieldLabel>
-                  <NativeSelect
-                    id="product-family"
-                    value={family}
-                    onChange={(event) => chooseFamily(event.target.value as CatalogFamily)}
-                  >
-                    {Object.entries(familyLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <FieldDescription>
-                    Orienta las sugerencias. La fruta y variedad conservan sus nombres.
-                  </FieldDescription>
-                </Field>
-                <ProductCatalogField
-                  id="product-caliber"
-                  label="Calibre"
-                  noun="calibre"
-                  value={caliberId}
-                  options={calibers.map((row) => ({ id: row.id, label: row.label }))}
-                  onChange={(id) => {
-                    setCaliberId(id);
-                    setConfirmed(false);
-                  }}
-                  onCreate={(name) => createMaster('calibers', name)}
-                  busy={busy}
-                  optional
-                  placeholder="Ej.: 100"
-                  help={
-                    family === 'kiwi' || family === 'grape'
-                      ? 'Puede no aplicar. No se cuentan frutas ni racimos.'
-                      : 'Es una clasificación de tamaño, nunca la cantidad de frutas o blíster.'
-                  }
-                />
-                {suggestions ? (
-                  <details className={styles.options} key={family}>
-                    <summary>
-                      Calibres habituales de {familyLabels[family].toLocaleLowerCase('es')}
-                    </summary>
-                    <p>
-                      Revisa el conjunto y agrega solo los que utiliza el negocio. Los que ya
-                      existen se reutilizan.
-                    </p>
-                    <div className={styles.calibers}>
-                      {suggestions.map((label) => (
-                        <label key={label}>
+                        ? 'Uva: solo caja completa, sin kilos, racimos ni medias.'
+                        : 'Granel: caja y media comercial, sin contar frutas ni usar blíster.'}
+                  </p>
+                  <Button type="button" variant="secondary" onClick={applyKnownPacking}>
+                    Usar este empaque
+                  </Button>
+                </div>
+              ) : family === 'pear' ? (
+                <p className={styles.hint}>
+                  El empaque de Forelle o Packcam se confirma con la mercancía. No deduzcas blíster
+                  ni medias por el calibre.
+                </p>
+              ) : null}
+              <Field>
+                <FieldLabel htmlFor="product-packing">Presentación de la caja</FieldLabel>
+                <NativeSelect
+                  id="product-packing"
+                  value={model}
+                  onChange={(event) => changeModel(event.target.value as PackingModel)}
+                >
+                  <option value="" disabled>
+                    Selecciona cómo viene
+                  </option>
+                  <option value="blister" disabled={['kiwi', 'grape', 'bulk'].includes(family)}>
+                    Caja con blíster
+                  </option>
+                  <option value="halves" disabled={family === 'grape'}>
+                    Caja y media caja, sin blíster
+                  </option>
+                  <option value="whole" disabled={family === 'kiwi' || family === 'bulk'}>
+                    Solo caja completa
+                  </option>
+                </NativeSelect>
+              </Field>
+              {model === 'blister' ? (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="product-blisters">Blíster por caja</FieldLabel>
+                    {audioSuggestion ? (
+                      <p className={styles.hint}>
+                        Empaque habitual confirmado: {audioSuggestion} blíster por caja. Puedes
+                        indicar una excepción si esta presentación es distinta.
+                      </p>
+                    ) : null}
+                    <Input
+                      id="product-blisters"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={100}
+                      step={1}
+                      placeholder="Pendiente de confirmar"
+                      value={blisters || (audioSuggestion == null ? '' : String(audioSuggestion))}
+                      onChange={(event) => {
+                        setBlisters(event.target.value);
+                        setConfirmed(false);
+                      }}
+                    />
+                    <FieldDescription>
+                      {audioSuggestion
+                        ? family === 'pear'
+                          ? 'Peras: 70, 80, 90, 100, 110, 120 y 125 llevan cuatro; 135, 150 y 165 llevan cinco.'
+                          : 'El calibre 100 pertenece al grupo de cuatro; mayores de 100 llevan cinco.'
+                        : 'Indica la cantidad verificada; si no la conoces, conserva el dato pendiente.'}
+                    </FieldDescription>
+                  </Field>
+                  <Field>
+                    <FieldLabel>¿Qué se podrá vender?</FieldLabel>
+                    <div className={styles.checks}>
+                      {(['box', 'half_box', 'blister'] as Presentation[]).map((presentation) => (
+                        <label key={presentation}>
                           <input
                             type="checkbox"
-                            checked={chosenCalibers.includes(label)}
-                            onChange={(event) =>
-                              chooseCalibers(
+                            checked={presentations.includes(presentation)}
+                            disabled={presentation === 'box'}
+                            onChange={(event) => {
+                              setPresentations((current) =>
                                 event.target.checked
-                                  ? [...chosenCalibers, label]
-                                  : chosenCalibers.filter((value) => value !== label),
-                              )
-                            }
+                                  ? [...current, presentation]
+                                  : current.filter((value) => value !== presentation),
+                              );
+                              setConfirmed(false);
+                            }}
                           />
-                          {label}
+                          {presentationNames[presentation]}
                         </label>
                       ))}
                     </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={!chosenCalibers.length || busy}
-                      onClick={() => void addSuggestedCalibers()}
-                    >
-                      Agregar calibres seleccionados
-                    </Button>
-                  </details>
-                ) : null}
-              </>
-            ) : null}
-          </FieldGroup>
-        ) : step === 2 ? (
-          <FieldGroup>
-            <p className={styles.productName}>{productName}</p>
-            {['kiwi', 'grape', 'bulk'].includes(family) ? (
-              <div className={styles.suggestion}>
-                <p>
-                  {family === 'kiwi'
-                    ? 'Kiwi: caja de 10 kg y media de 5 kg, sin conteo de piezas.'
-                    : family === 'grape'
-                      ? 'Uva: solo caja completa, sin kilos, racimos ni medias.'
-                      : 'Granel: caja y media comercial, sin contar frutas ni usar blíster.'}
-                </p>
-                <Button type="button" variant="secondary" onClick={applyKnownPacking}>
-                  Usar este empaque
-                </Button>
-              </div>
-            ) : family === 'pear' ? (
-              <p className={styles.hint}>
-                El empaque de Forelle o Packcam se confirma con la mercancía. No deduzcas blíster ni
-                medias por el calibre.
-              </p>
-            ) : null}
-            <Field>
-              <FieldLabel htmlFor="product-packing">Presentación de la caja</FieldLabel>
-              <NativeSelect
-                id="product-packing"
-                value={model}
-                onChange={(event) => changeModel(event.target.value as PackingModel)}
-              >
-                <option value="" disabled>
-                  Selecciona cómo viene
-                </option>
-                <option value="blister" disabled={['kiwi', 'grape', 'bulk'].includes(family)}>
-                  Caja con blíster
-                </option>
-                <option value="halves" disabled={family === 'grape'}>
-                  Caja y media caja, sin blíster
-                </option>
-                <option value="whole" disabled={family === 'kiwi' || family === 'bulk'}>
-                  Solo caja completa
-                </option>
-              </NativeSelect>
-            </Field>
-            {model === 'blister' ? (
-              <>
-                <Field>
-                  <FieldLabel htmlFor="product-blisters">Blíster por caja</FieldLabel>
-                  {audioSuggestion ? (
-                    <p className={styles.hint}>
-                      Empaque habitual confirmado: {audioSuggestion} blíster por caja. Puedes
-                      indicar una excepción si esta presentación es distinta.
-                    </p>
+                  </Field>
+                  {presentations.includes('half_box') ? (
+                    <Field>
+                      <FieldLabel htmlFor="product-half">¿Cómo preparan la media caja?</FieldLabel>
+                      <NativeSelect
+                        id="product-half"
+                        value={half}
+                        onChange={(event) => {
+                          setHalf(event.target.value as HalfPreparation);
+                          setConfirmed(false);
+                        }}
+                      >
+                        <option value="pending">Pendiente de confirmar</option>
+                        <option value="counted">Contando las frutas al abrir la caja</option>
+                      </NativeSelect>
+                      <FieldDescription>
+                        La cantidad real se registra al abrir cada caja; no se inventa ahora.
+                      </FieldDescription>
+                    </Field>
                   ) : null}
+                </>
+              ) : model === 'halves' ? (
+                <p className={styles.hint}>
+                  Presentaciones: caja y media caja comercial. Una caja se divide en dos medias, sin
+                  conteo de piezas.
+                </p>
+              ) : model === 'whole' ? (
+                <p className={styles.hint}>Se venderá únicamente la caja completa.</p>
+              ) : null}
+              {family === 'kiwi' && model ? (
+                <Field>
+                  <FieldLabel htmlFor="product-kiwi-weight">Peso definido por caja (kg)</FieldLabel>
                   <Input
-                    id="product-blisters"
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={100}
-                    step={1}
-                    placeholder="Pendiente de confirmar"
-                    value={blisters || (audioSuggestion == null ? '' : String(audioSuggestion))}
+                    id="product-kiwi-weight"
+                    value={weight}
+                    inputMode="decimal"
                     onChange={(event) => {
-                      setBlisters(event.target.value);
+                      setWeight(event.target.value);
                       setConfirmed(false);
                     }}
                   />
                   <FieldDescription>
-                    {audioSuggestion
-                      ? family === 'pear'
-                        ? 'Peras: 70, 80, 90, 100, 110, 120 y 125 llevan cuatro; 135, 150 y 165 llevan cinco.'
-                        : 'El calibre 100 pertenece al grupo de cuatro; mayores de 100 llevan cinco.'
-                      : 'Indica la cantidad verificada; si no la conoces, conserva el dato pendiente.'}
+                    Para kiwi, 10 kg por caja y 5 kg por media. No se pesa cada venta.
                   </FieldDescription>
                 </Field>
-                <Field>
-                  <FieldLabel>¿Qué se podrá vender?</FieldLabel>
-                  <div className={styles.checks}>
-                    {(['box', 'half_box', 'blister'] as Presentation[]).map((presentation) => (
-                      <label key={presentation}>
-                        <input
-                          type="checkbox"
-                          checked={presentations.includes(presentation)}
-                          disabled={presentation === 'box'}
-                          onChange={(event) => {
-                            setPresentations((current) =>
-                              event.target.checked
-                                ? [...current, presentation]
-                                : current.filter((value) => value !== presentation),
-                            );
-                            setConfirmed(false);
-                          }}
-                        />
-                        {presentationNames[presentation]}
-                      </label>
-                    ))}
-                  </div>
-                </Field>
-                {presentations.includes('half_box') ? (
+              ) : null}
+              <details className={styles.options}>
+                <summary>Más opciones</summary>
+                <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="product-half">¿Cómo preparan la media caja?</FieldLabel>
-                    <NativeSelect
-                      id="product-half"
-                      value={half}
-                      onChange={(event) => {
-                        setHalf(event.target.value as HalfPreparation);
-                        setConfirmed(false);
-                      }}
-                    >
-                      <option value="pending">Pendiente de confirmar</option>
-                      <option value="counted">Contando las frutas al abrir la caja</option>
-                    </NativeSelect>
-                    <FieldDescription>
-                      La cantidad real se registra al abrir cada caja; no se inventa ahora.
-                    </FieldDescription>
-                  </Field>
-                ) : null}
-              </>
-            ) : model === 'halves' ? (
-              <p className={styles.hint}>
-                Presentaciones: caja y media caja comercial. Una caja se divide en dos medias, sin
-                conteo de piezas.
-              </p>
-            ) : model === 'whole' ? (
-              <p className={styles.hint}>Se venderá únicamente la caja completa.</p>
-            ) : null}
-            {family === 'kiwi' && model ? (
-              <Field>
-                <FieldLabel htmlFor="product-kiwi-weight">Peso definido por caja (kg)</FieldLabel>
-                <Input
-                  id="product-kiwi-weight"
-                  value={weight}
-                  inputMode="decimal"
-                  onChange={(event) => {
-                    setWeight(event.target.value);
-                    setConfirmed(false);
-                  }}
-                />
-                <FieldDescription>
-                  Para kiwi, 10 kg por caja y 5 kg por media. No se pesa cada venta.
-                </FieldDescription>
-              </Field>
-            ) : null}
-            <details className={styles.options}>
-              <summary>Más opciones</summary>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="product-line">
-                    Nombre para distinguir este empaque
-                  </FieldLabel>
-                  <Input
-                    id="product-line"
-                    value={line}
-                    maxLength={80}
-                    onChange={(event) => setLine(event.target.value)}
-                  />
-                  <FieldDescription>
-                    Ej.: Estándar o Granel. No cambia la fruta ni la variedad.
-                  </FieldDescription>
-                </Field>
-                {!['kiwi', 'grape'].includes(family) ? (
-                  <Field>
-                    <FieldLabel htmlFor="product-weight">
-                      Peso definido por caja, si aplica (kg)
+                    <FieldLabel htmlFor="product-line">
+                      Nombre para distinguir este empaque
                     </FieldLabel>
                     <Input
-                      id="product-weight"
-                      inputMode="decimal"
-                      value={weight}
-                      placeholder="Sin peso definido"
-                      onChange={(event) => {
-                        setWeight(event.target.value);
-                        setConfirmed(false);
-                      }}
+                      id="product-line"
+                      value={line}
+                      maxLength={80}
+                      onChange={(event) => setLine(event.target.value)}
+                    />
+                    <FieldDescription>
+                      Ej.: Estándar o Granel. No cambia la fruta ni la variedad.
+                    </FieldDescription>
+                  </Field>
+                  {!['kiwi', 'grape'].includes(family) ? (
+                    <Field>
+                      <FieldLabel htmlFor="product-weight">
+                        Peso definido por caja, si aplica (kg)
+                      </FieldLabel>
+                      <Input
+                        id="product-weight"
+                        inputMode="decimal"
+                        value={weight}
+                        placeholder="Sin peso definido"
+                        onChange={(event) => {
+                          setWeight(event.target.value);
+                          setConfirmed(false);
+                        }}
+                      />
+                    </Field>
+                  ) : null}
+                  <Field>
+                    <FieldLabel htmlFor="product-notes">Notas del empaque</FieldLabel>
+                    <Textarea
+                      id="product-notes"
+                      value={notes}
+                      maxLength={500}
+                      onChange={(event) => setNotes(event.target.value)}
                     />
                   </Field>
-                ) : null}
-                <Field>
-                  <FieldLabel htmlFor="product-notes">Notas del empaque</FieldLabel>
-                  <Textarea
-                    id="product-notes"
-                    value={notes}
-                    maxLength={500}
-                    onChange={(event) => setNotes(event.target.value)}
-                  />
-                </Field>
-              </FieldGroup>
-            </details>
-            <label className={styles.confirm}>
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(event) => setConfirmed(event.target.checked)}
-              />
-              <span>
-                Confirmo que este empaque y sus presentaciones son correctos.
-                <small>Si falta información, déjalo pendiente. No se crea inventario.</small>
-              </span>
-            </label>
-          </FieldGroup>
+                </FieldGroup>
+              </details>
+              <label className={styles.confirm}>
+                <input
+                  type="checkbox"
+                  checked={confirmed}
+                  onChange={(event) => setConfirmed(event.target.checked)}
+                />
+                <span>
+                  Confirmo que este empaque y sus presentaciones son correctos.
+                  <small>Si falta información, déjalo pendiente. No se crea inventario.</small>
+                </span>
+              </label>
+            </FieldGroup>
+          </>
         ) : (
           <div className={styles.review}>
             <PackageCheck aria-hidden="true" />
@@ -737,7 +742,7 @@ export function ProductForm({
               {model === 'blister' ? (
                 <div>
                   <dt>Blíster por caja</dt>
-                  <dd>{blisters || 'Pendiente de confirmar'}</dd>
+                  <dd>{body.blistersPerBox ?? 'Pendiente de confirmar'}</dd>
                 </div>
               ) : null}
               <div>
@@ -785,26 +790,12 @@ export function ProductForm({
             Cancelar
           </Button>
         ) : (
-          <Button type="button" variant="outline" disabled={busy} onClick={() => move(step - 1)}>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => move(1)}>
             <ArrowLeft aria-hidden="true" />
             Atrás
           </Button>
         )}
-        <SaveButton busy={busy}>
-          {step === 1 ? (
-            <>
-              Continuar al empaque
-              <ArrowRight aria-hidden="true" />
-            </>
-          ) : step === 2 ? (
-            <>
-              Revisar producto
-              <ArrowRight aria-hidden="true" />
-            </>
-          ) : (
-            'Guardar producto'
-          )}
-        </SaveButton>
+        <SaveButton busy={busy}>{step < 3 ? 'Revisar producto' : 'Guardar producto'}</SaveButton>
       </div>
     </form>
   );

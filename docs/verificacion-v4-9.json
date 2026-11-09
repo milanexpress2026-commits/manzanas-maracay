@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "runtimeCommit": "e4edd2385614c41673209b20dd431df95444b10a",
+  "productionRelease": "phase4-e4edd2385614",
+  "stagingRelease": "hotfix-e4edd2385614",
+  "state": "published_and_operational_reset_verified",
+  "checkedAt": "2026-11-09T01:32:10.299Z",
+  "qa": {
+    "unitTestsPassed": 421,
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "fullE2e": {
+      "passed": 152,
+      "failed": 1,
+      "total": 153,
+      "singleRunAllPassed": false,
+      "failure": "HTTP 503 in 50-line/200-box case; original failure preserved"
+    },
+    "focusedRepeat": {
+      "case": "50 lines / 200 boxes, confirmation and PDF",
+      "passed": 2,
+      "failed": 0,
+      "runtimeChanged": false
+    },
+    "distinctE2eCasesCoveredAcrossRuns": 153,
+    "productionCasesPassed": 13,
+    "migrationsPassed": true,
+    "migrationPaths": [
+      "fresh 16",
+      "13 to 16",
+      "14 to 16",
+      "15 to 16"
+    ],
+    "sourceAndLockVerified": true
+  },
+  "staging": {
+    "checksPassed": 29,
+    "passed": true,
+    "checkedAt": "2026-11-09T01:17:33.687Z",
+    "dataPreservedByCodeUpdate": true
+  },
+  "production": {
+    "codeUpdatePreservedAllRows": true,
+    "migrationCount": 16,
+    "migrationExecuted": false,
+    "publicChecksPassed": 21,
+    "publicCheckedAt": "2026-11-09T01:29:36.636944+00:00",
+    "businessWritesDuringVerification": false,
+    "fourPaymentMethodsAvailableWhenChecked": true,
+    "readonlyAvailabilityPreview": true,
+    "existingSalePdfChecksPassed": 5,
+    "pdfCheckedBeforeReset": "2026-11-09T01:25:11.719151+00:00",
+    "mobileAndTabletUiVerified": true,
+    "mobileAndTabletUiCheckedAt": "2026-11-09T01:32:10.299Z",
+    "operationalApiEmpty": true,
+    "reducedMotionRespected": true
+  },
+  "reset": {
+    "finishedAt": "2026-11-09T01:28:29.758627+00:00",
+    "operationsEmptied": true,
+    "productsClientsSuppliersPreserved": true,
+    "accessConfigurationAndTabletPreserved": true,
+    "auditAndCommandHistoryPreserved": true,
+    "oldSessionsRevoked": true,
+    "previousDraftsSeparated": true,
+    "preResetEncryptedBackupRestored": true
+  },
+  "postResetBackup": {
+    "checkedAt": "2026-11-09T01:31:05.612233+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "limits": [
+    "Physical Android tablet and HP printing are separate human checks; browser emulation does not prove them.",
+    "Original failed QA and transport attempts remain preserved; the full E2E run is not retroactively marked all-pass.",
+    "Historical QA resources remain retained; no cleanup claim is made."
+  ]
+}

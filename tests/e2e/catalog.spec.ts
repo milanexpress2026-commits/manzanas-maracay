@@ -91,7 +91,6 @@ test('crear fruta, variedad, calibre y empaque; editar y persistir al recargar',
     .getByRole('dialog')
     .getByLabel('Calibre', { exact: true })
     .selectOption({ label: '70/75' });
-  await page.getByRole('button', { name: 'Continuar al empaque' }).click();
   await page.getByRole('dialog').getByLabel('Presentación de la caja').selectOption('blister');
   await page.getByRole('dialog').getByLabel('Blíster por caja').fill('6');
   await page.getByText('Más opciones', { exact: true }).click();

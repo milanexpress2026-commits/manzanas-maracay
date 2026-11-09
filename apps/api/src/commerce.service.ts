@@ -494,15 +494,34 @@ export class CommerceService implements OnModuleDestroy {
     };
   }
   async createSale(body: unknown, key: string | undefined, actor: string): Promise<SaleDetail> {
-    const data = saleSchema.parse(body);
-    const settlementBasis =
-      'schemaVersion' in data ? data.settlementBasis : settlementBasisForLines(data.lines);
-    this.validateTimestamp(data.soldAt);
-    if (data.dueDate && data.dueDate < businessDate(new Date(data.soldAt)))
-      throw new BadRequestException('La fecha pactada no puede ser anterior a la venta.');
-    if (data.initialPayment && new Date(data.initialPayment.receivedAt) < new Date(data.soldAt))
-      throw new BadRequestException('El abono no puede ser anterior a la venta.');
-    return this.inventory.runCommand('sale', data, key, actor, async (client, hash) => {
+    const requested = saleSchema.parse(body);
+    return this.inventory.runCommand('sale', requested, key, actor, async (client, hash) => {
+      // Resolve time only after the original request's idempotency check and locks.
+      // A slow review or an inaccurate device clock must not date a normal sale.
+      const now = new Date().toISOString();
+      const automatic = 'dateMode' in requested && requested.dateMode === 'automatic';
+      const data = {
+        ...requested,
+        soldAt: automatic ? now : requested.soldAt,
+        ...(requested.initialPayment
+          ? {
+              initialPayment: {
+                ...requested.initialPayment,
+                receivedAt:
+                  automatic || requested.initialPayment.dateMode === 'automatic'
+                    ? now
+                    : requested.initialPayment.receivedAt,
+              },
+            }
+          : {}),
+      };
+      const settlementBasis =
+        'schemaVersion' in data ? data.settlementBasis : settlementBasisForLines(data.lines);
+      this.validateTimestamp(data.soldAt);
+      if (data.dueDate && data.dueDate < businessDate(new Date(data.soldAt)))
+        throw new BadRequestException('La fecha pactada no puede ser anterior a la venta.');
+      if (data.initialPayment && new Date(data.initialPayment.receivedAt) < new Date(data.soldAt))
+        throw new BadRequestException('El abono no puede ser anterior a la venta.');
       // The command receipt is checked before consulting rates, so a committed retry
       // remains recoverable even when the official rate later becomes unavailable.
       // BcvService reads the local verified cache only; it performs no network request.
@@ -856,8 +875,12 @@ export class CommerceService implements OnModuleDestroy {
     key: string | undefined,
     actor: string,
   ): Promise<PaymentDetail> {
-    const data = paymentSchema.parse(body);
-    return this.inventory.runCommand('payment', data, key, actor, async (client) => {
+    const requested = paymentSchema.parse(body);
+    return this.inventory.runCommand('payment', requested, key, actor, async (client) => {
+      const data =
+        requested.dateMode === 'automatic'
+          ? { ...requested, receivedAt: new Date().toISOString() }
+          : requested;
       const customer = await this.client(client, data.clientId, true);
       if (commandIsDemo(customer.isDemo) !== customer.isDemo)
         throw new ConflictException('Este entorno acepta únicamente cobros DEMO.');

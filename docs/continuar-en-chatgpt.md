@@ -1,4 +1,18 @@
-# Continuar Manzanas Maracay — V4.8 publicada
+# Continuar Manzanas Maracay — V4.9 publicada
+
+Estado vigente: runtime `e4edd2385614c41673209b20dd431df95444b10a`, rama `fix/operacion-diaria-v4-9`, [PR #10](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/10). Producción y staging están saludables. Las 16 migraciones se conservaron; no se ejecutaron migraciones nuevas.
+
+El 8 de noviembre, hora Venezuela, se completaron los cambios de operación diaria y el reinicio solicitado. Nueva venta toma la hora al confirmar y la muestra en Venezuela; catálogo permite agregar producto/calibre en un formulario; las tasas se refrescan automáticamente y el menú tiene movimiento breve con reducción accesible. El vaciado operativo conservó catálogo, clientes, proveedores, acceso, configuración y tablet. **No repetirlo ni asumir que siguen vacías las tablas: los socios ya pueden operar.**
+
+QA: 421 unitarias, tipos/builds, 152/153 E2E más 2/2 del caso de volumen con el mismo código; 13 pruebas de producción aislada y migraciones aprobadas. Staging 29 PASS; acceso real 21, PDF anterior al vaciado 5 y UI posterior PASS. Respaldo posterior cifrado y restaurado aprobado `2026-11-09T01:31:05.612233+00:00`. Los intentos fallidos permanecen separados y documentados, sin convertirlos retrospectivamente en PASS.
+
+[Cambios y evidencia](operacion-diaria-v4-9.md) · [Verificación agregada](verificacion-v4-9.json) · [Guía diaria](manual-socios-v4-9.md). Las comprobaciones físicas de Android/HP siguen pendientes de evidencia humana; los recursos QA anteriores se conservaron.
+
+## Antecedentes históricos
+
+Lo siguiente conserva la continuidad documental. Sus afirmaciones sobre la versión vigente corresponden a sus respectivos cierres anteriores; el estado actual es V4.9, descrito arriba.
+
+### Cierre histórico V4.8
 
 Repositorio público: [Manzanas Maracay](https://github.com/milanexpress2026-commits/manzanas-maracay). No contiene credenciales ni datos privados.
 

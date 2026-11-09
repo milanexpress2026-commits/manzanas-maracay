@@ -143,7 +143,6 @@ async function beginProduct(
     caliber,
   );
   await expect(page.getByRole('dialog')).toHaveCount(1);
-  await dialog.getByRole('button', { name: 'Continuar al empaque' }).click();
   return dialog;
 }
 
@@ -252,7 +251,7 @@ test('sugerencias separadas por familia y alta sin desplazamiento horizontal en 
     expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
       true,
     );
-    await expect(dialog.getByRole('button', { name: 'Continuar al empaque' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Revisar producto' })).toBeVisible();
     const audit = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
       .analyze();
