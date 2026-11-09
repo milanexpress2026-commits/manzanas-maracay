@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "runtimeCommit": "642ffae84efd23c14871acf2df7a96fb2e62209e",
+  "productionRuntimeCommit": "e4edd2385614c41673209b20dd431df95444b10a",
+  "stagingRelease": "hotfix-642ffae84efd",
+  "state": "staging_verified_pending_production_authorization",
+  "checkedAt": "2026-11-09T03:30:37.404595+00:00",
+  "qa": {
+    "unitTestsPassed": 436,
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "fullE2e": {
+      "passed": 154,
+      "failed": 0,
+      "singleRunAllPassed": true
+    },
+    "productionIsolationPassed": true,
+    "migrationsPassed": true,
+    "migrationPaths": ["fresh 16", "13 to 16", "14 to 16", "15 to 16"],
+    "sourceAndLockVerified": true,
+    "postgresStopped": true,
+    "finishedAt": "2026-11-09T03:25:30.286Z"
+  },
+  "staging": {
+    "passed": true,
+    "checksPassed": 29,
+    "checkedAt": "2026-11-09T03:25:29.195Z",
+    "allRowsPreservedByCodeUpdate": true,
+    "preAndPostCodeBackupsRestored": true,
+    "migrationCount": 16,
+    "migrationExecuted": false,
+    "ratesCollectorResumed": true
+  },
+  "productionReadonlyReview": {
+    "commit": "e4edd2385614c41673209b20dd431df95444b10a",
+    "passed": true,
+    "checksPassed": 21,
+    "checkedAt": "2026-11-09T02:51:43.612210+00:00",
+    "businessWrites": false,
+    "allPaymentChoicesReadyWhenChecked": true
+  },
+  "preparationBackup": {
+    "commit": "e4edd2385614c41673209b20dd431df95444b10a",
+    "checkedAt": "2026-11-09T03:24:47.925580+00:00",
+    "encryption": "AES-256-GCM",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "productionUpdate": {
+    "authorized": false,
+    "applied": false,
+    "newMigrations": false,
+    "resetPlanned": false,
+    "credentialsChangePlanned": false,
+    "dnsOrCaddyChangePlanned": false
+  },
+  "retainedAttempts": [
+    "Local sandbox prevented helper startup; repeated with required process permissions.",
+    "First local E2E used the old frontend build and reproduced the missing old sale.",
+    "Second local E2E stopped on an incorrect exact input label; fixture fixed and passed.",
+    "Initial QA peer comparison saw two completed own scheduled rate jobs; separate review preserved original result and verified all remaining peers.",
+    "First staging upgrade preflight stopped on a transient extra network member before business writes; own network was reinspected before retry."
+  ],
+  "remainingHumanChecks": [
+    "Physical HP print and real Android device behavior retain the limits recorded in V4.9."
+  ]
+}

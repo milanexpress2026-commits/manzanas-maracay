@@ -1,4 +1,10 @@
-# Continuar Manzanas Maracay — V4.9 publicada
+# Continuar Manzanas Maracay — auditoría V4.10 preparada
+
+Runtime auditado `642ffae84efd23c14871acf2df7a96fb2e62209e`, rama `fix/auditoria-logica-v4-10`, [PR #11](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/11). Staging está actualizado y verificado; producción permanece en V4.9/e4 hasta la autorización operativa requerida por el propietario. **No repetir el reinicio ni asumir que la base real está vacía.**
+
+436 unitarias, tipos/builds, 154/154 E2E, producción aislada/migraciones y 29 comprobaciones de staging PASS. Respaldo cifrado externo renovado y restaurado. [Cambios](auditoria-logica-v4-10.md) · [Evidencia exacta y límites](verificacion-v4-10.json). La actualización propuesta no añade migraciones ni altera los datos, acceso, tablet, DNS o Caddy.
+
+## Referencia del cierre V4.9
 
 Estado vigente: runtime `e4edd2385614c41673209b20dd431df95444b10a`, rama `fix/operacion-diaria-v4-9`, [PR #10](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/10). Producción y staging están saludables. Las 16 migraciones se conservaron; no se ejecutaron migraciones nuevas.
 

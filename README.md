@@ -2,6 +2,8 @@
 
 Aplicación privada para recepción de frutas, inventario, ventas, clientes, crédito, abonos y notas de entrega.
 
+**V4.10 auditada y verificada en staging**, runtime `642ffae84efd23c14871acf2df7a96fb2e62209e`: deudas antiguas accesibles, búsqueda e historiales completos, agenda sin recortes previos y confirmaciones lentas recuperables. 436 unitarias y 154/154 E2E PASS, producción aislada/migraciones y staging 29 PASS. [Auditoría](docs/auditoria-logica-v4-10.md) · [Evidencia](docs/verificacion-v4-10.json) · [PR #11](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/11). Su publicación real está pendiente de autorización; **producción continúa en V4.9**, descrita a continuación. No se repite el reinicio de datos.
+
 **V4.9 publicada y verificada**, runtime `e4edd2385614c41673209b20dd431df95444b10a`, con 16 migraciones conservadas. [Entrar a Manzanas Maracay](https://manzanas.ganamosclub.net/login). Las ventas toman automáticamente la hora de Venezuela al finalizar. Catálogo reúne fruta, variedad, calibre y empaque en un formulario, con alta de calibre desde el producto y transiciones breves entre menús.
 
 El reinicio operativo autorizado dejó mercancía, ventas, abonos y saldos en cero, conservando catálogo, clientes, proveedores, acceso, configuración y tablet. Los socios deben iniciar sesión otra vez y comenzar por Recepciones. No repetir el reinicio: la base puede contener operaciones nuevas desde esta publicación.

@@ -12,16 +12,16 @@ Continuación de V4.9 solicitada por el propietario: analizar el proyecto y corr
 
 ## Recorridos examinados
 
-| Área | Regla contrastada con código y pruebas |
-| --- | --- |
-| Catálogo y recepción | Identidad por fruta/variedad/calibre; confirmación de empaque; recepción sin costo ni proveedor obligatorio; snapshots e idempotencia. |
-| Existencias | Disponibilidad del carrito completo, FIFO, recipientes terminales, conservación de fracciones y costo desconocido NULL. |
-| Venta | Hora automática de servidor y presentación Caracas; precio manual; acuerdo divisa/BCV fijo; venta, stock y abono inicial en una transacción. |
-| Cobranza | Suma de aplicaciones, cliente correcto, saldo suficiente, ausencia de duplicados, filtrado antes de paginación y fechas efectivas. |
-| Tasas | BCV/USDT verificadas, vigencia comprobada al confirmar, última BCV informativa, USDT recibido 1:1, cotización histórica conservada. |
-| Correcciones | Anulación y reversa por eventos, dependencias de inventario preservadas y respuesta idempotente del período correcto. |
-| Acceso y recuperación | Sesión, borradores separados por período, recuperación de solicitudes ambiguas, protección entre pestañas y datos de prueba separados. |
-| Documentos y recordatorios | PDF comercial por venta/abono; nota de entrega; recordatorio pendiente revalidado antes de enviar; sin WhatsApp automático. |
+| Área                       | Regla contrastada con código y pruebas                                                                                                       |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catálogo y recepción       | Identidad por fruta/variedad/calibre; confirmación de empaque; recepción sin costo ni proveedor obligatorio; snapshots e idempotencia.       |
+| Existencias                | Disponibilidad del carrito completo, FIFO, recipientes terminales, conservación de fracciones y costo desconocido NULL.                      |
+| Venta                      | Hora automática de servidor y presentación Caracas; precio manual; acuerdo divisa/BCV fijo; venta, stock y abono inicial en una transacción. |
+| Cobranza                   | Suma de aplicaciones, cliente correcto, saldo suficiente, ausencia de duplicados, filtrado antes de paginación y fechas efectivas.           |
+| Tasas                      | BCV/USDT verificadas, vigencia comprobada al confirmar, última BCV informativa, USDT recibido 1:1, cotización histórica conservada.          |
+| Correcciones               | Anulación y reversa por eventos, dependencias de inventario preservadas y respuesta idempotente del período correcto.                        |
+| Acceso y recuperación      | Sesión, borradores separados por período, recuperación de solicitudes ambiguas, protección entre pestañas y datos de prueba separados.       |
+| Documentos y recordatorios | PDF comercial por venta/abono; nota de entrega; recordatorio pendiente revalidado antes de enviar; sin WhatsApp automático.                  |
 
 ## Verificación
 
@@ -29,10 +29,12 @@ La prueba nueva crea 202 ventas sintéticas en una base exclusiva, comprueba una
 
 Los 15 casos de `tests/unit/reset-replay-v410.test.ts` contrastan rechazo de respuestas anteriores al marcador, recuperación vigente sin repetir la operación y conservación de recibos de maestros.
 
-Estado de preparación: pruebas unitarias base 421 PASS; nuevas pruebas de reinicio 15 PASS; tipos y compilación local PASS. El primer intento E2E local no inició PostgreSQL por restricciones del sandbox; al ejecutar con permisos se conservó el build anterior de la interfaz y falló la búsqueda antigua, reproduciendo el problema. Tras compilar, el siguiente intento llegó al formulario de abonos y falló por un selector de prueba que omitía «· USD»; se corrigió el selector. La evidencia de ese intento se conserva fuera del repositorio. Después de corregir el selector, el recorrido completo nuevo aprobó en 48,7 segundos (base aislada a45c36557ad12484760fdead, final 2026-11-09T02:47:46.721Z); PostgreSQL quedó detenido y la base local previa permaneció idéntica. La batería completa Linux y la publicación se documentarán con el SHA exacto, sin presentar los intentos anteriores como aprobados.
+Estado de preparación: pruebas unitarias base 421 PASS; nuevas pruebas de reinicio 15 PASS; tipos y compilación local PASS. El primer intento E2E local no inició PostgreSQL por restricciones del sandbox; al ejecutar con permisos se conservó el build anterior de la interfaz y falló la búsqueda antigua, reproduciendo el problema. Tras compilar, el siguiente intento llegó al formulario de abonos y falló por un selector de prueba que omitía «· USD»; se corrigió el selector. La evidencia de ese intento se conserva fuera del repositorio. Después de corregir el selector, el recorrido completo nuevo aprobó en 48,7 segundos (base aislada a45c36557ad12484760fdead, final 2026-11-09T02:47:46.721Z); PostgreSQL quedó detenido y la base local previa permaneció idéntica. La batería Linux del SHA `642ffae84efd23c14871acf2df7a96fb2e62209e` aprobó en una sola ejecución: **436 unitarias, tipos/builds, 154/154 E2E, producción aislada y migraciones**. Staging `hotfix-642ffae84efd` está saludable, conserva todas sus filas y aprobó 29 controles comerciales. Se verificó además un nuevo respaldo cifrado externo del runtime real anterior, restaurado y copiado cifrado al VPS. Producción sigue en V4.9; la publicación V4.10 requiere la autorización operativa solicitada por el propietario. Ver [evidencia agregada](verificacion-v4-10.json).
 
 ## Alcance de publicación
 
 Solo código: no hay migraciones nuevas ni cambios de configuración, credenciales, DNS, Caddy o servicios ajenos. Deben conservarse todas las filas existentes y el acceso. Preparar staging, respaldo y recuperación con el SHA probado antes de solicitar la autorización operativa de producción indicada por el propietario. La autorización de la publicación anterior no se reutiliza.
 
 La auditoría cubre los recorridos identificados y la batería ejecutada; no equivale a una garantía de ausencia de errores. La impresión física en HP y el comportamiento de la tablet Android real siguen necesitando comprobación en esos dispositivos, como en V4.9.
+
+La comparación inicial de recursos QA detectó la finalización de dos recolectores propios programados; se conservó ese resultado y una revisión separada verificó los demás recursos con la política existente. El primer preflight de actualización de staging se detuvo por una conexión temporal adicional a su red, antes de escrituras; la red se inspeccionó de nuevo antes del intento aprobado. No se eliminaron entornos QA históricos ni se modificaron otros proyectos.
