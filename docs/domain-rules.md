@@ -4,6 +4,8 @@ Fuente vigente: [brief maestro V4.5](referencias/brief-operacion-simple-v4-5.txt
 
 ## Productos y configuraciones
 
+- Decisión del propietario del 10/11/2026 (V4.12): **media caja es exactamente media caja para toda fruta con blísteres y para granel/kiwi**. No requiere preparación ni conteo previo de frutas. Una caja de cinco blísteres permite dos medias de 2½ blísteres; una de cuatro permite dos medias de dos. El motor usa la cantidad de blísteres del lote, nunca nombres de fruta o calibre. Esta regla también se aplica a configuraciones anteriores que no ofrecían media caja. Se conserva el historial contado existente y no se reescriben sus snapshots. Las reglas antiguas que exigían preparar/confirmar el método de media quedan sustituidas para nuevas ventas. Las cajas completas siguen requiriendo una caja cerrada; las familias configuradas como `whole` conservan solo caja.
+
 - Corrección del propietario del 9/11/2026 (V4.11): Manzana tradicional Roja normal/Roja, Verde, Amarilla y Gala, calibre **100**, llevan **5 blísteres por caja**. Esta precisión sustituye el límite V4.2 únicamente para esas cuatro variedades y ese calibre. Pink Lady, Lady histórico, variedades desconocidas, otros calibres y otras frutas conservan sus reglas. Cambiar sugerencias o catálogo no reescribe snapshots, cantidades ni comprobantes de lotes anteriores. Los párrafos históricos siguientes se interpretan con esta excepción vigente.
 
 - Fruta → variedad opcional → calibre opcional → línea comercial → configuración → lote. Variedad/calibre, cuando existen, pertenecen a la misma fruta. Una combinación vacía no se representa con una variedad ficticia. Calibre es etiqueta de tamaño, nunca conteo de frutas.

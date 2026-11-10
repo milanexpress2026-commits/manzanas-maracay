@@ -323,7 +323,8 @@ export type Supplier = {
 };
 export type ContainerKind = 'box' | 'blister' | 'half_box' | 'loose_bin';
 export type ContainerState = 'sealed' | 'open' | 'empty' | 'dispatched';
-export type StockUnit = 'sealed_box' | 'intact_blister' | 'prepared_half_box' | 'loose_piece';
+export type StockUnit =
+  'sealed_box' | 'intact_blister' | 'prepared_half_box' | 'loose_piece' | 'box_fraction';
 export type ContainerStock = {
   id: string;
   lotId: string;
@@ -336,8 +337,16 @@ export type ContainerStock = {
   countedPieces: number | null;
   version: number;
   costUsd?: string | null;
+  /** Immutable dispatch provenance only; never a second stock balance. */
+  portionSources?: {
+    containerId: string;
+    beforePortions: number;
+    takenPortions: number;
+    costBeforeUsd: string | null;
+  }[];
 };
 export type StockSummary = {
+  fractionalBoxes: number;
   closedBoxes: number;
   openBoxes: number;
   intactBlisters: number;
@@ -428,6 +437,7 @@ export type ReceiptResult = {
 };
 export function emptyStockSummary(): StockSummary {
   return {
+    fractionalBoxes: 0,
     closedBoxes: 0,
     openBoxes: 0,
     intactBlisters: 0,
@@ -449,7 +459,8 @@ export function summarizeContainers(
     if (
       container.state === 'open' &&
       container.kind === 'box' &&
-      containers.some((child) => child.parentId === container.id && child.quantity > 0)
+      (container.quantity > 0 ||
+        containers.some((child) => child.parentId === container.id && child.quantity > 0))
     )
       total.openBoxes++;
     if (container.state === 'open' && container.kind === 'blister' && container.quantity > 0)
@@ -470,5 +481,14 @@ export function summarizeContainers(
     total.closedBoxes +
     (packingModel === 'halves' ? total.preparedHalfBoxes / 2 : 0) +
     (packingModel === 'blister' && blistersPerBox ? total.intactBlisters / blistersPerBox : 0);
+  const portions = containers
+    .filter((c) => c.unit === 'box_fraction' && c.quantity > 0)
+    .reduce((sum, c) => sum + c.quantity, 0);
+  const perBox = packingModel === 'blister' ? 2 * (blistersPerBox ?? 0) : 2;
+  if (perBox) {
+    total.fractionalBoxes = portions / perBox;
+    total.equivalentBoxes += total.fractionalBoxes;
+  }
+  if (packingModel === 'blister') total.equivalentIntactBlisters += portions / 2;
   return total;
 }

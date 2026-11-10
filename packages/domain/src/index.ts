@@ -66,7 +66,7 @@ export function validPacking(value: {
       !p.includes('blister') &&
       value.halfPreparation === 'commercial'
     );
-  return ['counted', 'pending', 'none'].includes(value.halfPreparation);
+  return ['counted', 'commercial', 'pending', 'none'].includes(value.halfPreparation);
 }
 export const configurationSchema = z
   .object({

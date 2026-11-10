@@ -215,11 +215,11 @@ describe('V4.8 planificación física compartida', () => {
     });
     expect(previewPhysicalSale(input(line(stock, 1)), stock, now).lines[0]!.maxQuantity).toBe(2);
   });
-  it('T08/T14 empaque pendiente, media no preparada y producto inexistente permanecen bloqueados', () => {
+  it('T08/T14 vende media automáticamente y conserva rechazos de empaque/producto desconocido', () => {
     const stock = fixture([1]);
     expect(
       previewPhysicalSale(input(line(stock, 1, 'half_box')), stock, now).lines[0],
-    ).toMatchObject({ maxQuantity: 0, issueCode: 'stock_insufficient' });
+    ).toMatchObject({ maxQuantity: 2, issueCode: null });
     stock.rules[0]!.confirmed = false;
     expect(previewPhysicalSale(input(line(stock, 1)), stock, now).lines[0]!.issueCode).toBe(
       'packing_pending',

@@ -84,7 +84,7 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
         caliberId: source.caliberId,
         commercialLine: `DEMO operaciones UI ${randomUUID()}`,
         packingModel: 'blister',
-        halfPreparation: 'pending',
+        halfPreparation: 'counted',
         blistersPerBox: null,
         allowedPresentations: ['box', 'half_box', 'blister'],
         confirmationStatus: 'pending',
@@ -112,7 +112,9 @@ test('recepción multilínea con reintento seguro, apertura, 37 = 18 + 19, ajust
     await expect(line.getByLabel(/Costo|Precio/i)).toHaveCount(0);
     await expect(line.getByText('Confirmar presentación', { exact: true })).toBeVisible();
     await line.getByLabel('Blíster por caja', { exact: true }).fill('4');
-    await line.getByLabel('Preparación de media caja', { exact: true }).selectOption('counted');
+    await expect(
+      line.getByText('Media caja = la mitad de una caja. Se descuenta automáticamente al vender.'),
+    ).toBeVisible();
   }
   await page.getByRole('button', { name: 'Revisar y guardar', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

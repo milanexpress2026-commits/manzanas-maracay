@@ -331,7 +331,7 @@ export const stockBalances = pgTable(
     ),
     check(
       'stock_unit_valid',
-      sql`${t.unit} in ('sealed_box','intact_blister','prepared_half_box','loose_piece')`,
+      sql`${t.unit} in ('sealed_box','intact_blister','prepared_half_box','loose_piece','box_fraction')`,
     ),
     check(
       'loose_count_exact',
@@ -342,7 +342,10 @@ export const stockBalances = pgTable(
       'empty_stock_has_no_cost',
       sql`${t.quantity}>0 or ${t.costUsd} is null or ${t.costUsd}=0`,
     ),
-    check('physical_package_quantity', sql`${t.unit}='loose_piece' or ${t.quantity} in (0,1)`),
+    check(
+      'physical_package_quantity',
+      sql`${t.unit} in ('loose_piece','box_fraction') or ${t.quantity} in (0,1)`,
+    ),
   ],
 );
 export const inventoryMovements = pgTable(
@@ -418,7 +421,7 @@ export const inventoryEntries = pgTable(
     ),
     check(
       'entry_unit_valid',
-      sql`${t.unit} in ('sealed_box','intact_blister','prepared_half_box','loose_piece')`,
+      sql`${t.unit} in ('sealed_box','intact_blister','prepared_half_box','loose_piece','box_fraction')`,
     ),
   ],
 );

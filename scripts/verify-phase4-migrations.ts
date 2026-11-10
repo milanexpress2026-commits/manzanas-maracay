@@ -194,8 +194,8 @@ async function main() {
   assert.equal(phase4Journal.entries.length, 13);
   assert.equal(
     currentJournal.entries.length,
-    16,
-    'La prueba está fijada a V4.5 con migración aditiva 0015.',
+    17,
+    'La prueba incluye V4.12 y la migración aditiva 0016 de medias comerciales.',
   );
   const phase4Migrations = path.join(scratch, 'phase4-13-migrations');
   await fs.mkdir(path.join(phase4Migrations, 'meta'), { recursive: true });

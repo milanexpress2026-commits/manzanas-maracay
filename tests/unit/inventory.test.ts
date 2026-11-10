@@ -86,6 +86,7 @@ describe('contratos de inventario físico', () => {
       { ...box, id: 'empty', state: 'empty', quantity: 0 },
     ];
     expect(summarizeContainers(containers, 5)).toEqual({
+      fractionalBoxes: 0,
       closedBoxes: 2,
       openBoxes: 1,
       intactBlisters: 4,

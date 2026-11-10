@@ -196,7 +196,7 @@ describe('confirmación de empaque al recibir', () => {
     expect(
       receiptPackingConfirmationSchema.safeParse({ ...confirmation, halfPreparation: 'pending' })
         .success,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       receiptPackingConfirmationSchema.safeParse({
         ...confirmation,

@@ -2,7 +2,12 @@ import { z } from 'zod';
 import { presentationSchema, type Presentation } from './commerce';
 import type { ContainerStock } from './inventory';
 import { allocateCost } from './costing';
-import { presentationCanUseLot, type SaleLotSnapshot } from './sale-availability';
+import {
+  effectiveSalePresentations,
+  presentationCanUseLot,
+  type SaleLotSnapshot,
+} from './sale-availability';
+import { containerPortions, portionsPerBox, takeCommercialPortions } from './commercial-portions';
 
 export const salePreviewSchema = z
   .object({
@@ -55,6 +60,8 @@ export type SalePreviewResult = {
   issues: SalePreviewIssue[];
 };
 export type SalePlannerRule = {
+  packingModel?: SaleLotSnapshot['packingModel'];
+  blistersPerBox?: number | null;
   id: string;
   variantId: string;
   commercialUnitLabel: string | null;
@@ -101,6 +108,24 @@ const unitFor = (presentation: Presentation): ContainerStock['unit'] =>
       ? 'intact_blister'
       : 'prepared_half_box';
 const rank: Record<Presentation, number> = { box: 0, blister: 1, half_box: 2 };
+function effectiveRules(stock: SalePlannerStock) {
+  return new Map(
+    stock.rules.map((rule) => {
+      const lot = stock.lots.find((l) => groupKey(l) === groupKey(rule));
+      return [
+        rule.id,
+        {
+          ...rule,
+          allowedPresentations: effectiveSalePresentations({
+            packingModel: rule.packingModel ?? lot?.packingModel,
+            blistersPerBox: rule.blistersPerBox ?? lot?.blistersPerBox,
+            allowedPresentations: rule.allowedPresentations,
+          }),
+        },
+      ];
+    }),
+  );
+}
 function ruleIssue(
   line: SalePreviewInput['lines'][number],
   rule: SalePlannerRule | undefined,
@@ -143,7 +168,7 @@ export function planPhysicalSale(
   stock: SalePlannerStock,
   options: { includeCosts?: boolean; newContainerId?: () => string } = {},
 ): PhysicalSalePlan {
-  const rules = new Map(stock.rules.map((rule) => [rule.id, rule]));
+  const rules = effectiveRules(stock);
   const byGroup = new Map<string, SalePlannerLot[]>();
   for (const lot of stock.lots) {
     const key = groupKey(lot),
@@ -173,12 +198,84 @@ export function planPhysicalSale(
         states.set(lot.id, state);
       }
       const unit = unitFor(line.presentation);
+      const usePortions =
+        (line.presentation === 'half_box' &&
+          lot.packingModel === 'blister' &&
+          (lot.blistersPerBox ?? 0) > 0) ||
+        (line.presentation === 'blister' &&
+          [...state.values()].some(
+            (c) =>
+              c.quantity > 0 &&
+              (c.unit === 'box_fraction' ||
+                (c.unit === 'prepared_half_box' && c.countedPieces === null)),
+          ));
+      if (usePortions) {
+        const needed = line.presentation === 'blister' ? 2 : portionsPerBox(lot) / 2;
+        const counted = [...state.values()].filter(
+          (c) =>
+            c.unit === unit && c.state === 'sealed' && c.quantity === 1 && c.countedPieces !== null,
+        );
+        const available =
+          needed > 0 &&
+          (counted.length > 0 ||
+            [...state.values()].reduce((sum, c) => sum + containerPortions(c, lot), 0) >= needed);
+        if (!available) continue;
+        if (!(lot.receivedBeforeSale ?? Date.parse(lot.receivedAt) <= soldAt)) {
+          futureStock = true;
+          continue;
+        }
+        if (stock.requireConfirmedLots && !lot.confirmed)
+          return failed({
+            lineKey: line.lineKey,
+            issueCode: 'packing_pending',
+            message: 'Hay mercancía anterior cuyo empaque necesita confirmación.',
+          });
+        while (remaining > 0) {
+          let selected = counted.shift();
+          let costUsd: string | null;
+          if (selected) costUsd = selected.costUsd ?? null;
+          else {
+            const part = takeCommercialPortions(state, lot, needed, options.includeCosts !== false);
+            if (!part) break;
+            costUsd = part.costUsd;
+            const id =
+              options.newContainerId?.() ??
+              `preview:portion:${lot.id}:${line.lineKey}:${remaining}`;
+            selected = {
+              id,
+              lotId: lot.id,
+              warehouseId: part.source.warehouseId,
+              parentId: null,
+              kind: line.presentation === 'blister' ? 'blister' : 'half_box',
+              unit,
+              state: 'sealed',
+              quantity: 1,
+              countedPieces: null,
+              version: 1,
+              costUsd,
+              portionSources: part.portionSources,
+            };
+            state.set(id, selected);
+          }
+          allocations.push({
+            lineKey: line.lineKey,
+            lotId: lot.id,
+            containerId: selected.id,
+            quantity: 1,
+            costUsd,
+          });
+          selected.quantity = 0;
+          selected.costUsd = '0.0000';
+          selected.state = 'dispatched';
+          if (selected.countedPieces !== null) selected.countedPieces = 0;
+          remaining--;
+        }
+        continue;
+      }
       const perBox =
         line.presentation === 'blister'
           ? (lot.blistersPerBox ?? 0)
-          : line.presentation === 'half_box' &&
-              lot.packingModel === 'halves' &&
-              lot.halfPreparation === 'commercial'
+          : line.presentation === 'half_box' && lot.packingModel === 'halves'
             ? 2
             : 0;
       const available = [...state.values()].filter((c) => c.quantity === 1 && c.state === 'sealed');
@@ -256,7 +353,7 @@ export function planPhysicalSale(
         message: futureStock
           ? 'La fecha de venta es anterior a la recepción de la mercancía necesaria.'
           : line.presentation === 'half_box'
-            ? 'No hay suficientes medias disponibles. Las medias contadas deben prepararse primero en Inventario.'
+            ? 'No hay suficiente mercancía para las medias cajas de esta venta.'
             : 'No hay suficiente existencia física disponible para esta venta.',
       });
   }
@@ -265,7 +362,8 @@ export function planPhysicalSale(
       [...state.values()].filter((c) => c.quantity > 0).map((c) => c.parentId),
     );
     for (const c of state.values())
-      if (c.kind === 'box' && c.state === 'open' && !parentsWithStock.has(c.id)) c.state = 'empty';
+      if (c.kind === 'box' && c.state === 'open' && c.quantity === 0 && !parentsWithStock.has(c.id))
+        c.state = 'empty';
   }
   return { valid: true, issues: [], allocations, states };
 }
@@ -293,7 +391,7 @@ export function previewPhysicalSale(
       issueCode: 'future_sale_date',
       message: 'La venta no puede tener una fecha futura.',
     });
-  const rules = new Map(stock.rules.map((rule) => [rule.id, rule]));
+  const rules = effectiveRules(stock);
   const groups = new Map<
     string,
     { lines: SalePreviewInput['lines']; stock: SalePlannerStock; cache: Map<string, boolean> }
