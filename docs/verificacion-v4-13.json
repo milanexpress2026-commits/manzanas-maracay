@@ -1,0 +1,149 @@
+{
+  "version": "V4.13",
+  "candidateCommit": "317460e390cacd87a759e7784d724c8fd693cb84",
+  "productionCommit": "317460e390cacd87a759e7784d724c8fd693cb84",
+  "productionPublished": true,
+  "operationalApprovalPending": false,
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/14",
+  "scope": "Open authenticated delivery-note URLs directly on Android and installed apps; desktop direct-link recovery",
+  "local": {
+    "unitTestsPassed": 450,
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "documentE2E": {
+      "runId": "85a1b59b8b33a6e4a953b578",
+      "passed": 11,
+      "total": 11,
+      "finishedAt": "2026-11-10T14:09:21.688Z",
+      "nativeNavigationWithBlobUnavailableVerified": true,
+      "openingDoesNotWriteBusinessRecords": true
+    },
+    "fullE2E": {
+      "runId": "91d5eb37b9ed3201a0138f50",
+      "passed": 165,
+      "total": 166,
+      "finishedAt": "2026-11-10T15:19:11.029Z",
+      "failure": "BCV payment case exceeded the fixture timeout while setting up page, before its test body",
+      "failedTracePreservedPrivately": true
+    },
+    "paymentFollowupE2E": {
+      "runId": "6e02556e983a50624aa6bf4a",
+      "passed": 3,
+      "total": 3,
+      "finishedAt": "2026-11-10T15:22:23.968Z",
+      "includesPreviouslyFailedCase": true,
+      "applicationAndTestsChangedSinceFullRun": false,
+      "notOne166PassRun": true
+    },
+    "freshTestDatabasesStopped": true,
+    "legacyDatabaseUnchanged": true,
+    "privateOperatorGuardTestsPassed": 6
+  },
+  "existingProductionPdfDiagnosis": {
+    "letterAndA4AndReceiptReturnedPdf": true,
+    "httpStatus": 200,
+    "letterRenderedAndVisuallyReviewed": true,
+    "letterPages": 1,
+    "saleUnchanged": true,
+    "businessWrites": false,
+    "exactPhysicalAndroidFailureReproduced": false,
+    "privateArtifactsPublished": false,
+    "sourceCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16"
+  },
+  "existingProductionPdfTiming": {
+    "checkedAt": "2026-11-10T15:43:21.317Z",
+    "measurementLocation": "owner-computer",
+    "elapsedMs": [
+      3627,
+      2295,
+      4164
+    ],
+    "pdfBytesApproximately": 2105191,
+    "allThreeResponsesWerePdf200": true,
+    "businessWrites": false,
+    "tabletTimingMeasured": false,
+    "fileSizeChangedByThisRelease": false,
+    "sourceCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16"
+  },
+  "sourcePackage": {
+    "archiveSha256": "43523afcd4b5aa35dbed475b9e20490763a6521a98a9c47bd5d7302915813d49",
+    "includedFiles": 649,
+    "omittedPath": "docs/capturas/",
+    "omittedDocumentationCaptures": 177,
+    "runtimeFilesOmitted": false
+  },
+  "staging": {
+    "commit": "317460e390cacd87a759e7784d724c8fd693cb84",
+    "healthy": true,
+    "migrationCount": 17,
+    "migrationExecuted": false,
+    "schemaUnchanged": true,
+    "allPublicRowsPreserved": true,
+    "beforeAndAfterCodeBackupsRestored": true,
+    "collectorResumed": true,
+    "accessChecksPassed": 16,
+    "pdfChecksPassed": 5,
+    "checkedAt": "2026-11-10T15:26:12.510934+00:00",
+    "bcvAndUsdtAvailableAtCheck": true,
+    "businessWritesInSmoke": false
+  },
+  "productionPreparation": {
+    "exactImageBuilt": true,
+    "migrationCountBeforeAndAfter": 17,
+    "newMigrationRequired": false,
+    "previousSqlAndJournalByteIdentical": true,
+    "freshOperationalApprovalRequired": false,
+    "dnsOrCaddyChanges": false,
+    "ownerApprovalReceived": true,
+    "previousReleasePreservedDuringPreparation": true
+  },
+  "prepublicationBackup": {
+    "sourceCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "checkedAt": "2026-11-10T15:26:39.224376+00:00",
+    "encryptedComputerAndVpsCopiesVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "previousBackupsPreserved": true
+  },
+  "retainedPreparationIncidents": [
+    "SSH connection interrupted during the first production-build read-only preflight; second attempt built successfully with original preservation checks",
+    "SSH connection interrupted during the first staging-upgrade source inspection before any changes; immediate keepalive added before local validation, second attempt completed with original preservation checks"
+  ],
+  "pending": [
+    "Physical tablet PDF viewer acceptance and timing by owner"
+  ],
+  "production": {
+    "commit": "317460e390cacd87a759e7784d724c8fd693cb84",
+    "healthy": true,
+    "ownerApprovalReference": "call_2a4f86e3c8d64b9197660fc56184d40a",
+    "migrationCount": 17,
+    "migrationExecuted": false,
+    "schemaUnchanged": true,
+    "allPublicRowsPreservedDuringCodeUpdate": true,
+    "accessAndTabletPreserved": true,
+    "collectorResumed": true,
+    "httpsAccessChecksPassed": 21,
+    "readOnlyAvailabilityPreviewPassed": true,
+    "allPaymentChoicesReadyAtCheck": true,
+    "accessCheckedAt": "2026-11-10T15:52:59.395127+00:00",
+    "nativeDocumentActionsPassed": 6,
+    "nativeDocumentsCheckedAt": "2026-11-10T15:53:17.582Z",
+    "nativeModes": [
+      "installed",
+      "android"
+    ],
+    "nativeNavigationVerifiedWithBlobUnavailable": true,
+    "existingSaleUnchanged": true,
+    "syntheticProductionSalesCreated": false,
+    "businessWritesDuringSmoke": false,
+    "physicalAndroidVerified": false,
+    "dnsOrCaddyChanges": false
+  },
+  "postpublicationBackup": {
+    "checkedAt": "2026-11-10T15:54:28.641463+00:00",
+    "encryptedComputerAndVpsCopiesVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "previousBackupsPreserved": true
+  }
+}

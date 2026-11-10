@@ -13,12 +13,23 @@ export function SaleDocumentActions({ id, cancelled }: { id: string; cancelled: 
   const [error, setError] = useState<PdfRequestError | null>(null);
   const [message, setMessage] = useState('');
   const [fallback, setFallback] = useState<string | null>(null);
+  const [nativeNavigation, setNativeNavigation] = useState(false);
   const intent = useRef<Intent>('print');
   const running = useRef(false);
   const abort = useRef<AbortController | null>(null);
   const objectUrls = useRef<string[]>([]);
   const noteUrl = `/api/sales/${id}/delivery-note?size=${size}`;
   const receiptUrl = `/api/sales/${id}/document`;
+  useEffect(() => {
+    // Installed apps and Android hand HTTPS documents to the browser/system
+    // viewer. A blob URL belongs to the app's renderer and is not a portable
+    // document address for that handoff. The same protected proxy validates it.
+    setNativeNavigation(
+      /Android/i.test(navigator.userAgent) ||
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true,
+    );
+  }, []);
   useEffect(
     () => () => {
       abort.current?.abort();
@@ -90,15 +101,18 @@ export function SaleDocumentActions({ id, cancelled }: { id: string; cancelled: 
       try {
         viewer?.close();
       } catch {}
-      if (!abort.current?.signal.aborted)
+      if (!abort.current?.signal.aborted) {
+        if (!(reason instanceof PdfRequestError))
+          setFallback(action === 'receipt' ? receiptUrl : noteUrl);
         setError(
           reason instanceof PdfRequestError
             ? reason
             : new PdfRequestError(
                 503,
-                'No se pudo abrir el documento. Revisa la conexión y vuelve a intentar.',
+                'No se pudo abrir el visor. Prueba el enlace directo al documento.',
               ),
         );
+      }
     } finally {
       running.current = false;
       setBusy(null);
@@ -107,10 +121,23 @@ export function SaleDocumentActions({ id, cancelled }: { id: string; cancelled: 
   return (
     <section className={styles.actions} aria-label="Documentos de la venta" aria-busy={!!busy}>
       <div className={styles.primary}>
-        <Button disabled={!!busy} onClick={() => void openDocument('print')}>
-          {busy === 'print' ? <LoaderCircle aria-hidden="true" /> : <Printer aria-hidden="true" />}
-          {busy === 'print' ? 'Preparando nota…' : 'Imprimir nota'}
-        </Button>
+        {nativeNavigation ? (
+          <Button asChild>
+            <a href={noteUrl} target="_blank" rel="noopener noreferrer">
+              <Printer aria-hidden="true" />
+              Imprimir nota
+            </a>
+          </Button>
+        ) : (
+          <Button disabled={!!busy} onClick={() => void openDocument('print')}>
+            {busy === 'print' ? (
+              <LoaderCircle aria-hidden="true" />
+            ) : (
+              <Printer aria-hidden="true" />
+            )}
+            {busy === 'print' ? 'Preparando nota…' : 'Imprimir nota'}
+          </Button>
+        )}
         <Button variant="outline" asChild>
           <Link href="/ventas/nueva">
             <Plus aria-hidden="true" />
@@ -122,8 +149,10 @@ export function SaleDocumentActions({ id, cancelled }: { id: string; cancelled: 
         <Button variant="outline" asChild>
           <a
             href={noteUrl}
+            target={nativeNavigation ? '_blank' : undefined}
+            rel={nativeNavigation ? 'noopener noreferrer' : undefined}
             aria-disabled={!!busy}
-            onClick={(event) => void openDocument('view', event)}
+            onClick={nativeNavigation ? undefined : (event) => void openDocument('view', event)}
           >
             <Eye aria-hidden="true" />
             Ver nota de entrega
@@ -132,9 +161,11 @@ export function SaleDocumentActions({ id, cancelled }: { id: string; cancelled: 
         <Button variant="outline" asChild>
           <a
             href={noteUrl + '&download=1'}
-            download
+            download={nativeNavigation ? undefined : true}
+            target={nativeNavigation ? '_blank' : undefined}
+            rel={nativeNavigation ? 'noopener noreferrer' : undefined}
             aria-disabled={!!busy}
-            onClick={(event) => void openDocument('download', event)}
+            onClick={nativeNavigation ? undefined : (event) => void openDocument('download', event)}
           >
             <Download aria-hidden="true" />
             Descargar nota
@@ -166,9 +197,13 @@ export function SaleDocumentActions({ id, cancelled }: { id: string; cancelled: 
           <Button variant="outline" asChild>
             <a
               href={receiptUrl}
-              download
+              download={nativeNavigation ? undefined : true}
+              target={nativeNavigation ? '_blank' : undefined}
+              rel={nativeNavigation ? 'noopener noreferrer' : undefined}
               aria-disabled={!!busy}
-              onClick={(event) => void openDocument('receipt', event)}
+              onClick={
+                nativeNavigation ? undefined : (event) => void openDocument('receipt', event)
+              }
             >
               <FileText aria-hidden="true" />
               Descargar comprobante de venta
@@ -183,7 +218,9 @@ export function SaleDocumentActions({ id, cancelled }: { id: string; cancelled: 
       ) : null}
       {fallback ? (
         <a className={styles.fallback} href={fallback}>
-          Ver nota en esta pestaña
+          {fallback.startsWith('blob:')
+            ? 'Ver nota en esta pestaña'
+            : 'Abrir documento directamente'}
         </a>
       ) : null}
       {error ? (

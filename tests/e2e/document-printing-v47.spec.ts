@@ -283,6 +283,74 @@ test('V4.7 sesión realmente vencida vuelve a la misma venta y permite descargar
   await assertUnchanged(page, fixture, writes);
 });
 
+for (const mode of ['installed', 'android'] as const) {
+  test(`V4.13 ${mode}: abre PDF por HTTPS sin direcciones blob ni ventas nuevas`, async ({
+    page,
+  }) => {
+    await page.addInitScript((mode) => {
+      if (mode === 'installed') {
+        const match = window.matchMedia.bind(window);
+        window.matchMedia = (query) => {
+          const result = match(query);
+          if (query === '(display-mode: standalone)')
+            Object.defineProperty(result, 'matches', { value: true });
+          return result;
+        };
+      } else {
+        Object.defineProperty(navigator, 'userAgent', {
+          value: 'Mozilla/5.0 (Linux; Android 12; Tablet)',
+        });
+      }
+      URL.createObjectURL = () => {
+        throw new Error('El visor externo no admite blob de la app');
+      };
+    }, mode);
+    await page.setViewportSize({ width: 800, height: 1000 });
+    const fixture = await confirmedSale(page);
+    const writes = observeCommercialWrites(page);
+    const documents = page.getByRole('region', { name: 'Documentos de la venta', exact: true });
+    for (const name of ['Ver nota de entrega', 'Imprimir nota', 'Descargar nota']) {
+      const action = documents.getByRole('link', { name, exact: true });
+      await expect(action).toHaveAttribute('target', '_blank');
+      await expect(action).toHaveAttribute('rel', 'noopener noreferrer');
+      await expect(action).not.toHaveAttribute('download');
+      const response = page
+        .context()
+        .waitForEvent('response', (r) =>
+          r.url().includes(`/api/sales/${fixture.sale.id}/delivery-note`),
+        );
+      await action.click();
+      const pdf = await response;
+      expect(pdf.request().isNavigationRequest()).toBe(true);
+      expect(pdf.request().resourceType()).toBe('document');
+      expect(pdf.status()).toBe(200);
+      expect(pdf.headers()['content-type']).toContain('application/pdf');
+      await expect(documents.getByRole('alert')).toHaveCount(0);
+      for (const popup of page.context().pages()) if (popup !== page) await popup.close();
+    }
+    await assertUnchanged(page, fixture, writes);
+  });
+}
+
+test('V4.13 un visor que falla ofrece el enlace privado directo, sin culpar a la conexión', async ({
+  page,
+}) => {
+  const fixture = await confirmedSale(page);
+  const writes = observeCommercialWrites(page);
+  await page.evaluate(() => {
+    URL.createObjectURL = () => {
+      throw new Error('Visor no disponible');
+    };
+  });
+  const documents = page.getByRole('region', { name: 'Documentos de la venta', exact: true });
+  await documents.getByRole('link', { name: 'Descargar nota', exact: true }).click();
+  await expect(documents.getByRole('alert')).toContainText('No se pudo abrir el visor');
+  await expect(
+    documents.getByRole('link', { name: 'Abrir documento directamente' }),
+  ).toHaveAttribute('href', `/api/sales/${fixture.sale.id}/delivery-note?size=letter`);
+  await assertUnchanged(page, fixture, writes);
+});
+
 test('V4.7 los documentos reales y sus errores privados nunca son caché ni HTML descargable', async ({
   page,
   browser,
