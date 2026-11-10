@@ -132,7 +132,9 @@ test('V4.2 opciones habituales son virtuales: no crean maestros, precios ni oper
           row.varietyName?.toLowerCase() === variety.toLowerCase() && row.caliberLabel === caliber,
       );
       expect(option, `${variety} ${caliber}`).toBeDefined();
-      expect(option!.suggestedPacking?.blistersPerBox).toBe(Number(caliber) <= 100 ? 4 : 5);
+      expect(option!.suggestedPacking?.blistersPerBox).toBe(
+        caliber === '100' && variety !== 'Pink Lady' ? 5 : Number(caliber) <= 100 ? 4 : 5,
+      );
     }
   }
   const pears = first.options.filter((option) => option.templateId === 'pear');

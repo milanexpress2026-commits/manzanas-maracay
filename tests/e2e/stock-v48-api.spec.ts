@@ -636,7 +636,7 @@ test('V4.8 T07/T08 opciones reales: manzana 100/113 y pera Forelle/Packham 125/1
   const options: HabitualCatalogOptions = await (await request.get('/api/catalog/options')).json();
   expect(options.templateVersion).toBe('v4.5');
   const selections = [
-    ['apple_traditional', 'Gala', '100', 4],
+    ['apple_traditional', 'Gala', '100', 5],
     ['apple_traditional', 'Gala', '113', 5],
     ['pear', 'Forelle', '125', 4],
     ['pear', 'Forelle', '135', 5],

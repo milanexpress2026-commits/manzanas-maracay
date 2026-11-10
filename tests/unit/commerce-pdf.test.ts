@@ -63,6 +63,40 @@ function geometry(layout: PdfLayoutReport) {
 }
 
 describe('composición comercial V4.7', () => {
+  it.each(['letter', 'a4'] as const)(
+    '%s: emisor formal con RIF, dirección larga y encabezado repetido sin perder mercancía',
+    async (size) => {
+      const sale = pdfSaleFixture(50);
+      const before = JSON.stringify(sale);
+      const issuer = {
+        legalName: 'IMPORTADORA DE FRUTAS DE EJEMPLO PARA VERIFICACIÓN DE DOCUMENTOS C.A.',
+        rif: 'J-00000000-0',
+        address: 'Dirección sintética para pruebas. '.repeat(8).trim(),
+      };
+      const result = await composeSalePdf(sale, 'delivery', {
+        size,
+        issuer,
+        generatedAt: PDF_QA_PRINTED_AT,
+      });
+      const { doc, pages } = await extractedPages(result.bytes);
+      expect(doc.getAuthor()).toBe(issuer.legalName);
+      expect(pages.length).toBeGreaterThan(1);
+      for (const page of pages) {
+        expect(page).toContain('RIF: J-00000000-0');
+        expect(page).toContain('NOTA DE ENTREGA');
+        expect(page).not.toContain('MANZANAS MARACAY');
+        expect(page).toContain('No constituye factura fiscal.');
+      }
+      expect(result.layout.blocks.filter((b) => b.role === 'row').map((b) => b.id)).toEqual(
+        sale.lines.map((l) => l.id),
+      );
+      expect(JSON.stringify(sale)).toBe(before);
+      geometry(result.layout);
+      const receipt = await composeSalePdf(sale, 'sale', { issuer });
+      expect((await extractedPages(receipt.bytes)).doc.getAuthor()).toBe('Manzanas Maracay');
+    },
+    20000,
+  );
   it.each([1, 5, 10, 15, 25, 35, 50])(
     '%i filas: Carta, orden completo, márgenes, totales y firmas indivisibles',
     async (count) => {
@@ -94,8 +128,11 @@ describe('composición comercial V4.7', () => {
         if (layout.blocks.some((block) => block.page === index + 1 && block.role === 'row'))
           expect(page).toContain('Subtotal USD');
       });
-      expect(text).toContain('ACTUALES al imprimir:');
-      expect(text).toContain('12/11/2026');
+      expect(text).not.toContain('ACTUALES al imprimir:');
+      expect(text).not.toContain('12/11/2026');
+      expect(text).toContain('Condición: Crédito');
+      expect(text).not.toMatch(/Observaciones|Abonado vigente|Saldo actual/);
+      expect(text).toContain('Acuerdo en divisa');
       expect(text).not.toContain('20/11/2026');
       const final = layout.blocks.filter((block) => block.role === 'final');
       expect(final).toHaveLength(1);
@@ -166,7 +203,7 @@ describe('composición comercial V4.7', () => {
   });
 
   it('texto español intacto, emoji explícito y contenido hostil literal sin acciones', async () => {
-    const result = await composeSalePdf(pdfUnicodeFixture(), 'delivery', {
+    const result = await composeSalePdf(pdfUnicodeFixture(), 'sale', {
       generatedAt: PDF_QA_PRINTED_AT,
     });
     const { doc, pages } = await extractedPages(result.bytes),
@@ -207,6 +244,15 @@ describe('composición comercial V4.7', () => {
     const printed = (await extractedPages(delivery.bytes)).pages.join('\n');
     expect(delivery.layout.pages).toBe(1);
     expect(printed).not.toContain('AB-EXTRA');
+    expect(printed).not.toMatch(/Observaciones|Abonado|Saldo|ACTUALES/);
+    expect(printed).not.toContain(sale.notes!);
+    expect(printed).toContain('Total');
+    expect(printed).toContain('firma');
+    expect(printed).toContain('Acuerdo en divisa');
+    const accountDocument = await composeSalePdf(sale, 'sale');
+    const accountText = (await extractedPages(accountDocument.bytes)).pages.join('\n');
+    expect(accountText).toContain('Saldo actual');
+    expect(accountText).toContain('Observaciones');
     const later = await salePdf(sale, 'delivery', {
       generatedAt: new Date('2026-11-07T16:34:56Z'),
     });

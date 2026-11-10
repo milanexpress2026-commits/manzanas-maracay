@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "state": "production_published_verified",
+  "runtimeCommit": "39c5461090debb0b9b17df3105b27170a590a419",
+  "productionRuntimeCommit": "39c5461090debb0b9b17df3105b27170a590a419",
+  "productionQaValidationCommit": "df49b9e940b10c2b4e08ababa215da349beb5131",
+  "validationOnlyDiff": [
+    "tests/production/ux-v3-empty.spec.ts"
+  ],
+  "checkedAt": "2026-11-10T04:04:51.710248+00:00",
+  "qa": {
+    "typecheckPassed": true,
+    "unitTestsPassed": 444,
+    "unitTestFilesPassed": 42,
+    "buildPassed": true,
+    "fullE2e": {
+      "passed": 154,
+      "failed": 0,
+      "singleRunAllPassed": true,
+      "finishedAt": "2026-11-10T03:36:20.069Z",
+      "postgresStopped": true,
+      "legacyUnchanged": true
+    },
+    "productionIsolation": {
+      "passed": 13,
+      "failed": 0,
+      "finishedAt": "2026-11-10T03:44:57.202Z",
+      "databaseCleaned": true,
+      "applicationSourceIdenticalToRuntime": true
+    },
+    "pdf": {
+      "directedTestsPassed": 23,
+      "letterAndA4Rendered": true,
+      "visualReviewPassed": true,
+      "physicalPrintVerified": false,
+      "realProductionSaleCreated": false
+    }
+  },
+  "staging": {
+    "release": "hotfix-39c5461090de",
+    "passed": true,
+    "checksPassed": 29,
+    "checkedAt": "2026-11-10T03:43:59.198Z",
+    "allRowsPreservedByCodeUpdate": true,
+    "preAndPostCodeBackupsRestored": true,
+    "migrationCount": 16,
+    "migrationExecuted": false,
+    "ratesCollectorResumed": true,
+    "syntheticDemoOnly": true,
+    "productionRequests": false
+  },
+  "preparationBackup": {
+    "commit": "642ffae84efd23c14871acf2df7a96fb2e62209e",
+    "checkedAt": "2026-11-10T03:47:21.398622+00:00",
+    "encryption": "AES-256-GCM",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "productionPreparation": {
+    "imagesBuilt": true,
+    "activated": true,
+    "archiveSha256": "aecf0a175f23100b64abd10ba968f32710dcdc6849ff8a9b873fdacf8995e34a"
+  },
+  "proposedProductionUpdate": {
+    "runtimeCommit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "newMigrations": false,
+    "resetPlanned": false,
+    "credentialsChangePlanned": false,
+    "dnsOrCaddyChangePlanned": false,
+    "privateDocumentIssuerConfiguration": true,
+    "existingPackingConfigurationsToUpdate": 1,
+    "newMasterRecordsPlanned": 0,
+    "affectedExistingLotsWhenReviewed": 0,
+    "stockWritesPlanned": false,
+    "authorizationReceived": true
+  },
+  "retainedAttempts": [
+    "First E2E passed 153/154 and exposed a payment invoice-loading race; corrected and verified with a deliberately delayed response, then the full final run passed.",
+    "Initial tests retained old four-blister expectations; only the four requested apple varieties were updated, preserving historical packing cases.",
+    "Large PDF geometry checks needed a case-specific timeout on the loaded QA machine; geometry assertions retained.",
+    "First isolated production run failed the obsolete Gala 100 four-blister expectation. Only two test expectations were corrected in validation commit df49b9e; application sources are byte-identical to runtime39."
+  ],
+  "limitations": [
+    "Delivery PDFs verified in memory using the running production image and installed private issuer, without creating a sale or accessing the database. This check did not download a delivery note associated with a real sale.",
+    "Offline visual and live image checks do not verify physical printing on HP or behavior of an actual Android tablet."
+  ],
+  "productionUpdate": {
+    "authorized": true,
+    "applied": true,
+    "verifiedAt": "2026-11-10T04:02:18.531764+00:00",
+    "allPublicRowsPreservedByCodeUpdate": true,
+    "schemaUnchanged": true,
+    "migrationExecuted": false,
+    "ratesCollectorResumed": true,
+    "dnsOrCaddyChanged": false,
+    "accessAndRegisteredTabletPreserved": true
+  },
+  "catalogCorrection": {
+    "checkedAt": "2026-11-10T04:03:34.248Z",
+    "catalogueUpdates": 1,
+    "configurationsCreated": 0,
+    "allFourTemplatesVerified": true,
+    "stockUnchanged": true,
+    "unrelatedConfigurationsUnchanged": true
+  },
+  "documentInRunningImage": {
+    "commit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "passed": true,
+    "checkedAt": "2026-11-10T04:04:13.064Z",
+    "checks": {
+      "letter": {
+        "validPdf": true,
+        "pages": 1,
+        "issuerAutomatic": true,
+        "simpleDelivery": true,
+        "ratesAgreementPreserved": true
+      },
+      "a4": {
+        "validPdf": true,
+        "pages": 1,
+        "issuerAutomatic": true,
+        "simpleDelivery": true,
+        "ratesAgreementPreserved": true
+      }
+    },
+    "businessWrites": false,
+    "databaseAccess": false,
+    "physicalPrintVerified": false
+  },
+  "publicAccessVerification": {
+    "passed": true,
+    "checksPassed": 21,
+    "checkedAt": "2026-11-10T04:04:15.623660+00:00",
+    "allPaymentChoicesReadyWhenChecked": true,
+    "readOnlyStockPreviewPassed": true,
+    "businessWrites": false
+  },
+  "uiVerification": {
+    "checkedAt": "2026-11-10T04:04:23.478Z",
+    "passed": true,
+    "saleTimeAutomatic": true,
+    "singleCaliberForm": true,
+    "widths": [
+      390,
+      800
+    ],
+    "reducedMotionRespected": true,
+    "existingReceiptsPresent": true,
+    "businessWrites": false
+  },
+  "postPublicationBackup": {
+    "commit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "checkedAt": "2026-11-10T04:04:51.710248+00:00",
+    "encryption": "AES-256-GCM",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  }
+}

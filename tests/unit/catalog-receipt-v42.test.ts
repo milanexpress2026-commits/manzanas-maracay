@@ -152,7 +152,13 @@ describe('materializador transaccional de recepción V4.2', () => {
   it('un cambio de conteo habitual exige override por lote y no actualiza la regla', async () => {
     const query = vi.fn().mockResolvedValueOnce({ rows: [rule] });
     await expect(
-      resolveReceiptProduct({ query } as unknown as PoolClient, product, packing, id, id),
+      resolveReceiptProduct(
+        { query } as unknown as PoolClient,
+        product,
+        { ...packing, blistersPerBox: 6 },
+        id,
+        id,
+      ),
     ).rejects.toThrow('excepción de este lote');
     expect(query).toHaveBeenCalledTimes(1);
   });

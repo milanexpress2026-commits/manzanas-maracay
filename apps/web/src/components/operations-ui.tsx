@@ -58,9 +58,17 @@ export function LoadingRows() {
     </div>
   );
 }
-export function SaveButton({ busy, children }: { busy: boolean; children: ReactNode }) {
+export function SaveButton({
+  busy,
+  disabled = false,
+  children,
+}: {
+  busy: boolean;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <Button type="submit" disabled={busy}>
+    <Button type="submit" disabled={busy || disabled}>
       {busy ? <LoaderCircle className="spin" data-icon="inline-start" /> : null}
       {busy ? 'Guardando…' : children}
     </Button>

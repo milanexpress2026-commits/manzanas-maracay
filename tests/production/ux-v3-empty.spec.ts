@@ -142,7 +142,7 @@ test('QA V4.5 vacía: cinco productos sin costo/proveedor/lista, precio manual, 
           row.caliberLabel === caliber,
       )!,
     );
-    expect(chosen[0]!.suggestedPacking?.blistersPerBox).toBe(4);
+    expect(chosen[0]!.suggestedPacking?.blistersPerBox).toBe(5);
     expect(chosen[1]!.suggestedPacking?.blistersPerBox).toBeNull();
     expect(chosen[3]!.suggestedPacking?.blistersPerBox).toBe(4);
     expect(chosen.every((row) => row.configurationId === null)).toBe(true);
@@ -186,7 +186,7 @@ test('QA V4.5 vacía: cinco productos sin costo/proveedor/lista, precio manual, 
     )!;
     expect(apple).toMatchObject({
       confirmationStatus: 'confirmed',
-      blistersPerBox: 4,
+      blistersPerBox: 5,
       allowedPresentations: ['box', 'blister'],
     });
     expect(

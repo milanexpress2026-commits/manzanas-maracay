@@ -40,9 +40,9 @@ function draftFor(option: HabitualCatalogOption = apple) {
 }
 
 describe('recepción simple: cantidad y revisión explícitas', () => {
-  it('ofrece 100 con cuatro blísteres, una caja y sin importes; no requiere proveedor ni referencia', () => {
+  it('ofrece Gala 100 con cinco blísteres, una caja y sin importes; no requiere proveedor ni referencia', () => {
     const line = receiptLine(apple);
-    expect(line.packing?.blistersPerBox).toBe(4);
+    expect(line.packing?.blistersPerBox).toBe(5);
     expect(line.boxes).toBe('1');
     const body = buildQuickReceipt(draftFor(), options);
     expect(body).toMatchObject({ schemaVersion: 3, supplierId: null, reference: null });
@@ -123,7 +123,7 @@ describe('recepción simple: cantidad y revisión explícitas', () => {
       configurationId: '20000000-0000-4000-8000-000000000002',
       confirmationStatus: 'confirmed',
       packingVersion: 3,
-      currentPacking: apple.suggestedPacking,
+      currentPacking: { ...apple.suggestedPacking!, blistersPerBox: 4 },
       product: {
         configurationId: '20000000-0000-4000-8000-000000000002',
         expectedPackingVersion: 3,
@@ -164,7 +164,7 @@ describe('recepción simple: cantidad y revisión explícitas', () => {
     expect(() => buildQuickReceipt(appleDraft, options)).toThrow('Confirma la excepción');
     appleDraft.lines[0].overrideConfirmed = true;
     expect(buildQuickReceipt(appleDraft, options).lines[0].blisterOverride?.blistersPerBox).toBe(6);
-    expect(apple.suggestedPacking?.blistersPerBox).toBe(4);
+    expect(apple.suggestedPacking?.blistersPerBox).toBe(5);
   });
   it('busca palabras naturales aunque el nombre use separadores o acentos', () => {
     expect(productSearchMatches('Manzana · Gala · 100', 'Tradicional', 'Gala 100')).toBe(true);

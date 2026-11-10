@@ -63,11 +63,11 @@ describe('recepción rápida V4.2', () => {
     }
     expect(JSON.stringify(options)).not.toMatch(/unitCostUsd|promoUsd|regularUsd|receivedBoxes/);
   });
-  it('precarga 100=4 y 113=5; no inventa medias ni blíster en otras familias', () => {
+  it('precarga la corrección de Gala 100=5; no inventa medias ni blíster en otras familias', () => {
     const options = buildHabitualCatalogOptions(empty, 'v4.2').options;
     for (const [caliber, count] of [
       ['88', 4],
-      ['100', 4],
+      ['100', 5],
       ['113', 5],
     ] as const)
       expect(
@@ -108,7 +108,7 @@ describe('recepción rápida V4.2', () => {
       packingModel: 'blister',
       halfPreparation: 'pending',
       allowedPresentations: ['box', 'blister'],
-      blistersPerBox: 5,
+      blistersPerBox: 4,
       boxWeightKg: null,
       confirmationStatus: 'confirmed',
       version: 3,
@@ -131,8 +131,8 @@ describe('recepción rápida V4.2', () => {
     const options = buildHabitualCatalogOptions(catalog, 'v4.2').options;
     const found = options.find((o) => o.configurationId === id)!;
     expect(found.packingDiscrepancy).toBe(true);
-    expect(found.currentPacking?.blistersPerBox).toBe(5);
-    expect(found.suggestedPacking?.blistersPerBox).toBe(4);
+    expect(found.currentPacking?.blistersPerBox).toBe(4);
+    expect(found.suggestedPacking?.blistersPerBox).toBe(5);
     expect(found.product).toEqual({ configurationId: id, expectedPackingVersion: 3 });
     expect(options.some((o) => o.varietyName === 'Lady')).toBe(true);
     expect(options.some((o) => o.varietyName === 'Pink Lady')).toBe(true);

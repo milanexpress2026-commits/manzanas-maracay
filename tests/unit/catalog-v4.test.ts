@@ -164,15 +164,20 @@ describe('preparación comercial explícita V4', () => {
       }).success,
     ).toBe(false);
   });
-  it('aplica la aclaración V4.2 solo a manzana tradicional y no fusiona identidades', () => {
-    for (const variety of ['Gala', 'Verde', 'Amarilla', 'Pink Lady', 'Lady']) {
+  it('aplica cinco blíster a las cuatro manzanas 100 confirmadas y conserva las demás identidades', () => {
+    for (const variety of ['Gala', 'Roja normal', 'Verde', 'Amarilla', 'Pink Lady', 'Lady']) {
       expect(suggestedBlistersPerBox('Manzana', variety, '80')).toBe(4);
-      expect(suggestedBlistersPerBox('Manzana', variety, '100')).toBe(4);
+      expect(suggestedBlistersPerBox('Manzana', variety, '100')).toBe(
+        ['Pink Lady', 'Lady'].includes(variety) ? 4 : 5,
+      );
       expect(suggestedBlistersPerBox('Manzana', variety, '113')).toBe(5);
     }
     expect(suggestedBlistersPerBox('Pera', 'Packcam', '135')).toBeNull();
     expect(suggestedBlistersPerBox('Manzana', 'Gala', '88/100')).toBeNull();
     expect(suggestedBlistersPerBox('Manzana', 'Gala', '100', 'Granel', 'halves')).toBeNull();
+    expect(suggestedBlistersPerBox('Manzana', null, '100')).toBe(4);
+    expect(suggestedBlistersPerBox('Manzana', 'Otra variedad', '100')).toBe(4);
+    expect(suggestedBlistersPerBox('Manzana', ' ROJA ', '100')).toBe(5);
   });
 });
 
