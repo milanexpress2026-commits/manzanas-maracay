@@ -415,7 +415,7 @@ export async function createPdfLayout(input: {
         bold: total.emphasis,
       }),
     }));
-    const captionText = prepare(caption, contentWidth, { size: 8.5 });
+    const captionText = caption ? prepare(caption, contentWidth, { size: 8.5 }) : null;
     const rowHeights = rows.map(
       (row) =>
         Math.max(
@@ -426,9 +426,9 @@ export async function createPdfLayout(input: {
     const blockHeight =
       12 +
       rowHeights.reduce((a, b) => a + b, 0) +
-      captionText.lines.length * 13 +
+      (captionText?.lines.length ?? 0) * 13 +
       10 +
-      (signatures ? 87 : 0);
+      (signatures ? 62 : 0);
     return {
       height: blockHeight,
       draw() {
@@ -466,10 +466,10 @@ export async function createPdfLayout(input: {
           });
           y -= rowHeights[index];
         });
-        captionText.lines.forEach((value, i) =>
+        captionText?.lines.forEach((value, i) =>
           line(value, MARGIN, y - i * 13, 8.5, false, 'balance-caption', true),
         );
-        y -= captionText.lines.length * 13 + 10;
+        y -= (captionText?.lines.length ?? 0) * 13 + 10;
         if (signatures) {
           y -= 7;
           const second = MARGIN + contentWidth / 2 + 12;
@@ -490,16 +490,6 @@ export async function createPdfLayout(input: {
           });
           y -= 13;
           line('Fecha de entrega: ________________________', MARGIN, y, 9, false, 'signature');
-          y -= 25;
-          line(
-            'Reimprimir este documento no registra otra venta ni salida de inventario.',
-            MARGIN,
-            y,
-            8,
-            false,
-            'signature',
-            true,
-          );
           y -= 10;
         }
         report.blocks.push({ page: doc.getPageCount(), role: 'final', top, bottom: y });

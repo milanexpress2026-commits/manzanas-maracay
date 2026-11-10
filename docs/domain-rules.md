@@ -65,6 +65,8 @@ PDF con logo y numeración única comercial, fecha Caracas, cliente, productos, 
 
 V4.11: la nota de entrega puede mostrar la razón social y RIF verificados del emisor en lugar del nombre comercial del encabezado. El logo y el resto del diseño permanecen. La identidad se guarda como configuración privada del despliegue, fuera de Git, y se repite en cada página. No cambia el cliente, el folio ni los importes de la venta. La nota sigue siendo comercial; recibir un documento RIF no la convierte en factura fiscal. Las demos no leen la identidad real.
 
+Última precisión del propietario: nota de entrega simple con emisor, cliente, fecha, contado/crédito, productos, cantidades, precios, total y firmas. Se conservan los detalles del acuerdo y tasas. No mostrar observaciones, abonos ni saldo actual en la nota; los comprobantes de venta y recibos mantienen sus datos contables.
+
 Anular o corregir genera eventos compensatorios; nunca borra ventas confirmadas. Anulación completa solo cuando no hay abonos activos y el movimiento de cada lote puede revertirse sin dependencias posteriores; restituye la misma fuente/costo. Reversar abono genera evento nuevo. Devoluciones parciales y condiciones particulares siguen pendientes de decisión, sin un flujo improvisado.
 
 ## Abonos, fechas y BCV

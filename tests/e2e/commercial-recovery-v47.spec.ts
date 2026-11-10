@@ -212,9 +212,26 @@ test('abono completo: cierre y login recuperan el recibo aun cuando ya no hay sa
       },
     ],
   });
+  let releasePendingInvoices!: () => void;
+  const pendingInvoicesReady = new Promise<void>((resolve) => {
+    releasePendingInvoices = resolve;
+  });
+  await page.route(
+    (url) =>
+      url.pathname === '/api/sales' &&
+      url.searchParams.get('status') === 'pending' &&
+      url.searchParams.get('clientId') === client.id,
+    async (route) => {
+      await pendingInvoicesReady;
+      await route.continue();
+    },
+  );
   await page.goto('/ventas/' + sale.id);
   await page.getByRole('button', { name: 'Registrar abono', exact: true }).click();
   await page.getByLabel('Monto recibido').fill('80');
+  await expect(page.getByRole('button', { name: 'Revisar abono', exact: true })).toBeDisabled();
+  releasePendingInvoices();
+  await expect(page.getByRole('button', { name: 'Revisar abono', exact: true })).toBeEnabled();
   const requests: Array<{ key: string; body: string }> = [];
   let payment!: PaymentDetail;
   await context.route('**/api/payments', async (route) => {

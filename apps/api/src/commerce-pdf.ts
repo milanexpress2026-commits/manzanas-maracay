@@ -49,17 +49,21 @@ export async function composeSalePdf(
   });
   pdf.paragraph(`Venta: ${date(sale.soldAt)} - Hora de Venezuela`, { size: 9, muted: true });
   pdf.paragraph(`Cliente: ${sale.client.name}`, { bold: true, size: 11 });
-  if (sale.client.taxId) pdf.paragraph(`Identificación / RIF: ${sale.client.taxId}`, { size: 9 });
-  if (sale.client.phone) pdf.paragraph(`Teléfono: ${sale.client.phone}`, { size: 9 });
-  if (sale.client.address) pdf.paragraph(`Dirección: ${sale.client.address}`, { size: 9 });
+  if (!delivery && sale.client.taxId)
+    pdf.paragraph(`Identificación / RIF: ${sale.client.taxId}`, { size: 9 });
+  if (!delivery && sale.client.phone) pdf.paragraph(`Teléfono: ${sale.client.phone}`, { size: 9 });
+  if (!delivery && sale.client.address)
+    pdf.paragraph(`Dirección: ${sale.client.address}`, { size: 9 });
   pdf.paragraph(
-    `Condición original: ${sale.condition === 'cash' ? 'Contado' : 'Crédito'}${
-      sale.originalDueDate
-        ? ` - Fecha pactada original: ${calendarDate(sale.originalDueDate)}`
-        : sale.condition === 'credit'
-          ? ' - Sin fecha pactada al registrar'
-          : ''
-    }`,
+    delivery
+      ? `Condición: ${sale.condition === 'cash' ? 'Contado' : 'Crédito'}`
+      : `Condición original: ${sale.condition === 'cash' ? 'Contado' : 'Crédito'}${
+          sale.originalDueDate
+            ? ` - Fecha pactada original: ${calendarDate(sale.originalDueDate)}`
+            : sale.condition === 'credit'
+              ? ' - Sin fecha pactada al registrar'
+              : ''
+        }`,
     { size: 9 },
   );
   if (!delivery && sale.dueDate !== sale.originalDueDate)
@@ -77,23 +81,28 @@ export async function composeSalePdf(
         : 'Acuerdo BCV: se conserva el precio USD pactado al registrar abonos.',
     { size: 9 },
   );
-  if (sale.cancellation?.reason)
+  if (!delivery && sale.cancellation?.reason)
     pdf.paragraph(`Motivo de anulación: ${sale.cancellation.reason}`, { size: 9 });
-  const caption = `Abonado y saldo ACTUALES al imprimir: ${date(pdf.generatedAt)} (Caracas). Productos, precios y condición conservan el registro original.`;
+  const caption = delivery
+    ? ''
+    : `Abonado y saldo ACTUALES al imprimir: ${date(pdf.generatedAt)} (Caracas). Productos, precios y condición conservan el registro original.`;
   const final = pdf.totalsBlock(
-    [
-      { label: 'Total de la venta', value: `USD ${amount(sale.totalUsd)}`, emphasis: true },
-      { label: 'Abonado vigente', value: `USD ${amount(sale.paidUsd)}` },
-      {
-        label: sale.status === 'cancelled' ? 'Saldo actual (venta anulada)' : 'Saldo actual',
-        value: `USD ${amount(sale.balanceUsd)}`,
-        emphasis: true,
-      },
-    ],
+    delivery
+      ? [{ label: 'Total', value: `USD ${amount(sale.totalUsd)}`, emphasis: true }]
+      : [
+          { label: 'Total de la venta', value: `USD ${amount(sale.totalUsd)}`, emphasis: true },
+          { label: 'Abonado vigente', value: `USD ${amount(sale.paidUsd)}` },
+          {
+            label: sale.status === 'cancelled' ? 'Saldo actual (venta anulada)' : 'Saldo actual',
+            value: `USD ${amount(sale.balanceUsd)}`,
+            emphasis: true,
+          },
+        ],
     caption,
     delivery,
   );
-  const notesHeight = sale.notes ? 26 + pdf.paragraphHeight(sale.notes, { size: 9 }) : 0;
+  const notesHeight =
+    !delivery && sale.notes ? 26 + pdf.paragraphHeight(sale.notes, { size: 9 }) : 0;
   pdf.table({
     title: 'Detalle de mercancía',
     headers: ['N.º', 'Producto y presentación', 'Cant.', 'P. unitario USD', 'Subtotal USD'],
@@ -119,7 +128,7 @@ export async function composeSalePdf(
         { size: 9 },
       );
   }
-  if (sale.notes) {
+  if (!delivery && sale.notes) {
     pdf.section('Observaciones');
     pdf.paragraph(sale.notes, { size: 9 });
   }

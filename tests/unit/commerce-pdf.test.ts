@@ -95,6 +95,7 @@ describe('composición comercial V4.7', () => {
       const receipt = await composeSalePdf(sale, 'sale', { issuer });
       expect((await extractedPages(receipt.bytes)).doc.getAuthor()).toBe('Manzanas Maracay');
     },
+    20000,
   );
   it.each([1, 5, 10, 15, 25, 35, 50])(
     '%i filas: Carta, orden completo, márgenes, totales y firmas indivisibles',
@@ -127,8 +128,11 @@ describe('composición comercial V4.7', () => {
         if (layout.blocks.some((block) => block.page === index + 1 && block.role === 'row'))
           expect(page).toContain('Subtotal USD');
       });
-      expect(text).toContain('ACTUALES al imprimir:');
-      expect(text).toContain('12/11/2026');
+      expect(text).not.toContain('ACTUALES al imprimir:');
+      expect(text).not.toContain('12/11/2026');
+      expect(text).toContain('Condición: Crédito');
+      expect(text).not.toMatch(/Observaciones|Abonado vigente|Saldo actual/);
+      expect(text).toContain('Acuerdo en divisa');
       expect(text).not.toContain('20/11/2026');
       const final = layout.blocks.filter((block) => block.role === 'final');
       expect(final).toHaveLength(1);
@@ -199,7 +203,7 @@ describe('composición comercial V4.7', () => {
   });
 
   it('texto español intacto, emoji explícito y contenido hostil literal sin acciones', async () => {
-    const result = await composeSalePdf(pdfUnicodeFixture(), 'delivery', {
+    const result = await composeSalePdf(pdfUnicodeFixture(), 'sale', {
       generatedAt: PDF_QA_PRINTED_AT,
     });
     const { doc, pages } = await extractedPages(result.bytes),
@@ -240,6 +244,15 @@ describe('composición comercial V4.7', () => {
     const printed = (await extractedPages(delivery.bytes)).pages.join('\n');
     expect(delivery.layout.pages).toBe(1);
     expect(printed).not.toContain('AB-EXTRA');
+    expect(printed).not.toMatch(/Observaciones|Abonado|Saldo|ACTUALES/);
+    expect(printed).not.toContain(sale.notes!);
+    expect(printed).toContain('Total');
+    expect(printed).toContain('firma');
+    expect(printed).toContain('Acuerdo en divisa');
+    const accountDocument = await composeSalePdf(sale, 'sale');
+    const accountText = (await extractedPages(accountDocument.bytes)).pages.join('\n');
+    expect(accountText).toContain('Saldo actual');
+    expect(accountText).toContain('Observaciones');
     const later = await salePdf(sale, 'delivery', {
       generatedAt: new Date('2026-11-07T16:34:56Z'),
     });

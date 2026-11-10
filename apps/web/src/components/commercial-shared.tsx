@@ -686,6 +686,14 @@ export function PaymentDialog({
       }
       return;
     }
+    if (!pendingInvoices.data || pendingInvoices.error) {
+      command.setError('Espera a que carguen los comprobantes o vuelve a intentar la consulta.');
+      return;
+    }
+    if (!selectedInvoices.length) {
+      command.setError('Indica cuánto deseas aplicar al comprobante que vas a pagar.');
+      return;
+    }
     if (paymentIssue) {
       command.setError(paymentIssue);
       return;
@@ -1045,7 +1053,13 @@ export function PaymentDialog({
                   >
                     {reviewAttempted ? 'Cerrar resumen' : review ? 'Volver a editar' : 'Cancelar'}
                   </Button>
-                  <SaveButton busy={command.busy}>
+                  <SaveButton
+                    busy={command.busy}
+                    disabled={
+                      !review &&
+                      (!pendingInvoices.data || !!pendingInvoices.error || !invoices.length)
+                    }
+                  >
                     {review ? 'Confirmar abono' : 'Revisar abono'}
                   </SaveButton>
                 </div>
