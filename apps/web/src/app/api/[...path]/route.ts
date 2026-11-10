@@ -102,7 +102,9 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       method: request.method,
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(15000),
+      // Bulk receipts/sales can outlast a read. Keep the finite write deadline
+      // inside the browser's 65s deadline so a successful commit can be returned.
+      signal: AbortSignal.timeout(read ? 15000 : 60000),
       headers: {
         'Content-Type': 'application/json',
         'x-mm-internal': process.env.MM_INTERNAL_TOKEN ?? '',

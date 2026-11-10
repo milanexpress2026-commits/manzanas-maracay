@@ -46,6 +46,7 @@ import {
   type PaymentChoice,
 } from '@/lib/sales-flow';
 import styles from './sales-flow.module.css';
+import { usePagedList } from '@/lib/use-paged-list';
 export type RateValue = {
   clockAnchor?: QuoteClock;
   id: string;
@@ -574,10 +575,12 @@ export function PaymentDialog({
     setReviewInformation(null);
   }, [command.pending, command.busy, foreignPending]);
   useEffect(() => setDate(caracasDateTime()), []);
-  const invoices =
-    account.data?.sales.filter(
-      (s) => s.status === 'confirmed' && new Decimal(s.balanceUsd).gt(0),
-    ) ?? [];
+  const pendingInvoices = usePagedList<SaleSummary>(
+    '/api/sales?status=pending&clientId=' +
+      encodeURIComponent(clientId) +
+      (saleId ? '&prioritizeId=' + encodeURIComponent(saleId) : ''),
+  );
+  const invoices = pendingInvoices.data ?? [];
   const selectedInvoices = invoices.filter((invoice) => {
     try {
       return new Decimal(normalizedMoney(applications[invoice.id] ?? '') || 0).gt(0);
@@ -807,7 +810,7 @@ export function PaymentDialog({
                       {review.applications.map((a) => (
                         <li key={a.saleId}>
                           <strong>
-                            {account.data?.sales.find((s) => s.id === a.saleId)?.number ??
+                            {invoices.find((s) => s.id === a.saleId)?.number ??
                               'Comprobante seleccionado'}
                           </strong>
                           <span>{displayMoney(a.amountUsd)}</span>
@@ -982,6 +985,25 @@ export function PaymentDialog({
                           </div>
                         ))}
                       </div>
+                      {pendingInvoices.error ? (
+                        <LoadError
+                          error={pendingInvoices.error}
+                          retry={() => void pendingInvoices.reload()}
+                        />
+                      ) : null}
+                      {pendingInvoices.loading ? (
+                        <p role="status">Cargando comprobantes pendientes…</p>
+                      ) : null}
+                      {pendingInvoices.hasMore ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={pendingInvoices.loading}
+                          onClick={() => void pendingInvoices.loadMore()}
+                        >
+                          Cargar más pendientes
+                        </Button>
+                      ) : null}
                     </div>
                     {currency === 'VES' && agreementError ? (
                       <FormError message={agreementError} />
@@ -995,7 +1017,10 @@ export function PaymentDialog({
                         Total aplicado: <strong>{displayMoney(sum.toFixed(2))}</strong>
                       </span>
                     </p>
-                    {!invoices.length ? (
+                    {!invoices.length &&
+                    pendingInvoices.data &&
+                    !pendingInvoices.loading &&
+                    !pendingInvoices.error ? (
                       <Alert>
                         <AlertCircle aria-hidden="true" />
                         <AlertDescription>

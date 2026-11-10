@@ -8,6 +8,8 @@ import {
   type ClientSummary,
   type ClientAccount,
   type PaymentDetail,
+  type PaymentSummary,
+  type SaleSummary,
 } from '@mm/domain';
 import { AppShell, type AppSession } from './app-shell';
 import { Button } from './ui/button';
@@ -22,6 +24,7 @@ import {
 } from './commercial-shared';
 import { useRemote, displayMoney, displayDate } from '@/lib/inventory-api';
 import { useClientDirectory } from '@/lib/use-client-directory';
+import { usePagedList } from '@/lib/use-paged-list';
 export function ClientsScreen({ session }: { session: AppSession }) {
   const clients = useClientDirectory();
   const query = clients.search;
@@ -187,6 +190,11 @@ export function ClientsScreen({ session }: { session: AppSession }) {
 }
 export function ClientAccountScreen({ session, id }: { session: AppSession; id: string }) {
   const account = useRemote<ClientAccount>('/api/clients/' + id);
+  const sales = usePagedList<SaleSummary>('/api/sales?clientId=' + encodeURIComponent(id));
+  const payments = usePagedList<PaymentSummary>('/api/payments?clientId=' + encodeURIComponent(id));
+  const reloadAccount = async () => {
+    await Promise.all([account.reload(), sales.reload(), payments.reload()]);
+  };
   const [paymentSale, setPaymentSale] = useState<string | null | undefined>(undefined),
     [payment, setPayment] = useState<PaymentDetail | null>(null),
     [editing, setEditing] = useState(false);
@@ -201,7 +209,7 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
           session={session}
           onSaved={async (value) => {
             setPayment(value);
-            await account.reload();
+            await reloadAccount();
           }}
         />
         {account.error ? (
@@ -242,15 +250,15 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
               </article>
               <article>
                 <ContactRound aria-hidden="true" />
-                <span>Comprobantes</span>
-                <strong>{account.data.sales.length}</strong>
+                <span>Comprobantes mostrados</span>
+                <strong>{sales.data?.length ?? 0}</strong>
                 <small>
                   {
-                    account.data.sales.filter(
+                    (sales.data ?? []).filter(
                       (s) => s.status === 'confirmed' && new Decimal(s.balanceUsd).gt(0),
                     ).length
                   }{' '}
-                  pendientes
+                  pendientes en esta lista
                 </small>
               </article>
             </div>
@@ -258,12 +266,13 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
               <div className="panel-heading">
                 <h2>Comprobantes del cliente</h2>
               </div>
-              {account.data.sales.length ? (
-                <SaleTable
-                  sales={account.data.sales}
-                  onPayment={(sale) => setPaymentSale(sale.id)}
-                />
-              ) : (
+              {sales.error ? (
+                <LoadError error={sales.error} retry={() => void sales.reload()} />
+              ) : null}
+              {sales.loading ? <LoadingRows /> : null}
+              {sales.data?.length ? (
+                <SaleTable sales={sales.data} onPayment={(sale) => setPaymentSale(sale.id)} />
+              ) : sales.data && !sales.loading && !sales.error ? (
                 <div className="commercial-empty">
                   <p>Este cliente todavía no tiene ventas.</p>
                   <Button asChild variant="outline">
@@ -272,15 +281,28 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
                     </Link>
                   </Button>
                 </div>
-              )}
+              ) : null}
+              {sales.hasMore ? (
+                <Button
+                  variant="outline"
+                  disabled={sales.loading}
+                  onClick={() => void sales.loadMore()}
+                >
+                  Cargar más comprobantes
+                </Button>
+              ) : null}
             </section>
             <section className="operations-panel">
               <div className="panel-heading">
                 <h2>Historial de abonos</h2>
               </div>
-              {account.data.payments.length ? (
+              {payments.error ? (
+                <LoadError error={payments.error} retry={() => void payments.reload()} />
+              ) : null}
+              {payments.loading ? <LoadingRows /> : null}
+              {payments.data?.length ? (
                 <ul className="commercial-history">
-                  {account.data.payments.map((p) => (
+                  {payments.data.map((p) => (
                     <li key={p.id}>
                       <div>
                         <strong>
@@ -298,9 +320,18 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
                     </li>
                   ))}
                 </ul>
-              ) : (
+              ) : payments.data && !payments.loading && !payments.error ? (
                 <p className="inline-explanation">No hay abonos registrados.</p>
-              )}
+              ) : null}
+              {payments.hasMore ? (
+                <Button
+                  variant="outline"
+                  disabled={payments.loading}
+                  onClick={() => void payments.loadMore()}
+                >
+                  Cargar más abonos
+                </Button>
+              ) : null}
             </section>
             {account.data.client.notes ? (
               <p className="commercial-help">{account.data.client.notes}</p>
@@ -315,7 +346,7 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
           onClose={() => setEditing(false)}
           onSaved={async () => {
             setEditing(false);
-            await account.reload();
+            await reloadAccount();
           }}
         />
       ) : null}
@@ -328,7 +359,7 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
           onSaved={async (p) => {
             setPayment(p);
             setPaymentSale(undefined);
-            await account.reload();
+            await reloadAccount();
           }}
         />
       ) : null}

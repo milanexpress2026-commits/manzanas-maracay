@@ -348,6 +348,11 @@ export const commerceListSchema = z
     offset: z.coerce.number().int().min(0).max(100000).default(0),
   })
   .strict();
+export const saleListSchema = commerceListSchema.extend({
+  status: z.literal('pending').optional(),
+  collection: z.enum(['all', 'today', 'upcoming', 'overdue']).optional(),
+  prioritizeId: z.uuid().optional(),
+});
 export const businessDate = (at: Date = new Date()) =>
   new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Caracas',
@@ -551,6 +556,7 @@ export type CollectionsOverview = {
   totalUsd: string;
   overdueUsd: string;
   totalInvoices: number;
+  todayCount: number;
   truncated: boolean;
   invoices: SaleSummary[];
   todayInvoices: SaleSummary[];
