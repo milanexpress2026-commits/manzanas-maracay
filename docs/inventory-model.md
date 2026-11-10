@@ -4,6 +4,8 @@ La fuente comercial primaria es [domain-rules.md](domain-rules.md). Este documen
 
 ## Configuración y snapshots
 
+Actualización V4.12: el usuario confirmó media caja como la mitad exacta, también en fruta con blísteres. Las nuevas ventas dividen automáticamente cajas disponibles y aprovechan remanentes del mismo lote. Las referencias posteriores a preparación contada describen operaciones históricas/avanzadas, no un requisito para vender media. Véase [medias comerciales](medias-comerciales-v4-12.md).
+
 La identidad comercial es fruta, variedad opcional, calibre opcional y línea comercial. El calibre es una etiqueta de tamaño, nunca un conteo de piezas. Una configuración puede tener datos pendientes: se conserva `null` cuando la cantidad de blíster es desconocida y se bloquean las operaciones que requieren conocerla.
 
 | Capacidad              | Valores y efecto                                                                                                                               |

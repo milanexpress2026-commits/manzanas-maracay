@@ -63,7 +63,7 @@ describe('recepción rápida V4.2', () => {
     }
     expect(JSON.stringify(options)).not.toMatch(/unitCostUsd|promoUsd|regularUsd|receivedBoxes/);
   });
-  it('precarga la corrección de Gala 100=5; no inventa medias ni blíster en otras familias', () => {
+  it('precarga Gala 100=5 y medias automáticas sin inventar blíster de otras familias', () => {
     const options = buildHabitualCatalogOptions(empty, 'v4.2').options;
     for (const [caliber, count] of [
       ['88', 4],
@@ -75,8 +75,8 @@ describe('recepción rápida V4.2', () => {
           ?.suggestedPacking,
       ).toMatchObject({
         blistersPerBox: count,
-        allowedPresentations: ['box', 'blister'],
-        halfPreparation: 'pending',
+        allowedPresentations: ['box', 'half_box', 'blister'],
+        halfPreparation: 'commercial',
       });
     for (const option of options.filter((o) => o.templateId !== 'apple_traditional')) {
       expect(option.suggestedPacking?.blistersPerBox ?? null).toBeNull();
@@ -200,7 +200,7 @@ describe('recepción rápida V4.2', () => {
     ).toContain('empaque habitual');
     expect(
       habitualPackingIssue(pear, 'Packcam', '100', { ...packing, halfPreparation: 'pending' }),
-    ).toContain('empaque habitual');
+    ).toBeNull();
   });
   it('omite proveedor, documento y reloj sin generar valores que cambien el hash de reintento', () => {
     const parsed = quickReceiptSchema.parse(request);
@@ -243,7 +243,7 @@ describe('recepción rápida V4.2', () => {
       accepted: true,
     });
   });
-  it('excepción de lote exige motivo/confirmación; empaque no habilita medias desconocidas', () => {
+  it('excepción exige motivo/confirmación; empaque conocido habilita la media comercial automática', () => {
     const base = { product, boxes: 1, cost };
     expect(
       quickReceiptSchema.safeParse({
@@ -276,7 +276,7 @@ describe('recepción rápida V4.2', () => {
     };
     expect(
       quickReceiptSchema.safeParse({ ...request, lines: [{ ...base, packing }] }).success,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       quickReceiptSchema.safeParse({
         ...request,

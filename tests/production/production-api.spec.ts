@@ -14,11 +14,62 @@ import type {
   PaymentDetail,
   ClientSummary,
   Supplier,
+  LotDetail,
 } from '../../packages/domain/src/index';
 
 const origin = 'https://localhost:3143';
 const headers = (key = randomUUID()) => ({ Origin: origin, 'Idempotency-Key': key });
 test.describe.configure({ mode: 'serial' });
+
+test('V4.12 producción aislada: media de caja con cinco blísteres sin habilitación antigua ni conteo', async ({
+  request,
+}) => {
+  const fruit = await post<{ id: string }>(request, '/api/catalog/fruits', {
+    name: `QA medias generales ${randomUUID()}`,
+  });
+  const rule = await post<Configuration>(request, '/api/catalog/configurations', {
+    fruitId: fruit.id,
+    packingModel: 'blister',
+    halfPreparation: 'none',
+    allowedPresentations: ['box', 'blister'],
+    blistersPerBox: 5,
+    confirmationStatus: 'confirmed',
+  });
+  const client = await customer(request);
+  const incoming = await post<ReceiptResult>(request, '/api/receipts', {
+    schemaVersion: 3,
+    lines: [
+      { product: { configurationId: rule.id, expectedPackingVersion: rule.version }, boxes: 1 },
+    ],
+  });
+  const body = {
+    schemaVersion: 2,
+    clientId: client.id,
+    condition: 'credit',
+    settlementBasis: 'divisa',
+    dateMode: 'automatic',
+    soldAt: new Date().toISOString(),
+    lines: [
+      { configurationId: rule.id, presentation: 'half_box', quantity: 1, agreedUnitUsd: '20' },
+    ],
+  };
+  for (const remaining of [0.5, 0]) {
+    const key = randomUUID(),
+      sale = await post<SaleDetail>(request, '/api/sales', body, key);
+    expect(sale.lines[0]).toMatchObject({
+      presentation: 'half_box',
+      quantity: 1,
+      totalUsd: '20.00',
+    });
+    expect(await post<SaleDetail>(request, '/api/sales', body, key)).toEqual(sale);
+    const lot: LotDetail = await (
+      await request.get('/api/inventory/lots/' + incoming.lots[0]!.id)
+    ).json();
+    expect(lot.lot.equivalentBoxes).toBe(remaining);
+    expect(lot.lot.allowedPresentations).toEqual(['box', 'blister']);
+  }
+  expect((await request.post('/api/sales', { headers: headers(), data: body })).status()).toBe(409);
+});
 
 async function state() {
   const value = JSON.parse(

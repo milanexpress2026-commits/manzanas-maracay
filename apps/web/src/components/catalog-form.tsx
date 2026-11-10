@@ -81,7 +81,8 @@ export function CatalogForm({
     setError('');
     const packing = {
       packingModel: model,
-      halfPreparation: half,
+      halfPreparation:
+        model === 'blister' && presentations.includes('half_box') ? 'commercial' : half,
       allowedPresentations: presentations,
       blistersPerBox: model === 'blister' && blisters !== '' ? Number(blisters) : null,
       boxWeightKg: weight.trim() ? weight.trim().replace(',', '.') : null,
@@ -256,20 +257,7 @@ export function CatalogForm({
                       Puede quedar pendiente. El calibre nunca se convierte en cantidad de fruta.
                     </FieldDescription>
                   </Field>
-                  <Field>
-                    <FieldLabel htmlFor="half-preparation">
-                      ¿Cómo preparan la media caja?
-                    </FieldLabel>
-                    <NativeSelect
-                      id="half-preparation"
-                      value={half}
-                      onChange={(e) => setHalf(e.target.value as HalfPreparation)}
-                    >
-                      <option value="pending">Pendiente de confirmar</option>
-                      <option value="counted">Contando las frutas al abrir la caja</option>
-                      <option value="none">No se preparan medias cajas</option>
-                    </NativeSelect>
-                  </Field>
+                  <p>Media caja = la mitad de una caja. Se descuenta automáticamente al vender.</p>
                 </>
               ) : null}
               <Field>

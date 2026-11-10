@@ -629,7 +629,7 @@ test('V4.8 T20 preview de 50 líneas/200 cajas es solo lectura y coincide con co
   expect(await fingerprint()).toEqual(after);
 });
 
-test('V4.8 T07/T08 opciones reales: manzana 100/113 y pera Forelle/Packham 125/135 conservan remanentes y media pendiente', async ({
+test('V4.8 T07/T08 opciones reales: manzana 100/113 y pera Forelle/Packham 125/135 conservan remanentes y admiten media automática', async ({
   request,
 }) => {
   test.setTimeout(90000);
@@ -695,22 +695,15 @@ test('V4.8 T07/T08 opciones reales: manzana 100/113 y pera Forelle/Packham 125/1
     });
     expect((await preview(request, body)).lines[0]!.maxQuantity).toBe(count - 1);
     if (index >= 2) {
-      expect(detail.lot.halfPreparation).toBe('pending');
       pearRules.push(rule);
     }
   }
-  const beforeRejectedHalf = await fingerprint();
+  const beforePreviewHalf = await fingerprint();
   for (const rule of pearRules) {
     const body = { ...cart(previewLine(rule, 1, 'half_box')), soldAt: receivedAt };
-    expect((await preview(request, body)).lines[0]!.issueCode).toBe('presentation_not_allowed');
-    expect(
-      (
-        await request.post('/api/sales', {
-          headers: commerceHeaders(),
-          data: saleBody(client, rule, body),
-        })
-      ).status(),
-    ).toBe(400);
+    const result = await preview(request, body);
+    expect(result.valid).toBe(true);
+    expect(result.lines[0]!.maxQuantity).toBe(1);
   }
-  expect(await fingerprint()).toEqual(beforeRejectedHalf);
+  expect(await fingerprint()).toEqual(beforePreviewHalf);
 });

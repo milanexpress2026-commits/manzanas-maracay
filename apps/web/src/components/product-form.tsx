@@ -132,7 +132,8 @@ export function ProductForm({
     caliberId: caliberId === 'none' ? null : caliberId,
     commercialLine: line,
     packingModel: model,
-    halfPreparation: half,
+    halfPreparation:
+      model === 'blister' && presentations.includes('half_box') ? 'commercial' : half,
     allowedPresentations: presentations,
     blistersPerBox:
       model === 'blister' ? (blisters.trim() ? Number(blisters) : audioSuggestion) : null,
@@ -628,23 +629,9 @@ export function ProductForm({
                     </div>
                   </Field>
                   {presentations.includes('half_box') ? (
-                    <Field>
-                      <FieldLabel htmlFor="product-half">¿Cómo preparan la media caja?</FieldLabel>
-                      <NativeSelect
-                        id="product-half"
-                        value={half}
-                        onChange={(event) => {
-                          setHalf(event.target.value as HalfPreparation);
-                          setConfirmed(false);
-                        }}
-                      >
-                        <option value="pending">Pendiente de confirmar</option>
-                        <option value="counted">Contando las frutas al abrir la caja</option>
-                      </NativeSelect>
-                      <FieldDescription>
-                        La cantidad real se registra al abrir cada caja; no se inventa ahora.
-                      </FieldDescription>
-                    </Field>
+                    <p>
+                      Media caja = la mitad de una caja. Se descuenta automáticamente al vender.
+                    </p>
                   ) : null}
                 </>
               ) : model === 'halves' ? (
@@ -754,9 +741,7 @@ export function ProductForm({
               {model === 'blister' && presentations.includes('half_box') ? (
                 <div>
                   <dt>Media caja</dt>
-                  <dd>
-                    {half === 'counted' ? 'Conteo real al abrir la caja' : 'Pendiente de confirmar'}
-                  </dd>
+                  <dd>Media caja automática: la mitad de una caja</dd>
                 </div>
               ) : null}
               {weight ? (

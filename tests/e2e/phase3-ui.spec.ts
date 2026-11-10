@@ -349,7 +349,9 @@ test('lista histórica parcial permanece intacta al recibir sin costo ni precios
   await page.getByLabel('Cajas recibidas', { exact: true }).fill('1');
   await expect(page.getByLabel(/Costo real|Precio unitario/)).toHaveCount(0);
   await page.getByLabel('Blíster por caja', { exact: true }).fill('4');
-  await page.getByLabel('Preparación de media caja', { exact: true }).selectOption('counted');
+  await expect(
+    page.getByText('Media caja = la mitad de una caja. Se descuenta automáticamente al vender.'),
+  ).toBeVisible();
   const receiptKeys: string[] = [];
   let receivedLotId = '';
   await page.route('**/api/receipts', async (route) => {

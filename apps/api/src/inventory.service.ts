@@ -18,6 +18,7 @@ import { authConfig } from './auth/config';
 import { markBusinessCommandRejection } from './command-rejection';
 import {
   countSellablePresentation,
+  effectiveSalePresentations,
   type SaleAvailability,
 } from '../../../packages/domain/src/sale-availability';
 import {
@@ -199,9 +200,11 @@ export class InventoryService implements OnModuleDestroy {
           variant_id: string;
           confirmation_status: string;
           allowed_presentations: Presentation[];
+          packing_model: PackingModel;
+          blisters_per_box: number | null;
           commercial_unit_label: string | null;
         }>(
-          'select id,variant_id,confirmation_status,allowed_presentations,commercial_unit_label from packing_rules order by id',
+          'select id,variant_id,confirmation_status,allowed_presentations,commercial_unit_label,packing_model,blisters_per_box from packing_rules order by id',
         )
       ).rows;
       const lots = (
@@ -240,7 +243,11 @@ export class InventoryService implements OnModuleDestroy {
       return {
         checkedAt,
         items: rules.flatMap((rule) =>
-          rule.allowed_presentations.map((presentation) => ({
+          effectiveSalePresentations({
+            allowedPresentations: rule.allowed_presentations,
+            packingModel: rule.packing_model,
+            blistersPerBox: rule.blisters_per_box,
+          }).map((presentation) => ({
             configurationId: rule.id,
             presentation,
             ...(production && rule.confirmation_status !== 'confirmed'
@@ -272,7 +279,7 @@ export class InventoryService implements OnModuleDestroy {
     const rules = (
       await client.query<SalePlannerRule>(
         `select id,variant_id as "variantId",commercial_unit_label as "commercialUnitLabel",
-       allowed_presentations as "allowedPresentations",confirmation_status='confirmed' as confirmed
+       allowed_presentations as "allowedPresentations",packing_model as "packingModel",blisters_per_box as "blistersPerBox",confirmation_status='confirmed' as confirmed
        from packing_rules where id=any($1::uuid[]) order by id${lock ? ' for share' : ''}`,
         [[...new Set(configurationIds)]],
       )
@@ -621,6 +628,7 @@ export class InventoryService implements OnModuleDestroy {
       if (
         box.kind === 'box' &&
         box.state === 'open' &&
+        box.quantity === 0 &&
         ![...map.values()].some((child) => child.parentId === box.id && child.quantity > 0)
       )
         box.state = 'empty';
@@ -1266,6 +1274,10 @@ export class InventoryService implements OnModuleDestroy {
         const input = adjustmentSchema.parse(data),
           source = state.get(input.containerId);
         if (!source) throw new NotFoundException('El contenedor no pertenece a este lote.');
+        if (source.unit === 'box_fraction')
+          throw new BadRequestException(
+            'El remanente se descuenta al vender caja, media caja o blíster. Para corregir una salida usa su reversa.',
+          );
         const next = source.quantity + input.quantityDelta;
         if (next < 0 || (source.unit !== 'loose_piece' && next > 1))
           throw new BadRequestException('El ajuste dejaría una cantidad física inválida.');

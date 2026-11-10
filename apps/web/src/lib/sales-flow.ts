@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js';
 import type { Configuration, Presentation, PriceBasis, SettlementBasis } from '@mm/domain';
+import { effectiveSalePresentations } from '@mm/domain';
 import { caracasInstant, normalizedMoney } from './commercial-ui';
 
 export const paymentChoices = [
@@ -66,12 +67,14 @@ export const emptySaleLine = (key: number): SaleDraftLine => ({
   priceEdited: false,
 });
 export function salePresentations(config: Configuration) {
-  return config.allowedPresentations.filter(
+  return effectiveSalePresentations(config).filter(
     (p) =>
       p === 'box' ||
       (p === 'blister'
         ? config.blistersPerBox !== null
-        : config.halfPreparation !== 'pending' && config.halfPreparation !== 'none'),
+        : (config.packingModel === 'blister' && config.blistersPerBox !== null) ||
+          config.packingModel === 'halves' ||
+          (config.halfPreparation !== 'pending' && config.halfPreparation !== 'none')),
   );
 }
 export function salePrices(config: Configuration | undefined, presentation: Presentation | '') {

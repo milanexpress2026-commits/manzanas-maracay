@@ -294,7 +294,7 @@ test('V4.5 catálogo completo diferencia tres graneles, peras confirmadas y cuat
       expect(option!.suggestedPacking?.blistersPerBox).toBe(
         ['135', '150', '165'].includes(caliber) ? 5 : 4,
       );
-      expect(option!.suggestedPacking?.allowedPresentations).not.toContain('half_box');
+      expect(option!.suggestedPacking?.allowedPresentations).toContain('half_box');
     }
   }
   for (const fruit of ['Pasas', 'Alcaparras', 'Aceituna rellena', 'Aceituna con hueso']) {

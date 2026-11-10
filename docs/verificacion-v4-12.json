@@ -1,0 +1,293 @@
+{
+  "version": "V4.12",
+  "candidateCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+  "productionCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+  "productionPublished": true,
+  "operationalApprovalPending": false,
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/13",
+  "scope": "General commercial half boxes for known blister configurations and bulk/kiwi, including existing catalogs; preserve actual stock and history",
+  "local": {
+    "unitTestsPassed": 450,
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "schemaSnapshotDrift": false,
+    "fullE2E": {
+      "runId": "bd7ba35a87fcd687785185ac",
+      "passed": 161,
+      "total": 163,
+      "newV412CasesPassed": 9,
+      "finishedAt": "2026-11-10T11:20:35.511Z",
+      "failures": "Two obsolete assertions expected half boxes to be unavailable"
+    },
+    "correctedE2E": {
+      "runId": "4e2224d0a2771422b022aff4",
+      "passed": 2,
+      "total": 2,
+      "finishedAt": "2026-11-10T11:22:47.433Z",
+      "applicationTypeScriptChangedAfterFullRun": false,
+      "notOne163PassRun": true
+    },
+    "isolatedProduction": {
+      "runId": "4ebc7caaf17eb10c6304b400",
+      "passed": 14,
+      "total": 14,
+      "finishedAt": "2026-11-10T11:37:47.902Z",
+      "emptyBusinessTablesVerified": 21,
+      "databaseCleaned": true,
+      "legacyBoxBlisterConfigurationSellsTwoHalves": true,
+      "provenance": "Run reported base25effe; final0016 SQL and one corrected UX expectation were present in the working tree and subsequently committed unchanged as22b8f6d. No other files changed between these commits.",
+      "priorFailuresRetained": [
+        "obsolete presentation assertion",
+        "production SQL guard rejected legacy half presentation; corrected in0016"
+      ]
+    },
+    "migrationSuite": {
+      "runId": "1ec5f87f1620517945ced747",
+      "finishedAt": "2026-11-10T11:38:59.652Z",
+      "passed": true,
+      "freshMigrationCount": 17,
+      "historicalUpgradeTablesPreserved": 35,
+      "upgradesFrom13And14And15Verified": true,
+      "noSyntheticOperationalDataOnFreshDatabase": true
+    },
+    "privateOperatorGuardTestsPassed": 5,
+    "privateRecoveryGuardTestsPassed": 5
+  },
+  "realBackupMigrationRehearsal": {
+    "checkedAt": "2026-11-10T11:55:39.667229+00:00",
+    "passed": true,
+    "migrationsBefore": 16,
+    "migrationsAfter": 17,
+    "tablesPreserved": 37,
+    "historicalRowsPreserved": true,
+    "legacyAgreementsPreserved": true,
+    "rateHistoryPreserved": true,
+    "collectorPrivilegesVerified": true,
+    "restoredApplicationReadVerified": true,
+    "temporaryResourcesCleaned": true,
+    "preexistingContainersPreserved": true,
+    "liveDatabaseTouched": false,
+    "secondPostMigrationAclRoundtripPerformed": false
+  },
+  "sourcePackage": {
+    "archiveSha256": "9e3f83a848f2ee92d7b880f55e90636e40673b296665a718018cfe1818f7dca2",
+    "includedFiles": 647,
+    "omittedPath": "docs/capturas/",
+    "omittedDocumentationCaptures": 177,
+    "runtimeFilesOmitted": false,
+    "fullArchivePreservedPrivately": true
+  },
+  "staging": {
+    "preparationInProgress": false,
+    "migration0016Verified": true,
+    "allPublicRowsPreserved": true,
+    "preMigrationBackupRestored": true,
+    "postMigrationBackupRestored": true,
+    "initialVerificationIncident": "A container disappeared between read-only Docker ps and inspect. Staging writers were held after successful migration/data checks and collector observation; production was untouched. Recover the same candidate without repeating migrations, preserving original evidence.",
+    "healthy": true,
+    "collectorResumed": true,
+    "recoveryPassed": true,
+    "recoveryCompletedAt": "2026-11-10T12:13:06.321250+00:00",
+    "recoveryRepeatedMigrations": false,
+    "businessSmoke": {
+      "automaticRetries": false,
+      "cancelledOrDeletedRecords": false,
+      "checkedAt": "2026-11-10T12:18:29.751Z",
+      "checks": {
+        "clientDemo": true,
+        "directTenRejected": true,
+        "finalDebtZero": true,
+        "finalEmptyStock": true,
+        "fractionAllocationBothOrders": true,
+        "fractionOrdersExcessRejected": true,
+        "fractionOrdersValid": true,
+        "letterPdf": true,
+        "logout": true,
+        "manualCreditSales": true,
+        "oldCookieRejected": true,
+        "paymentReplays": true,
+        "previewNineFits": true,
+        "previewTenRejected": true,
+        "pricesStillAbsent": true,
+        "ratesAfterVerified": true,
+        "ratesBeforeVerified": true,
+        "readOnlyReprintUnchanged": true,
+        "receiptReplays": true,
+        "receiptsNullSupplierAndCost": true,
+        "rejectionPreservedReadModels": true,
+        "reprintedLetterPdf": true,
+        "saleReplays": true,
+        "secureLogin": true,
+        "stagingScope": true,
+        "threeSalesTwoPayments": true,
+        "unpricedConfigurations": true,
+        "usdtOneToOnePayments": true,
+        "wholeFifoFivePlusFour": true
+      },
+      "commit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+      "directDatabaseAccess": false,
+      "environment": "staging",
+      "operatorReviewRequired": false,
+      "passed": true,
+      "productionRequests": false,
+      "release": "hotfix-22b8f6d7a243",
+      "syntheticDemoOnly": true,
+      "syntheticExpectedTotals": {
+        "balanceUsd": "0.00",
+        "paidUsdt": "800.00",
+        "payments": 2,
+        "receivedBoxes": 15,
+        "remainingBlisters": 0,
+        "remainingBoxes": 0,
+        "saleUsd": "800.00",
+        "sales": 3,
+        "soldBlisters": 5,
+        "soldClosedBoxes": 13,
+        "soldHalfBoxes": 2
+      }
+    }
+  },
+  "productionCandidate": {
+    "prepared": true,
+    "uploaded": true,
+    "imagesBuiltAndPinned": true,
+    "activated": true
+  },
+  "latestPrePublicationEncryptedBackup": {
+    "commit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "checkedAt": "2026-11-10T11:57:58.013233+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "limits": [
+    "Whole-only families keep their existing commercial presentation",
+    "Whole boxes require sealed stock; reassembly from remnants is not automatic",
+    "Fragments from different lots are not combined into one presentation",
+    "No synthetic sales were created in live production",
+    "Physical Android and printer acceptance is not represented by automated browser tests"
+  ],
+  "approvalReference": "Owner reply call_193347f4e17b49eebcf694b46a00bba4: Sí, publicar V4.12 ahora",
+  "productionVerifiedAt": "2026-11-10T12:30:27.660112+00:00",
+  "productionState": "healthy",
+  "productionPublication": {
+    "approvedCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "previousCommit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "migration0016Verified": true,
+    "migrationCount": 17,
+    "allPublicRowsPreserved": true,
+    "accessAndTabletPreserved": true,
+    "rateCollectorResumed": true,
+    "postResumeVerification": {
+      "checkedAt": "2026-11-10T12:30:49.403214+00:00",
+      "fixedOwnServicesUnchanged": true,
+      "schedulerProvenanceVerified": true,
+      "httpAndPeerObservationsPreserved": true,
+      "fullAuditCompletedBeforeResume": true
+    },
+    "dnsOrCaddyChanged": false,
+    "otherProjectsChanged": false,
+    "syntheticProductionSales": 0
+  },
+  "writerWindowEncryptedBackup": {
+    "commit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "checkedAt": "2026-11-10T12:25:46.398606+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "postPublicationEncryptedBackup": {
+    "commit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "checkedAt": "2026-11-10T12:32:00.639013+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "liveAccessVerification": {
+    "passed": true,
+    "accessPassed": true,
+    "businessWrites": false,
+    "checks": {
+      "exactRelease": true,
+      "strictHttpsOrigin": true,
+      "healthyActive": true,
+      "loginOptionPresent": true,
+      "privateInvitationValidated": true,
+      "loginAccepted": true,
+      "persistentSecureCookie": true,
+      "authenticatedActiveSession": true,
+      "anonymousDenied": true,
+      "catalogReadable": true,
+      "habitualCatalogReadable": true,
+      "suppliersReadable": true,
+      "clientsReadable": true,
+      "inventoryReadable": true,
+      "salesReadable": true,
+      "paymentsReadable": true,
+      "collectionsReadable": true,
+      "ratesReadable": true,
+      "ratesStatusValidated": true,
+      "logoutAccepted": true,
+      "oldCookieRejected": true
+    },
+    "bcvAvailable": true,
+    "usdtAvailable": true,
+    "allPaymentChoicesReady": true,
+    "ratesReady": {
+      "usd": true,
+      "usdt": true,
+      "vesBcv": true,
+      "vesUsdt": true
+    },
+    "ratesPublic": {
+      "bcv": {
+        "source": "BCV",
+        "sourceUrl": "https://www.bcv.org.ve/",
+        "rate": "899.27050000",
+        "sourceHash": "e5d659ff45f2a11f5c33681e9c8a7549bbb593f5b966a17a0e761d39529eaa0e",
+        "validFrom": "2026-11-10T04:00:00.000Z",
+        "validUntil": "2026-11-11T04:00:00.000Z",
+        "fetchedAt": "2026-11-09T20:20:17.340Z",
+        "verifiedAt": "2026-11-09T20:20:17.343Z"
+      },
+      "usdt": {
+        "source": "BINANCE_P2P_BUY",
+        "sourceUrl": "https://www.binance.com/bapi/c2c/v1/public/c2c/agent/quote-price?fiat=VES&asset=USDT&tradeType=BUY",
+        "rate": "1053.50000000",
+        "sourceHash": "888ef2928631e0ce9d38ed78d26b0e49abda2ed3b992f5ac462c9b2f77e17284",
+        "validFrom": "2026-11-10T12:29:29.458Z",
+        "validUntil": "2026-11-10T12:39:29.458Z",
+        "fetchedAt": "2026-11-10T12:29:29.458Z",
+        "verifiedAt": "2026-11-10T12:29:29.459Z"
+      }
+    },
+    "previewStatus": "passed",
+    "previewReadOnly": true,
+    "commit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "release": "phase4-22b8f6d7a243",
+    "checkedAt": "2026-11-10T12:33:38.481997+00:00"
+  },
+  "liveHalfVerification": {
+    "commit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "checkedAt": "2026-11-10T12:32:36.101Z",
+    "passed": true,
+    "configurationsChecked": 14,
+    "configurationsWithHalfStock": 14,
+    "allStockedBoxesOfferHalves": true,
+    "renderedHalfSelectionWidths": [
+      390,
+      800
+    ],
+    "noHorizontalOverflow": true,
+    "stockUnchangedDuringReadOnlyChecks": true,
+    "businessWrites": false,
+    "syntheticProductionSales": 0
+  },
+  "liveVerificationPriorAttempt": {
+    "passed": false,
+    "reason": "The V4.8 read-only verifier required schemaUnchanged=true. It rejected V4.12 before HTTP checks. The V4.12 verifier requires the exact approved commit, migration0016Verified, allPublicRowsPreserved and17 migrations; it then passed21 controls. Original result preserved."
+  }
+}

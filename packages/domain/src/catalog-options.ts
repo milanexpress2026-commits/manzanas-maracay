@@ -157,8 +157,8 @@ export function habitualPacking(
           );
     return {
       packingModel,
-      halfPreparation: 'pending',
-      allowedPresentations: count ? ['box', 'blister'] : ['box'],
+      halfPreparation: count ? 'commercial' : 'pending',
+      allowedPresentations: count ? ['box', 'half_box', 'blister'] : ['box'],
       blistersPerBox: count,
       boxWeightKg: null,
     };

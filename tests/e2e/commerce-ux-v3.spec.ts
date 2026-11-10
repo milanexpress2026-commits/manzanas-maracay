@@ -269,7 +269,7 @@ test('disponibilidad por presentación no reserva ni duplica caja abierta; una m
   const items = availability.items.filter((item) => item.configurationId === rule.id);
   expect(items.find((item) => item.presentation === 'box')!.availableQuantity).toBe(2);
   expect(items.find((item) => item.presentation === 'blister')!.availableQuantity).toBe(14);
-  expect(items.find((item) => item.presentation === 'half_box')!.availableQuantity).toBe(0);
+  expect(items.find((item) => item.presentation === 'half_box')!.availableQuantity).toBe(5);
   const mixed = commercialSaleInput(customer, rule, 2, '40', 'box');
   mixed.lines.push({ ...mixed.lines[0]!, presentation: 'blister', quantity: 5 });
   expect(

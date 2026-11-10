@@ -271,7 +271,7 @@ export type CatalogTemplate = {
 };
 const blister: TemplatePacking = {
   packingModel: 'blister',
-  halfPreparation: 'pending',
+  halfPreparation: 'commercial',
   allowedPresentations: ['box', 'half_box', 'blister'],
   boxWeightKg: null,
   blistersPerBox: null,

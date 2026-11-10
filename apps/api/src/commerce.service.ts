@@ -10,6 +10,7 @@ import {
 import { Pool, type PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
 import Decimal from 'decimal.js';
+import { effectiveSalePresentations } from '../../../packages/domain/src/sale-availability';
 import { z } from 'zod';
 import {
   businessDate,
@@ -576,7 +577,7 @@ export class CommerceService implements OnModuleDestroy {
       for (const input of data.lines) {
         const rule = (
           await client.query(
-            `select r.id,r.variant_id,r.allowed_presentations,r.confirmation_status,r.commercial_unit_label,f.name as fruit,v.name as variety,c.label as caliber,p.commercial_line
+            `select r.id,r.variant_id,r.allowed_presentations,r.packing_model,r.blisters_per_box,r.confirmation_status,r.commercial_unit_label,f.name as fruit,v.name as variety,c.label as caliber,p.commercial_line
           from packing_rules r join product_variants p on p.id=r.variant_id join fruits f on f.id=p.fruit_id
           left join varieties v on v.id=p.variety_id left join calibers c on c.id=p.caliber_id where r.id=$1 for update of r`,
             [input.configurationId],
@@ -587,7 +588,13 @@ export class CommerceService implements OnModuleDestroy {
           throw new ConflictException(
             'Confirma la configuración comercial antes de vender mercancía real.',
           );
-        if (!(rule.allowed_presentations as string[]).includes(input.presentation))
+        if (
+          !effectiveSalePresentations({
+            allowedPresentations: rule.allowed_presentations,
+            packingModel: rule.packing_model,
+            blistersPerBox: rule.blisters_per_box,
+          }).includes(input.presentation)
+        )
           throw new BadRequestException('Esa presentación no está habilitada para el producto.');
         const price =
           'priceBasis' in input

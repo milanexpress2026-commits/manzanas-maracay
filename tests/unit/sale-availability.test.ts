@@ -43,7 +43,7 @@ describe('disponibilidad independiente sin reservar ni duplicar recipientes', ()
     };
     expect(countSellablePresentation([lot], 'box', true).availableQuantity).toBe(2);
     expect(countSellablePresentation([lot], 'blister', true).availableQuantity).toBe(14);
-    expect(countSellablePresentation([lot], 'half_box', true).availableQuantity).toBe(0);
+    expect(countSellablePresentation([lot], 'half_box', true).availableQuantity).toBe(5);
     expect(lot.containers.filter((c) => c.unit === 'sealed_box' && c.quantity === 1)).toHaveLength(
       2,
     );
@@ -61,7 +61,7 @@ describe('disponibilidad independiente sin reservar ni duplicar recipientes', ()
     expect(
       countSellablePresentation([{ ...commercial, halfPreparation: 'counted' }], 'half_box', true)
         .availableQuantity,
-    ).toBe(1);
+    ).toBe(3);
   });
   it('no inventa blíster desconocidos ni presentaciones incompatibles con el lote', () => {
     const lot = {

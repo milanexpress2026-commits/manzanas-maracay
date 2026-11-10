@@ -52,7 +52,14 @@ const movementNames: Record<InventoryMovement['kind'], string> = {
   reversal: 'Reversa',
 };
 function hasStock(lot: StockSummary) {
-  return lot.closedBoxes + lot.intactBlisters + lot.preparedHalfBoxes + lot.loosePieces > 0;
+  return (
+    lot.closedBoxes +
+      lot.intactBlisters +
+      lot.preparedHalfBoxes +
+      lot.loosePieces +
+      (lot.fractionalBoxes ?? 0) >
+    0
+  );
 }
 export function StockTotals({
   stock,
@@ -65,6 +72,16 @@ export function StockTotals({
 }) {
   return (
     <div className="stock-totals" aria-label="Existencias físicas">
+      {(stock.fractionalBoxes ?? 0) > 0 ? (
+        <div>
+          <Boxes aria-hidden="true" />
+          <span>Remanente de cajas</span>
+          <strong>
+            {stock.fractionalBoxes.toLocaleString('es-VE', { maximumFractionDigits: 3 })}
+          </strong>
+          <small>Disponible para vender medias cajas o blíster</small>
+        </div>
+      ) : null}
       <div>
         <Box aria-hidden="true" />
         <span>
@@ -158,7 +175,7 @@ export function InventoryScreen({
       (physical === 'all' ||
         (physical === 'closed' && lot.closedBoxes > 0) ||
         (physical === 'open' && lot.openBoxes > 0) ||
-        (physical === 'halves' && lot.preparedHalfBoxes > 0) ||
+        (physical === 'halves' && (lot.preparedHalfBoxes > 0 || lot.fractionalBoxes >= 0.5)) ||
         (physical === 'loose' && lot.loosePieces > 0) ||
         (physical === 'empty' && !hasStock(lot))),
   );
@@ -531,7 +548,10 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
         ) : null}
         {lot.packingModel === 'blister' && lot.blistersPerBox !== null ? (
           <Button
-            disabled={detail.loading || lot.equivalentIntactBlisters === 0}
+            disabled={
+              detail.loading ||
+              lot.intactBlisters + lot.closedBoxes * (lot.blistersPerBox ?? 0) === 0
+            }
             onClick={() => open({ kind: 'withdraw-blisters' })}
           >
             <ArrowUpRight data-icon="inline-start" />
@@ -607,20 +627,24 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                   <div className="container-status">
                     <Badge variant="secondary">{stateNames[container.state]}</Badge>
                     <span>
-                      {container.unit === 'loose_piece'
-                        ? `${container.quantity} piezas sueltas`
-                        : container.unit === 'prepared_half_box'
-                          ? `${container.quantity} media caja${container.countedPieces === null ? ' comercial' : ` · ${container.countedPieces} piezas`}`
-                          : container.state === 'open'
-                            ? 'Contenedor; el saldo está en su contenido'
-                            : `${container.quantity} ${container.unit === 'sealed_box' ? (lot.commercialUnitLabel ?? 'caja cerrada') : 'blíster intacto'}`}
+                      {container.unit === 'box_fraction'
+                        ? `${(container.quantity / (2 * (lot.blistersPerBox ?? 1))).toLocaleString('es-VE', { maximumFractionDigits: 3 })} caja restante`
+                        : container.unit === 'loose_piece'
+                          ? `${container.quantity} piezas sueltas`
+                          : container.unit === 'prepared_half_box'
+                            ? `${container.quantity} media caja${container.countedPieces === null ? ' comercial' : ` · ${container.countedPieces} piezas`}`
+                            : container.state === 'open'
+                              ? 'Contenedor; el saldo está en su contenido'
+                              : `${container.quantity} ${container.unit === 'sealed_box' ? (lot.commercialUnitLabel ?? 'caja cerrada') : 'blíster intacto'}`}
                     </span>
                     <small>
-                      {lot.packingModel !== 'blister'
-                        ? 'Sin conteo de piezas'
-                        : container.countedPieces === null
-                          ? 'Frutas: cantidad desconocida'
-                          : `${container.countedPieces} frutas contadas`}
+                      {container.unit === 'box_fraction'
+                        ? 'Se descuenta automáticamente al vender'
+                        : lot.packingModel !== 'blister'
+                          ? 'Sin conteo de piezas'
+                          : container.countedPieces === null
+                            ? 'Frutas: cantidad desconocida'
+                            : `${container.countedPieces} frutas contadas`}
                     </small>
                   </div>
                   <div className="container-actions">
@@ -735,7 +759,12 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                         <span>{entry.containerId.slice(0, 8)}</span>
                         <span>
                           {entry.quantityDelta > 0 ? '+' : ''}
-                          {entry.quantityDelta}{' '}
+                          {entry.unit === 'box_fraction'
+                            ? (
+                                entry.quantityDelta /
+                                (2 * (lot.blistersPerBox ?? 1))
+                              ).toLocaleString('es-VE', { maximumFractionDigits: 3 })
+                            : entry.quantityDelta}{' '}
                           {
                             (
                               {
@@ -743,6 +772,7 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
                                 intact_blister: 'blíster',
                                 prepared_half_box: 'medias cajas',
                                 loose_piece: 'piezas',
+                                box_fraction: 'cajas',
                               } as const
                             )[entry.unit]
                           }

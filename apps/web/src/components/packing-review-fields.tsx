@@ -102,7 +102,7 @@ export function PackingReviewFields({
                         ? [...value.allowedPresentations, presentation]
                         : value.allowedPresentations.filter((item) => item !== presentation),
                       ...(presentation === 'half_box'
-                        ? { halfPreparation: event.target.checked ? 'pending' : 'none' }
+                        ? { halfPreparation: event.target.checked ? 'commercial' : 'none' }
                         : {}),
                     })
                   }
@@ -112,22 +112,7 @@ export function PackingReviewFields({
             ))}
           </fieldset>
           {value.allowedPresentations.includes('half_box') ? (
-            <Field>
-              <FieldLabel htmlFor={`${id}-half`}>Preparación de media caja</FieldLabel>
-              <NativeSelect
-                id={`${id}-half`}
-                value={value.halfPreparation}
-                onChange={(event) =>
-                  onChange({ ...value, halfPreparation: event.target.value as HalfPreparation })
-                }
-              >
-                <option value="pending">Pendiente de verificar</option>
-                <option value="counted">Contar las frutas al abrir la caja</option>
-              </NativeSelect>
-              <FieldDescription>
-                Se contará la cantidad real al abrir. El calibre no cuenta frutas.
-              </FieldDescription>
-            </Field>
+            <p>Media caja = la mitad de una caja. Se descuenta automáticamente al vender.</p>
           ) : null}
         </>
       ) : (

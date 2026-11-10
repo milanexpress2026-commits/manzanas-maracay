@@ -88,6 +88,7 @@ export function confirmedPresentationsReady(value: {
     (!presentations.includes('blister') ||
       (value.packingModel === 'blister' && value.blistersPerBox !== null)) &&
     (!presentations.includes('half_box') ||
+      (value.packingModel === 'blister' && value.blistersPerBox !== null) ||
       ['counted', 'commercial'].includes(value.halfPreparation))
   );
 }
