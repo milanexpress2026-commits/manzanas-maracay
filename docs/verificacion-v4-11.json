@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "state": "prepared_awaiting_operational_approval",
+  "runtimeCommit": "39c5461090debb0b9b17df3105b27170a590a419",
+  "productionRuntimeCommit": "642ffae84efd23c14871acf2df7a96fb2e62209e",
+  "productionQaValidationCommit": "df49b9e940b10c2b4e08ababa215da349beb5131",
+  "validationOnlyDiff": [
+    "tests/production/ux-v3-empty.spec.ts"
+  ],
+  "checkedAt": "2026-11-10T03:49:59.938332+00:00",
+  "qa": {
+    "typecheckPassed": true,
+    "unitTestsPassed": 444,
+    "unitTestFilesPassed": 42,
+    "buildPassed": true,
+    "fullE2e": {
+      "passed": 154,
+      "failed": 0,
+      "singleRunAllPassed": true,
+      "finishedAt": "2026-11-10T03:36:20.069Z",
+      "postgresStopped": true,
+      "legacyUnchanged": true
+    },
+    "productionIsolation": {
+      "passed": 13,
+      "failed": 0,
+      "finishedAt": "2026-11-10T03:44:57.202Z",
+      "databaseCleaned": true,
+      "applicationSourceIdenticalToRuntime": true
+    },
+    "pdf": {
+      "directedTestsPassed": 23,
+      "letterAndA4Rendered": true,
+      "visualReviewPassed": true,
+      "physicalPrintVerified": false,
+      "realProductionSaleCreated": false
+    }
+  },
+  "staging": {
+    "release": "hotfix-39c5461090de",
+    "passed": true,
+    "checksPassed": 29,
+    "checkedAt": "2026-11-10T03:43:59.198Z",
+    "allRowsPreservedByCodeUpdate": true,
+    "preAndPostCodeBackupsRestored": true,
+    "migrationCount": 16,
+    "migrationExecuted": false,
+    "ratesCollectorResumed": true,
+    "syntheticDemoOnly": true,
+    "productionRequests": false
+  },
+  "preparationBackup": {
+    "commit": "642ffae84efd23c14871acf2df7a96fb2e62209e",
+    "checkedAt": "2026-11-10T03:47:21.398622+00:00",
+    "encryption": "AES-256-GCM",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "productionPreparation": {
+    "imagesBuilt": true,
+    "activated": false,
+    "archiveSha256": "aecf0a175f23100b64abd10ba968f32710dcdc6849ff8a9b873fdacf8995e34a"
+  },
+  "proposedProductionUpdate": {
+    "runtimeCommit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "newMigrations": false,
+    "resetPlanned": false,
+    "credentialsChangePlanned": false,
+    "dnsOrCaddyChangePlanned": false,
+    "privateDocumentIssuerConfiguration": true,
+    "existingPackingConfigurationsToUpdate": 1,
+    "newMasterRecordsPlanned": 0,
+    "affectedExistingLotsWhenReviewed": 0,
+    "stockWritesPlanned": false,
+    "authorizationReceived": false
+  },
+  "retainedAttempts": [
+    "First E2E passed 153/154 and exposed a payment invoice-loading race; corrected and verified with a deliberately delayed response, then the full final run passed.",
+    "Initial tests retained old four-blister expectations; only the four requested apple varieties were updated, preserving historical packing cases.",
+    "Large PDF geometry checks needed a case-specific timeout on the loaded QA machine; geometry assertions retained.",
+    "First isolated production run failed the obsolete Gala 100 four-blister expectation. Only two test expectations were corrected in validation commit df49b9e; application sources are byte-identical to runtime39."
+  ],
+  "limitations": [
+    "Production publication, private issuer installation and existing catalogue correction await explicit operational approval.",
+    "Offline PDF previews and automated geometry checks do not verify a physical printer."
+  ]
+}
