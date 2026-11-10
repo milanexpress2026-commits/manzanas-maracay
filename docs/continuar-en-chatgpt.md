@@ -1,12 +1,12 @@
-# Continuar Manzanas Maracay — auditoría V4.10 preparada
+# Continuar Manzanas Maracay — V4.10 publicada
 
-Runtime auditado `642ffae84efd23c14871acf2df7a96fb2e62209e`, rama `fix/auditoria-logica-v4-10`, [PR #11](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/11). Staging está actualizado y verificado; producción permanece en V4.9/e4 hasta la autorización operativa requerida por el propietario. **No repetir el reinicio ni asumir que la base real está vacía.**
+- V4.10 publicada y verificada: runtime `642ffae84efd23c14871acf2df7a96fb2e62209e`, rama `fix/auditoria-logica-v4-10`, PR #11. El propietario autorizó expresamente esta publicación; terminó el 9/11/2026, hora Venezuela. 436 unitarias, 154/154 E2E, producción aislada/migraciones, staging 29 y acceso real 21 PASS. Todas las filas conservadas; acceso/tablet intactos, 16 migraciones sin DDL, DNS/Caddy sin cambios. BCV/USDT disponibles al comprobar. Respaldo posterior cifrado externo/restaurado PASS 2026-11-10T02:07:12.485619+00:00. Hubo un corte SSH tras el respaldo de la pausa y antes de activar; se conservó la evidencia y se completó la recuperación hacia adelante tras comprobar datos, servicios y configuración exactos. **No repetir ningún vaciado: los socios ya registraron mercancía nueva.** Los párrafos siguientes son antecedentes; consultar docs/auditoria-logica-v4-10.md y docs/verificacion-v4-10.json.
 
-436 unitarias, tipos/builds, 154/154 E2E, producción aislada/migraciones y 29 comprobaciones de staging PASS. Respaldo cifrado externo renovado y restaurado. [Cambios](auditoria-logica-v4-10.md) · [Evidencia exacta y límites](verificacion-v4-10.json). La actualización propuesta no añade migraciones ni altera los datos, acceso, tablet, DNS o Caddy.
+436 unitarias, tipos/builds, 154/154 E2E, producción aislada/migraciones y 29 comprobaciones de staging PASS. Respaldo cifrado externo renovado y restaurado. [Cambios](auditoria-logica-v4-10.md) · [Evidencia exacta y límites](verificacion-v4-10.json). La actualización publicada no añade migraciones ni altera los datos, acceso, tablet, DNS o Caddy.
 
 ## Referencia del cierre V4.9
 
-Estado vigente: runtime `e4edd2385614c41673209b20dd431df95444b10a`, rama `fix/operacion-diaria-v4-9`, [PR #10](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/10). Producción y staging están saludables. Las 16 migraciones se conservaron; no se ejecutaron migraciones nuevas.
+Estado histórico: runtime `e4edd2385614c41673209b20dd431df95444b10a`, rama `fix/operacion-diaria-v4-9`, [PR #10](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/10). Producción y staging están saludables. Las 16 migraciones se conservaron; no se ejecutaron migraciones nuevas.
 
 El 8 de noviembre, hora Venezuela, se completaron los cambios de operación diaria y el reinicio solicitado. Nueva venta toma la hora al confirmar y la muestra en Venezuela; catálogo permite agregar producto/calibre en un formulario; las tasas se refrescan automáticamente y el menú tiene movimiento breve con reducción accesible. El vaciado operativo conservó catálogo, clientes, proveedores, acceso, configuración y tablet. **No repetirlo ni asumir que siguen vacías las tablas: los socios ya pueden operar.**
 
@@ -16,7 +16,7 @@ QA: 421 unitarias, tipos/builds, 152/153 E2E más 2/2 del caso de volumen con el
 
 ## Antecedentes históricos
 
-Lo siguiente conserva la continuidad documental. Sus afirmaciones sobre la versión vigente corresponden a sus respectivos cierres anteriores; el estado actual es V4.9, descrito arriba.
+Lo siguiente conserva la continuidad documental. Sus afirmaciones sobre la versión vigente corresponden a sus respectivos cierres anteriores; el estado actual es V4.10, descrito arriba.
 
 ### Cierre histórico V4.8
 

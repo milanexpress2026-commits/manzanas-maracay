@@ -1,10 +1,10 @@
 {
   "version": 1,
   "runtimeCommit": "642ffae84efd23c14871acf2df7a96fb2e62209e",
-  "productionRuntimeCommit": "e4edd2385614c41673209b20dd431df95444b10a",
+  "productionRuntimeCommit": "642ffae84efd23c14871acf2df7a96fb2e62209e",
   "stagingRelease": "hotfix-642ffae84efd",
-  "state": "staging_verified_pending_production_authorization",
-  "checkedAt": "2026-11-09T03:30:37.404595+00:00",
+  "state": "production_published_verified",
+  "checkedAt": "2026-11-10T02:07:12.485619+00:00",
   "qa": {
     "unitTestsPassed": 436,
     "typecheckPassed": true,
@@ -16,7 +16,12 @@
     },
     "productionIsolationPassed": true,
     "migrationsPassed": true,
-    "migrationPaths": ["fresh 16", "13 to 16", "14 to 16", "15 to 16"],
+    "migrationPaths": [
+      "fresh 16",
+      "13 to 16",
+      "14 to 16",
+      "15 to 16"
+    ],
     "sourceAndLockVerified": true,
     "postgresStopped": true,
     "finishedAt": "2026-11-09T03:25:30.286Z"
@@ -49,21 +54,40 @@
     "remoteEncryptedCopyVerified": true
   },
   "productionUpdate": {
-    "authorized": false,
-    "applied": false,
+    "authorized": true,
+    "applied": true,
     "newMigrations": false,
     "resetPlanned": false,
     "credentialsChangePlanned": false,
-    "dnsOrCaddyChangePlanned": false
+    "dnsOrCaddyChangePlanned": false,
+    "allPublicRowsPreserved": true,
+    "migrationExecuted": false,
+    "collectorResumed": true,
+    "verifiedAt": "2026-11-10T02:05:17.943269+00:00"
   },
   "retainedAttempts": [
     "Local sandbox prevented helper startup; repeated with required process permissions.",
     "First local E2E used the old frontend build and reproduced the missing old sale.",
     "Second local E2E stopped on an incorrect exact input label; fixture fixed and passed.",
     "Initial QA peer comparison saw two completed own scheduled rate jobs; separate review preserved original result and verified all remaining peers.",
-    "First staging upgrade preflight stopped on a transient extra network member before business writes; own network was reinspected before retry."
+    "First staging upgrade preflight stopped on a transient extra network member before business writes; own network was reinspected before retry.",
+    "Production SSH disconnected after the writer-window backup, before activation. Read-only recovery checks were corrected for the intentionally stopped own HTTP host and still-old collector script. Original failure and snapshots retained; exact forward recovery verified all rows unchanged, approval, backup, stopped services and peers, then completed publication."
   ],
   "remainingHumanChecks": [
     "Physical HP print and real Android device behavior retain the limits recorded in V4.9."
-  ]
+  ],
+  "postPublicationChecks": {
+    "passed": true,
+    "checksPassed": 21,
+    "businessWrites": false,
+    "allPaymentChoicesReadyWhenChecked": true
+  },
+  "postPublicationBackup": {
+    "commit": "642ffae84efd23c14871acf2df7a96fb2e62209e",
+    "checkedAt": "2026-11-10T02:07:12.485619+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  }
 }
