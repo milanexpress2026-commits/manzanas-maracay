@@ -1,9 +1,9 @@
 {
   "version": "V4.13",
   "candidateCommit": "317460e390cacd87a759e7784d724c8fd693cb84",
-  "productionCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
-  "productionPublished": false,
-  "operationalApprovalPending": true,
+  "productionCommit": "317460e390cacd87a759e7784d724c8fd693cb84",
+  "productionPublished": true,
+  "operationalApprovalPending": false,
   "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/14",
   "scope": "Open authenticated delivery-note URLs directly on Android and installed apps; desktop direct-link recovery",
   "local": {
@@ -47,17 +47,23 @@
     "saleUnchanged": true,
     "businessWrites": false,
     "exactPhysicalAndroidFailureReproduced": false,
-    "privateArtifactsPublished": false
+    "privateArtifactsPublished": false,
+    "sourceCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16"
   },
   "existingProductionPdfTiming": {
     "checkedAt": "2026-11-10T15:43:21.317Z",
     "measurementLocation": "owner-computer",
-    "elapsedMs": [3627, 2295, 4164],
+    "elapsedMs": [
+      3627,
+      2295,
+      4164
+    ],
     "pdfBytesApproximately": 2105191,
     "allThreeResponsesWerePdf200": true,
     "businessWrites": false,
     "tabletTimingMeasured": false,
-    "fileSizeChangedByThisRelease": false
+    "fileSizeChangedByThisRelease": false,
+    "sourceCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16"
   },
   "sourcePackage": {
     "archiveSha256": "43523afcd4b5aa35dbed475b9e20490763a6521a98a9c47bd5d7302915813d49",
@@ -83,12 +89,13 @@
   },
   "productionPreparation": {
     "exactImageBuilt": true,
-    "activeReleaseUnchanged": true,
     "migrationCountBeforeAndAfter": 17,
     "newMigrationRequired": false,
     "previousSqlAndJournalByteIdentical": true,
-    "freshOperationalApprovalRequired": true,
-    "dnsOrCaddyChanges": false
+    "freshOperationalApprovalRequired": false,
+    "dnsOrCaddyChanges": false,
+    "ownerApprovalReceived": true,
+    "previousReleasePreservedDuringPreparation": true
   },
   "prepublicationBackup": {
     "sourceCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
@@ -103,8 +110,40 @@
     "SSH connection interrupted during the first staging-upgrade source inspection before any changes; immediate keepalive added before local validation, second attempt completed with original preservation checks"
   ],
   "pending": [
-    "Owner operational approval for exact candidate",
-    "Production activation and post-release read-only checks and restored encrypted backup",
-    "Physical tablet PDF viewer acceptance by owner"
-  ]
+    "Physical tablet PDF viewer acceptance and timing by owner"
+  ],
+  "production": {
+    "commit": "317460e390cacd87a759e7784d724c8fd693cb84",
+    "healthy": true,
+    "ownerApprovalReference": "call_2a4f86e3c8d64b9197660fc56184d40a",
+    "migrationCount": 17,
+    "migrationExecuted": false,
+    "schemaUnchanged": true,
+    "allPublicRowsPreservedDuringCodeUpdate": true,
+    "accessAndTabletPreserved": true,
+    "collectorResumed": true,
+    "httpsAccessChecksPassed": 21,
+    "readOnlyAvailabilityPreviewPassed": true,
+    "allPaymentChoicesReadyAtCheck": true,
+    "accessCheckedAt": "2026-11-10T15:52:59.395127+00:00",
+    "nativeDocumentActionsPassed": 6,
+    "nativeDocumentsCheckedAt": "2026-11-10T15:53:17.582Z",
+    "nativeModes": [
+      "installed",
+      "android"
+    ],
+    "nativeNavigationVerifiedWithBlobUnavailable": true,
+    "existingSaleUnchanged": true,
+    "syntheticProductionSalesCreated": false,
+    "businessWritesDuringSmoke": false,
+    "physicalAndroidVerified": false,
+    "dnsOrCaddyChanges": false
+  },
+  "postpublicationBackup": {
+    "checkedAt": "2026-11-10T15:54:28.641463+00:00",
+    "encryptedComputerAndVpsCopiesVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "previousBackupsPreserved": true
+  }
 }
