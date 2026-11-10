@@ -187,7 +187,7 @@ test('QA V4.5 vacía: cinco productos sin costo/proveedor/lista, precio manual, 
     expect(apple).toMatchObject({
       confirmationStatus: 'confirmed',
       blistersPerBox: 5,
-      allowedPresentations: ['box', 'blister'],
+      allowedPresentations: ['box', 'half_box', 'blister'],
     });
     expect(
       confirmedCatalog.configurations.find((row) => row.variety === 'Forelle')?.blistersPerBox,

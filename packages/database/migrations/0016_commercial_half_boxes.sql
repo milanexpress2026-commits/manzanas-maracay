@@ -1,4 +1,40 @@
 -- Add exact commercial fractions without reclassifying lots or rewriting history.
+-- Production guards must use the same effective presentations as previews and sales.
+CREATE OR REPLACE FUNCTION guard_production_configuration() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF mm_runtime_environment()='production' AND NEW.confirmation_status='confirmed' AND (
+  cardinality(NEW.allowed_presentations)<>(SELECT count(DISTINCT value) FROM unnest(NEW.allowed_presentations) value)
+  OR ('blister'=ANY(NEW.allowed_presentations) AND (NEW.packing_model<>'blister' OR NEW.blisters_per_box IS NULL))
+  OR ('half_box'=ANY(NEW.allowed_presentations) AND NEW.half_preparation NOT IN ('counted','commercial')
+      AND NOT (NEW.packing_model='halves' OR (NEW.packing_model='blister' AND NEW.blisters_per_box IS NOT NULL)))
+ ) THEN RAISE EXCEPTION 'Confirm only presentations with known preparation rules' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION guard_production_sale_line() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE rule packing_rules%ROWTYPE;
+BEGIN
+ IF mm_runtime_environment()<>'production' THEN RETURN NEW; END IF;
+ SELECT * INTO rule FROM packing_rules WHERE variant_id=NEW.variant_id FOR SHARE;
+ IF NOT FOUND OR rule.confirmation_status<>'confirmed' OR NOT (NEW.presentation=ANY(rule.allowed_presentations)
+   OR (NEW.presentation='half_box' AND (rule.packing_model='halves' OR (rule.packing_model='blister' AND rule.blisters_per_box IS NOT NULL)))) THEN
+  RAISE EXCEPTION 'Real sale requires a confirmed and permitted presentation' USING ERRCODE='23514';
+ END IF;
+ RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+CREATE OR REPLACE FUNCTION guard_price_presentation() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF mm_runtime_environment()='production' AND NOT EXISTS(
+  SELECT 1 FROM packing_rules WHERE variant_id=NEW.variant_id AND (NEW.presentation=ANY(allowed_presentations)
+   OR (NEW.presentation='half_box' AND (packing_model='halves' OR (packing_model='blister' AND blisters_per_box IS NOT NULL))))
+ ) THEN RAISE EXCEPTION 'Price presentation is not configured' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
 ALTER TABLE stock_balances DROP CONSTRAINT stock_unit_valid;
 --> statement-breakpoint
 ALTER TABLE stock_balances ADD CONSTRAINT stock_unit_valid CHECK(unit IN ('sealed_box','intact_blister','prepared_half_box','loose_piece','box_fraction'));
