@@ -1,9 +1,9 @@
 {
   "version": "V4.12",
   "candidateCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
-  "productionCommit": "39c5461090debb0b9b17df3105b27170a590a419",
-  "productionPublished": false,
-  "operationalApprovalPending": true,
+  "productionCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+  "productionPublished": true,
+  "operationalApprovalPending": false,
   "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/13",
   "scope": "General commercial half boxes for known blister configurations and bulk/kiwi, including existing catalogs; preserve actual stock and history",
   "local": {
@@ -151,7 +151,7 @@
     "prepared": true,
     "uploaded": true,
     "imagesBuiltAndPinned": true,
-    "activated": false
+    "activated": true
   },
   "latestPrePublicationEncryptedBackup": {
     "commit": "39c5461090debb0b9b17df3105b27170a590a419",
@@ -167,5 +167,127 @@
     "Fragments from different lots are not combined into one presentation",
     "No synthetic sales were created in live production",
     "Physical Android and printer acceptance is not represented by automated browser tests"
-  ]
+  ],
+  "approvalReference": "Owner reply call_193347f4e17b49eebcf694b46a00bba4: Sí, publicar V4.12 ahora",
+  "productionVerifiedAt": "2026-11-10T12:30:27.660112+00:00",
+  "productionState": "healthy",
+  "productionPublication": {
+    "approvedCommit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "previousCommit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "migration0016Verified": true,
+    "migrationCount": 17,
+    "allPublicRowsPreserved": true,
+    "accessAndTabletPreserved": true,
+    "rateCollectorResumed": true,
+    "postResumeVerification": {
+      "checkedAt": "2026-11-10T12:30:49.403214+00:00",
+      "fixedOwnServicesUnchanged": true,
+      "schedulerProvenanceVerified": true,
+      "httpAndPeerObservationsPreserved": true,
+      "fullAuditCompletedBeforeResume": true
+    },
+    "dnsOrCaddyChanged": false,
+    "otherProjectsChanged": false,
+    "syntheticProductionSales": 0
+  },
+  "writerWindowEncryptedBackup": {
+    "commit": "39c5461090debb0b9b17df3105b27170a590a419",
+    "checkedAt": "2026-11-10T12:25:46.398606+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "postPublicationEncryptedBackup": {
+    "commit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "checkedAt": "2026-11-10T12:32:00.639013+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "liveAccessVerification": {
+    "passed": true,
+    "accessPassed": true,
+    "businessWrites": false,
+    "checks": {
+      "exactRelease": true,
+      "strictHttpsOrigin": true,
+      "healthyActive": true,
+      "loginOptionPresent": true,
+      "privateInvitationValidated": true,
+      "loginAccepted": true,
+      "persistentSecureCookie": true,
+      "authenticatedActiveSession": true,
+      "anonymousDenied": true,
+      "catalogReadable": true,
+      "habitualCatalogReadable": true,
+      "suppliersReadable": true,
+      "clientsReadable": true,
+      "inventoryReadable": true,
+      "salesReadable": true,
+      "paymentsReadable": true,
+      "collectionsReadable": true,
+      "ratesReadable": true,
+      "ratesStatusValidated": true,
+      "logoutAccepted": true,
+      "oldCookieRejected": true
+    },
+    "bcvAvailable": true,
+    "usdtAvailable": true,
+    "allPaymentChoicesReady": true,
+    "ratesReady": {
+      "usd": true,
+      "usdt": true,
+      "vesBcv": true,
+      "vesUsdt": true
+    },
+    "ratesPublic": {
+      "bcv": {
+        "source": "BCV",
+        "sourceUrl": "https://www.bcv.org.ve/",
+        "rate": "899.27050000",
+        "sourceHash": "e5d659ff45f2a11f5c33681e9c8a7549bbb593f5b966a17a0e761d39529eaa0e",
+        "validFrom": "2026-11-10T04:00:00.000Z",
+        "validUntil": "2026-11-11T04:00:00.000Z",
+        "fetchedAt": "2026-11-09T20:20:17.340Z",
+        "verifiedAt": "2026-11-09T20:20:17.343Z"
+      },
+      "usdt": {
+        "source": "BINANCE_P2P_BUY",
+        "sourceUrl": "https://www.binance.com/bapi/c2c/v1/public/c2c/agent/quote-price?fiat=VES&asset=USDT&tradeType=BUY",
+        "rate": "1053.50000000",
+        "sourceHash": "888ef2928631e0ce9d38ed78d26b0e49abda2ed3b992f5ac462c9b2f77e17284",
+        "validFrom": "2026-11-10T12:29:29.458Z",
+        "validUntil": "2026-11-10T12:39:29.458Z",
+        "fetchedAt": "2026-11-10T12:29:29.458Z",
+        "verifiedAt": "2026-11-10T12:29:29.459Z"
+      }
+    },
+    "previewStatus": "passed",
+    "previewReadOnly": true,
+    "commit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "release": "phase4-22b8f6d7a243",
+    "checkedAt": "2026-11-10T12:33:38.481997+00:00"
+  },
+  "liveHalfVerification": {
+    "commit": "22b8f6d7a24358c379a133b0435e79de7ec80d16",
+    "checkedAt": "2026-11-10T12:32:36.101Z",
+    "passed": true,
+    "configurationsChecked": 14,
+    "configurationsWithHalfStock": 14,
+    "allStockedBoxesOfferHalves": true,
+    "renderedHalfSelectionWidths": [
+      390,
+      800
+    ],
+    "noHorizontalOverflow": true,
+    "stockUnchangedDuringReadOnlyChecks": true,
+    "businessWrites": false,
+    "syntheticProductionSales": 0
+  },
+  "liveVerificationPriorAttempt": {
+    "passed": false,
+    "reason": "The V4.8 read-only verifier required schemaUnchanged=true. It rejected V4.12 before HTTP checks. The V4.12 verifier requires the exact approved commit, migration0016Verified, allPublicRowsPreserved and17 migrations; it then passed21 controls. Original result preserved."
+  }
 }
