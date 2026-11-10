@@ -403,7 +403,7 @@ export function getCatalogPreparationDefaults(): CatalogPreparationInput {
 
 export function suggestedBlistersPerBox(
   fruit: string,
-  _variety: string | null,
+  variety: string | null,
   caliber: string | null,
   commercialLine = 'Tradicional',
   packingModel: Configuration['packingModel'] = 'blister',
@@ -418,6 +418,12 @@ export function suggestedBlistersPerBox(
     return null;
   const n = Number(caliber);
   if (!Number.isSafeInteger(n) || n <= 0) return null;
-  // Owner-confirmed V4.2 rule: exactly 100 belongs to the four-blister group.
+  // Owner correction: only these four traditional apples use five at caliber 100.
+  // Pink Lady, historical Lady and unknown varieties keep the prior rule.
+  if (
+    n === 100 &&
+    ['roja normal', 'roja', 'verde', 'amarilla', 'gala'].includes(catalogNameKey(variety ?? ''))
+  )
+    return 5;
   return n <= 100 ? 4 : 5;
 }

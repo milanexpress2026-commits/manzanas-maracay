@@ -63,6 +63,39 @@ function geometry(layout: PdfLayoutReport) {
 }
 
 describe('composición comercial V4.7', () => {
+  it.each(['letter', 'a4'] as const)(
+    '%s: emisor formal con RIF, dirección larga y encabezado repetido sin perder mercancía',
+    async (size) => {
+      const sale = pdfSaleFixture(50);
+      const before = JSON.stringify(sale);
+      const issuer = {
+        legalName: 'IMPORTADORA DE FRUTAS DE EJEMPLO PARA VERIFICACIÓN DE DOCUMENTOS C.A.',
+        rif: 'J-00000000-0',
+        address: 'Dirección sintética para pruebas. '.repeat(8).trim(),
+      };
+      const result = await composeSalePdf(sale, 'delivery', {
+        size,
+        issuer,
+        generatedAt: PDF_QA_PRINTED_AT,
+      });
+      const { doc, pages } = await extractedPages(result.bytes);
+      expect(doc.getAuthor()).toBe(issuer.legalName);
+      expect(pages.length).toBeGreaterThan(1);
+      for (const page of pages) {
+        expect(page).toContain('RIF: J-00000000-0');
+        expect(page).toContain('NOTA DE ENTREGA');
+        expect(page).not.toContain('MANZANAS MARACAY');
+        expect(page).toContain('No constituye factura fiscal.');
+      }
+      expect(result.layout.blocks.filter((b) => b.role === 'row').map((b) => b.id)).toEqual(
+        sale.lines.map((l) => l.id),
+      );
+      expect(JSON.stringify(sale)).toBe(before);
+      geometry(result.layout);
+      const receipt = await composeSalePdf(sale, 'sale', { issuer });
+      expect((await extractedPages(receipt.bytes)).doc.getAuthor()).toBe('Manzanas Maracay');
+    },
+  );
   it.each([1, 5, 10, 15, 25, 35, 50])(
     '%i filas: Carta, orden completo, márgenes, totales y firmas indivisibles',
     async (count) => {

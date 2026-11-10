@@ -5,6 +5,7 @@ import {
   type PaymentDetail,
 } from '../../../packages/domain/src/commerce';
 import { createPdfLayout, type PdfOptions } from './pdf-layout';
+import { readDocumentIssuer } from './document-issuer';
 export type { PdfOptions } from './pdf-layout';
 
 const presentation = { box: 'Caja', half_box: 'Media caja', blister: 'Blíster' };
@@ -27,7 +28,11 @@ export async function composeSalePdf(
   options: PdfOptions = {},
 ) {
   const delivery = kind === 'delivery';
+  const issuer = delivery
+    ? (options.issuer ?? (sale.isDemo ? undefined : await readDocumentIssuer()))
+    : undefined;
   const pdf = await createPdfLayout({
+    issuer,
     title: delivery ? 'NOTA DE ENTREGA' : 'COMPROBANTE DE VENTA',
     number: sale.number,
     isDemo: sale.isDemo,

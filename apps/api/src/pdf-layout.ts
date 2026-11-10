@@ -1,8 +1,9 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { DocumentIssuer } from './document-issuer';
 
-export type PdfOptions = { size?: 'letter' | 'a4'; generatedAt?: Date };
+export type PdfOptions = { size?: 'letter' | 'a4'; generatedAt?: Date; issuer?: DocumentIssuer };
 export type PdfTextBox = {
   page: number;
   role: string;
@@ -124,6 +125,7 @@ function officialLogo() {
 }
 
 export async function createPdfLayout(input: {
+  issuer?: DocumentIssuer;
   title: string;
   number: string;
   isDemo: boolean;
@@ -143,7 +145,7 @@ export async function createPdfLayout(input: {
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const logo = await doc.embedPng(await officialLogo());
   doc.setTitle(printablePdfText(`${input.title} ${input.number}`, font).text);
-  doc.setAuthor('Manzanas Maracay');
+  doc.setAuthor(input.issuer?.legalName ?? 'Manzanas Maracay');
   doc.setProducer('Manzanas Maracay');
   doc.setCreationDate(generatedAt);
   doc.setModificationDate(generatedAt);
@@ -207,15 +209,36 @@ export async function createPdfLayout(input: {
       width: dimensions.width,
       height: dimensions.height,
     });
-    line('MANZANAS MARACAY', MARGIN + 61, height - MARGIN, 15, true, 'header');
-    line(input.title, MARGIN + 61, height - MARGIN - 21, 11, true, 'header');
+    const headerX = MARGIN + 61;
+    let headerTop = height - MARGIN;
+    if (input.issuer) {
+      const name = prepare(input.issuer.legalName, contentWidth - 61, { size: 14, bold: true });
+      for (const value of name.lines) {
+        line(value, headerX, headerTop, 14, true, 'header');
+        headerTop -= name.leading;
+      }
+      line(`RIF: ${input.issuer.rif}`, headerX, headerTop - 2, 10, false, 'header');
+      headerTop -= 17;
+      if (input.issuer.address) {
+        const address = prepare(input.issuer.address, contentWidth - 61, { size: 9 });
+        for (const value of address.lines) {
+          line(value, headerX, headerTop, 9, false, 'header');
+          headerTop -= address.leading;
+        }
+      }
+      headerTop -= 4;
+    } else {
+      line('MANZANAS MARACAY', headerX, headerTop, 15, true, 'header');
+      headerTop -= 21;
+    }
+    line(input.title, headerX, headerTop, 11, true, 'header');
     const folio = prepare(`Folio: ${input.number}`, contentWidth - 61 - 105, { size: 9.5 });
     // Server folios are short; wrapping also protects historical nonstandard folios.
     for (const [index, value] of folio.lines.entries())
-      line(value, MARGIN + 61, height - MARGIN - 38 - index * 13, 9.5, false, 'header');
+      line(value, headerX, headerTop - 17 - index * 13, 9.5, false, 'header');
     if (doc.getPageCount() > 1)
-      line('Continuación', right - 85, height - MARGIN - 38, 9.5, true, 'header');
-    y = height - MARGIN - 55 - (folio.lines.length - 1) * 13;
+      line('Continuación', right - 85, headerTop - 17, 9.5, true, 'header');
+    y = headerTop - 34 - (folio.lines.length - 1) * 13;
     page.drawLine({ start: { x: MARGIN, y }, end: { x: right, y }, thickness: 0.7, color: INK });
     y -= 12;
     for (const warning of [
