@@ -88,6 +88,20 @@ describe('proveedor privado de continuidad BCV', () => {
     expect(reference).not.toHaveProperty('id');
   });
 
+  it('nota de venta de fin de semana conserva la fecha valor oficial al reimprimir', async () => {
+    query.mockResolvedValueOnce({ rows: [row] }).mockResolvedValueOnce({ rows: [parent, next] });
+    const reference = await new BcvService().getSaleDateReference(
+      at,
+      new Date('2026-11-11T15:00:00Z'),
+    );
+    expect(reference).toMatchObject({
+      usage: 'display_only',
+      officialValueDate: '2026-11-06',
+      rate: parent.rate,
+    });
+    expect(reference).not.toHaveProperty('id');
+  });
+
   it.each([
     { parents: [] },
     { parents: [parent] },

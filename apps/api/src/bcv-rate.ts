@@ -72,6 +72,27 @@ export function selectLastOfficialRate(
   return officialRateReference(rate);
 }
 
+/** Document-only conversion for the sale instant, never a quote for a new payment.
+ * A later verified collection of that day's official rate may explain an older
+ * sale; printing it must not require that historical quote to still be payable. */
+export function selectSaleDateOfficialRate(
+  rows: readonly OfficialRateCacheRow[],
+  soldAt: Date,
+  printedAt: Date,
+  parents: readonly OfficialRateCacheRow[] = [],
+): LastOfficialRate | null {
+  if (
+    rows.length !== 1 ||
+    !Number.isFinite(soldAt.getTime()) ||
+    !Number.isFinite(printedAt.getTime()) ||
+    soldAt > printedAt
+  )
+    return null;
+  const rate = selectTrustedOfficialRate(rows, printedAt, true, parents);
+  if (!rate || soldAt < rate.validFrom || soldAt >= rate.validUntil) return null;
+  return officialRateReference(rate);
+}
+
 /** Copy only display fields from an already verified official observation. */
 export function officialRateReference(rate: HistoricalOfficialRate): LastOfficialRate {
   return {

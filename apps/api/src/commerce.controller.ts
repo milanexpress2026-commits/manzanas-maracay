@@ -16,10 +16,23 @@ import {
 import type { AuthenticatedRequest } from './auth/auth.guard';
 import { CommerceService } from './commerce.service';
 import { salePdf, paymentPdf } from './commerce-pdf';
+import { BcvService } from './bcv.service';
 
 @Controller('api')
 export class CommerceController {
-  constructor(@Inject(CommerceService) private readonly commerce: CommerceService) {}
+  constructor(
+    @Inject(CommerceService) private readonly commerce: CommerceService,
+    @Inject(BcvService) private readonly bcv: BcvService,
+  ) {}
+
+  private async salePdfOptions(sale: Awaited<ReturnType<CommerceService['sale']>>) {
+    const generatedAt = new Date();
+    const saleDateBcvRate =
+      sale.settlementBasis === 'divisa'
+        ? undefined
+        : await this.bcv.getSaleDateReference(new Date(sale.soldAt), generatedAt);
+    return { generatedAt, saleDateBcvRate };
+  }
   @Get('clients') clients(@Query() query: unknown) {
     return this.commerce.clients(query);
   }
@@ -109,7 +122,7 @@ export class CommerceController {
   @Header('X-Content-Type-Options', 'nosniff')
   async saleDocument(@Param('id') id: string) {
     const sale = await this.commerce.sale(id);
-    return new StreamableFile(await salePdf(sale), {
+    return new StreamableFile(await salePdf(sale, 'sale', await this.salePdfOptions(sale)), {
       type: 'application/pdf',
       disposition: `attachment; filename="venta-${sale.id}.pdf"`,
     });
@@ -135,9 +148,15 @@ export class CommerceController {
     )
       throw new BadRequestException('Elige tamaño carta o A4 y una opción de descarga válida.');
     const sale = await this.commerce.sale(id);
-    return new StreamableFile(await salePdf(sale, 'delivery', { size: query.size ?? 'letter' }), {
-      type: 'application/pdf',
-      disposition: `${query.download === '1' ? 'attachment' : 'inline'}; filename="entrega-${sale.id}.pdf"`,
-    });
+    return new StreamableFile(
+      await salePdf(sale, 'delivery', {
+        ...(await this.salePdfOptions(sale)),
+        size: query.size ?? 'letter',
+      }),
+      {
+        type: 'application/pdf',
+        disposition: `${query.download === '1' ? 'attachment' : 'inline'}; filename="entrega-${sale.id}.pdf"`,
+      },
+    );
   }
 }

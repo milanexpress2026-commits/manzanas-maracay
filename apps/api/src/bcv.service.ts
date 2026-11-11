@@ -6,6 +6,7 @@ import {
   readOfficialRate,
   selectOfficialRate,
   selectLastOfficialRate,
+  selectSaleDateOfficialRate,
   officialRateReference,
   selectUsdtRate,
   type OfficialRateCacheRow,
@@ -50,6 +51,30 @@ export class BcvService implements OfficialRateProvider, OnModuleDestroy {
 
   getVerifiedRate(at: Date) {
     return this.getCurrent(at);
+  }
+
+  async getSaleDateReference(soldAt: Date, printedAt: Date) {
+    if (!Number.isFinite(soldAt.getTime()) || !Number.isFinite(printedAt.getTime())) return null;
+    try {
+      const { rows } = await this.pool.query<OfficialRateCacheRow>(
+        `select id,rate,source,source_url,source_hash,valid_from,valid_until,
+                fetched_at,verified_at,verified_by
+           from bcv_rates
+          where valid_from <= $1 and valid_until > $1
+          order by valid_from desc,id
+          limit 2`,
+        [soldAt],
+      );
+      return selectSaleDateOfficialRate(
+        rows,
+        soldAt,
+        printedAt,
+        await this.continuityParents(rows),
+      );
+    } catch {
+      // An unavailable reference must not prevent opening the original document.
+      return null;
+    }
   }
 
   private async continuityParents(rows: readonly OfficialRateCacheRow[]) {
