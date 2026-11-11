@@ -1,9 +1,9 @@
 {
   "version": "V4.14",
   "candidateCommit": "4e99d7bd1bb750f08048463128c3ad609c389fb5",
-  "productionCommit": "317460e390cacd87a759e7784d724c8fd693cb84",
-  "productionPublished": false,
-  "operationalApprovalPending": true,
+  "productionCommit": "4e99d7bd1bb750f08048463128c3ad609c389fb5",
+  "productionPublished": true,
+  "operationalApprovalPending": false,
   "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/15",
   "scope": "Private premises address on delivery notes; sale-date official BCV total for BCV-agreed sales, including later credit reprints",
   "local": {
@@ -69,21 +69,80 @@
   },
   "productionPreparation": {
     "localSourcePackagePrepared": true,
-    "uploaded": false,
-    "built": false,
-    "activeReleaseUnchanged": true,
+    "uploaded": true,
+    "built": true,
     "privateIssuerAddressPrepared": true,
-    "freshBackupPending": true,
+    "freshBackupPending": false,
     "approvalReviewBlocks": [
       "Uploading even an inactive production source release requires specific operational approval",
       "The additional encrypted copy on the owner VPS requires explicit destination approval; computer backup authorization alone was not accepted for that copy"
     ],
-    "plannedScope": "Upload/build exact package; short API/web, rates and reminder pause; fresh encrypted backups on owner computer and same owner VPS, isolated restore on that VPS; code-only update and atomic private issuer file update; preserve all data/access/tablet; no DDL/DNS/Caddy"
+    "plannedScope": "Upload/build exact package; short API/web, rates and reminder pause; fresh encrypted backups on owner computer and same owner VPS, isolated restore on that VPS; code-only update and atomic private issuer file update; preserve all data/access/tablet; no DDL/DNS/Caddy",
+    "ownerApprovalReceived": true,
+    "activeReleasePreservedDuringPreparation": true,
+    "approvalReviewBlocksResolvedBy": "Owner explicit approval call_1c4c8d44e1c247b8a3b6b16b0d3eee05, including upload/build, encrypted computer and same-VPS backup, isolated restore and private issuer update"
   },
   "pending": [
-    "Owner operational authorization including exact code, private address update and encrypted backup destinations",
-    "Production upload/build/activation and authenticated document checks",
-    "Fresh encrypted backup and isolated recovery before and after publication",
+    "Owner confirmation that a fresh downloaded note shows bolivares on the physical tablet",
     "Physical printing acceptance by owner"
-  ]
+  ],
+  "production": {
+    "commit": "4e99d7bd1bb750f08048463128c3ad609c389fb5",
+    "healthy": true,
+    "approvalReference": "call_1c4c8d44e1c247b8a3b6b16b0d3eee05",
+    "migrationCount": 17,
+    "migrationExecuted": false,
+    "allPublicRowsPreservedDuringCodeUpdate": true,
+    "accessAndTabletPreserved": true,
+    "collectorResumed": true,
+    "httpsAccessChecksPassed": 21,
+    "accessCheckedAt": "2026-11-11T14:30:27.136176+00:00",
+    "issuerAddressInstalled": true,
+    "legalNameAndRifPreserved": true,
+    "previousIssuerFilePreserved": true,
+    "letterAndA4ExistingSalePdfChecked": true,
+    "saleDateBcvAndExactTotalVerified": true,
+    "existingSaleUnchanged": true,
+    "syntheticProductionSalesCreated": false,
+    "businessWritesDuringSmoke": false,
+    "physicalPrintingVerified": false,
+    "dnsOrCaddyChanges": false,
+    "initialAttempt": {
+      "stoppedAtInitialPreflight": true,
+      "reason": "Unexpected temporary own-project container during inventory inspection; next read showed only the three expected healthy services",
+      "writersStopped": false,
+      "productionWasStillBaselineAndHealthy": true,
+      "sameGuardsUsedOnRetry": true,
+      "privateFailureEvidencePreserved": true
+    },
+    "nativeDocumentActionsPassed": 6,
+    "nativeDocumentModes": [
+      "installed",
+      "android"
+    ],
+    "nativeDocumentsCheckedAt": "2026-11-11T14:38:01.192Z",
+    "issuerFirstAttempt": {
+      "changedFile": false,
+      "cause": "Universal-newline decoding changed the original CRLF bytes in the comparison payload",
+      "exactOriginalComparedAndPreserved": true,
+      "correctedBytePreservingPayloadRoundTripVerified": true,
+      "sameFileGuardsRetained": true,
+      "privateFailureEvidencePreserved": true
+    }
+  },
+  "tabletReport": {
+    "sameSaleConfirmedByOwner": true,
+    "phoneShowsBolivares": true,
+    "serverPdfContentsVerified": true,
+    "physicalTabletRefreshedDownloadConfirmationPending": true,
+    "guidance": "Close previous viewer and open newest Download note result from existing sale",
+    "physicalRootCauseConfirmed": false
+  },
+  "postpublicationBackup": {
+    "checkedAt": "2026-11-11T14:37:01.279727+00:00",
+    "encryptedComputerAndVpsCopiesVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "previousBackupsPreserved": true
+  }
 }
