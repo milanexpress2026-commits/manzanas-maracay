@@ -1,8 +1,10 @@
 # Manzanas Maracay
 
+**V4.14 publicada:** la nota incluye la dirección del local y, para ventas pactadas a BCV, el total en bolívares con la tasa del día de la venta. Se puede reimprimir la venta existente. Datos conservados, Carta/A4 y respaldo restaurado verificados. [Entrar al sistema](https://manzanas.ganamosclub.net/ventas) · [Cambios](docs/nota-direccion-bcv-v4-14.md) · [PR #15](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/15).
+
 Aplicación privada para recepción de frutas, inventario, ventas, clientes, crédito, abonos y notas de entrega.
 
-**V4.13 publicada:** las notas se abren mediante su enlace privado en Android y desde el ícono instalado. Acceso, documentos y respaldo restaurado verificados; datos conservados. Cerrar por completo la aplicación y volver a abrirla desde el ícono para cargar la nueva interfaz. [Entrar al sistema](https://manzanas.ganamosclub.net/ventas) · [Cambios y verificaciones](docs/notas-android-v4-13.md) · [PR #14](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/14).
+**Antecedente V4.13:** las notas se abren mediante su enlace privado en Android y desde el ícono instalado. Acceso, documentos y respaldo restaurado verificados; datos conservados. Cerrar por completo la aplicación y volver a abrirla desde el ícono para cargar la nueva interfaz. [Entrar al sistema](https://manzanas.ganamosclub.net/ventas) · [Cambios y verificaciones](docs/notas-android-v4-13.md) · [PR #14](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/14).
 
 **Antecedente V4.12:** venta directa de media caja para productos con blísteres y granel/kiwi, también con el catálogo ya cargado. No requiere contar frutas ni volver a ingresar mercancía. Se conservan recepciones y existencias. [Entrar al sistema](https://manzanas.ganamosclub.net/ventas/nueva). Runtime `22b8f6d7a24358c379a133b0435e79de7ec80d16`, [PR #13](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/13). [Cambios](docs/medias-comerciales-v4-12.md) · [Verificaciones y respaldo restaurado](docs/verificacion-v4-12.json). Recargar la aplicación para cargar la nueva interfaz.
 

@@ -6,7 +6,9 @@ import {
 } from '../../../packages/domain/src/commerce';
 import { createPdfLayout, type PdfOptions } from './pdf-layout';
 import { readDocumentIssuer } from './document-issuer';
+import type { LastOfficialRate } from './bcv-rate';
 export type { PdfOptions } from './pdf-layout';
+export type SalePdfOptions = PdfOptions & { saleDateBcvRate?: LastOfficialRate | null };
 
 const presentation = { box: 'Caja', half_box: 'Media caja', blister: 'Blíster' };
 const date = (value: string | Date) =>
@@ -25,7 +27,7 @@ const amount = (value: string, scale = 2) => {
 export async function composeSalePdf(
   sale: SaleDetail,
   kind: 'sale' | 'delivery' = 'sale',
-  options: PdfOptions = {},
+  options: SalePdfOptions = {},
 ) {
   const delivery = kind === 'delivery';
   const issuer = delivery
@@ -83,14 +85,43 @@ export async function composeSalePdf(
   );
   if (!delivery && sale.cancellation?.reason)
     pdf.paragraph(`Motivo de anulación: ${sale.cancellation.reason}`, { size: 9 });
-  const caption = delivery
+  let caption = delivery
     ? ''
     : `Abonado y saldo ACTUALES al imprimir: ${date(pdf.generatedAt)} (Caracas). Productos, precios y condición conservan el registro original.`;
+  const bcvAgreement = sale.settlementBasis === 'bcv' || sale.settlementBasis === 'legacy_bcv';
+  const reference = bcvAgreement ? options.saleDateBcvRate : undefined;
+  const saleDate = new Date(sale.soldAt);
+  const bcv =
+    reference?.usage === 'display_only' &&
+    reference.source === 'BCV' &&
+    reference.officialValueDate &&
+    reference.validFrom <= saleDate &&
+    saleDate < reference.validUntil &&
+    reference.verifiedAt <= pdf.generatedAt &&
+    new Decimal(reference.rate).isPositive()
+      ? reference
+      : null;
+  const vesTotal = bcv
+    ? [
+        {
+          label: 'Total en bolívares',
+          value: `Bs. ${amount(new Decimal(sale.totalUsd).times(bcv.rate).toString())}`,
+          emphasis: true,
+        },
+      ]
+    : [];
+  if (bcvAgreement) {
+    const rateDetails = bcv
+      ? `Tasa BCV de la venta: Bs. ${amount(bcv.rate, 8).replace(/0+$/, '').replace(/,$/, '')} por USD. Fecha valor BCV: ${calendarDate(bcv.officialValueDate!)}.`
+      : 'Tasa BCV del día de la venta no disponible. Equivalente en Bs. no calculado.';
+    caption = [caption, rateDetails].filter(Boolean).join(' ');
+  }
   const final = pdf.totalsBlock(
     delivery
-      ? [{ label: 'Total', value: `USD ${amount(sale.totalUsd)}`, emphasis: true }]
+      ? [{ label: 'Total', value: `USD ${amount(sale.totalUsd)}`, emphasis: true }, ...vesTotal]
       : [
           { label: 'Total de la venta', value: `USD ${amount(sale.totalUsd)}`, emphasis: true },
+          ...vesTotal,
           { label: 'Abonado vigente', value: `USD ${amount(sale.paidUsd)}` },
           {
             label: sale.status === 'cancelled' ? 'Saldo actual (venta anulada)' : 'Saldo actual',
@@ -139,7 +170,7 @@ export async function composeSalePdf(
 export async function salePdf(
   sale: SaleDetail,
   kind: 'sale' | 'delivery' = 'sale',
-  options: PdfOptions = {},
+  options: SalePdfOptions = {},
 ): Promise<Buffer> {
   return (await composeSalePdf(sale, kind, options)).bytes;
 }

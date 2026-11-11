@@ -69,6 +69,8 @@ V4.11: la nota de entrega puede mostrar la razón social y RIF verificados del e
 
 Última precisión del propietario: nota de entrega simple con emisor, cliente, fecha, contado/crédito, productos, cantidades, precios, total y firmas. Se conservan los detalles del acuerdo y tasas. No mostrar observaciones, abonos ni saldo actual en la nota; los comprobantes de venta y recibos mantienen sus datos contables.
 
+V4.14, confirmación del propietario del 11/11/2026: añadir la dirección del local al emisor privado y mostrar en documentos de ventas BCV el equivalente del total USD con **la tasa del día de la venta**, no la del día de impresión. Reimprimir no altera pagos, precios ni saldos. Usar exclusivamente una observación oficial verificada que cubra el instante de venta; identificar tasa y fecha valor, conservando la fecha original en una continuidad. Esta referencia histórica no autoriza cobros nuevos. Si falta evidencia o hay solapamiento, el documento conserva el total USD y explica que no hay equivalente calculado; no inventar Bs. ni reemplazar por la tasa actual. Divisa y recibos históricos mantienen sus reglas.
+
 Anular o corregir genera eventos compensatorios; nunca borra ventas confirmadas. Anulación completa solo cuando no hay abonos activos y el movimiento de cada lote puede revertirse sin dependencias posteriores; restituye la misma fuente/costo. Reversar abono genera evento nuevo. Devoluciones parciales y condiciones particulares siguen pendientes de decisión, sin un flujo improvisado.
 
 ## Abonos, fechas y BCV

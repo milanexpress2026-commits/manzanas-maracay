@@ -258,7 +258,9 @@ describe('composición comercial V4.7', () => {
     });
     expect((await extractedPages(later)).pages.join('\n')).toContain(sale.number);
     expect(JSON.stringify(sale)).toBe(before);
-  });
+    // Three complete PDFs plus text extraction; keep all assertions while allowing
+    // the same rendering budget as the other multi-document geometry cases.
+  }, 20000);
 
   it('recibo conserva monto, referencia USDT y saldo al registrar; no saldo actual', async () => {
     const payment = pdfPaymentFixture(),
