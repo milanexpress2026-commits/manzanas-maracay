@@ -1,5 +1,7 @@
 # Manzanas Maracay
 
+**V4.14 preparada, pendiente de autorización:** dirección del local y total en bolívares con la tasa BCV del día de la venta. Verificada en staging; producción conserva V4.13. [Cambios y pruebas](docs/nota-direccion-bcv-v4-14.md) · [PR #15](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/15).
+
 Aplicación privada para recepción de frutas, inventario, ventas, clientes, crédito, abonos y notas de entrega.
 
 **V4.13 publicada:** las notas se abren mediante su enlace privado en Android y desde el ícono instalado. Acceso, documentos y respaldo restaurado verificados; datos conservados. Cerrar por completo la aplicación y volver a abrirla desde el ícono para cargar la nueva interfaz. [Entrar al sistema](https://manzanas.ganamosclub.net/ventas) · [Cambios y verificaciones](docs/notas-android-v4-13.md) · [PR #14](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/14).
