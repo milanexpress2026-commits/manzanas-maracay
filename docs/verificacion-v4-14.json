@@ -83,7 +83,7 @@
     "approvalReviewBlocksResolvedBy": "Owner explicit approval call_1c4c8d44e1c247b8a3b6b16b0d3eee05, including upload/build, encrypted computer and same-VPS backup, isolated restore and private issuer update"
   },
   "pending": [
-    "Owner confirmation that a fresh downloaded note shows bolivares on the physical tablet",
+    "Owner confirmation of second page in the physical tablet viewer",
     "Physical printing acceptance by owner"
   ],
   "production": {
@@ -134,9 +134,16 @@
     "sameSaleConfirmedByOwner": true,
     "phoneShowsBolivares": true,
     "serverPdfContentsVerified": true,
-    "physicalTabletRefreshedDownloadConfirmationPending": true,
-    "guidance": "Close previous viewer and open newest Download note result from existing sale",
-    "physicalRootCauseConfirmed": false
+    "physicalTabletRefreshedDownloadConfirmationPending": false,
+    "guidance": "Open page 2 of the complete note; print all pages. The server returns the same two pages for phone and Android requests.",
+    "physicalRootCauseConfirmed": false,
+    "freshDownloadStillMissingReportedByOwner": true,
+    "specificReportedNoteLocatedPrivately": true,
+    "phoneAndTabletPageTextIdentical": true,
+    "reportedNotePages": 2,
+    "totalBolivaresOnPage": 2,
+    "allPagesRenderedAndVisuallyReviewed": true,
+    "physicalViewerSecondPageConfirmationPending": true
   },
   "postpublicationBackup": {
     "checkedAt": "2026-11-11T14:37:01.279727+00:00",
