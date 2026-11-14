@@ -1,0 +1,134 @@
+{
+  "version": "V4.16",
+  "status": "awaiting_operational_approval",
+  "candidateCommit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+  "productionCommit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/17",
+  "migrationCount": 18,
+  "migrationExecuted": false,
+  "archiveSha256": "8bb28d744fde8c363948491bd691ea3406a8cfab35a26ac79ee25edacdabec0f",
+  "local": {
+    "typecheck": true,
+    "build": true,
+    "unitTestsPassed": 463,
+    "targetedE2ePassed": 8,
+    "productionIsolatedPassed": 14,
+    "productionQaDatabaseCleaned": true,
+    "earlierFullE2e": {
+      "commit": "16810717dcb7197cf4adfb2bea43892b1e592651",
+      "passed": 173,
+      "failed": 1,
+      "failure": "Recovery fixture revoked a session while its invoice read was pending; synchronized and passed in subsequent directed runs."
+    },
+    "applicationOperatorTestsPassed": 6,
+    "proxyApprovalTestsPassed": 4,
+    "productionVerificationGuardTestsPassed": 5,
+    "secretScanFiles": 844,
+    "secretScanFindings": []
+  },
+  "benchmark": {
+    "synthetic": true,
+    "physicalDeviceVerified": false,
+    "latencyMs": 250,
+    "downloadBytesPerSecond": 125000,
+    "samples": [
+      {
+        "cpuSlowdown": 1,
+        "step": "first-sales",
+        "visibleMs": 466
+      },
+      {
+        "cpuSlowdown": 1,
+        "step": "return-sales",
+        "visibleMs": 390
+      },
+      {
+        "cpuSlowdown": 6,
+        "step": "first-sales",
+        "visibleMs": 989
+      },
+      {
+        "cpuSlowdown": 6,
+        "step": "return-sales",
+        "visibleMs": 490
+      },
+      {
+        "cpuSlowdown": 12,
+        "step": "first-sales",
+        "visibleMs": 718
+      },
+      {
+        "cpuSlowdown": 12,
+        "step": "return-sales",
+        "visibleMs": 1012
+      }
+    ],
+    "baselineMeasurementMethodDiffers": true,
+    "exactSpeedupClaimed": false
+  },
+  "staging": {
+    "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+    "healthy": true,
+    "checksPassed": 21,
+    "allPublicRowsPreserved": true,
+    "schemaUnchanged": true,
+    "collectorResumed": true,
+    "checkedAt": "2026-11-14T15:51:12.309458+00:00",
+    "interruption": "SSH disconnected while own candidate services started. Preserved original states; healthy candidate and identical rows verified, then completed own collector checks without restarting services.",
+    "recovery": {
+      "originalEvidencePreserved": true,
+      "candidateAlreadyHealthy": true,
+      "noServicesRestarted": true,
+      "allRowsStillIdentical": true
+    }
+  },
+  "compression": {
+    "passed": true,
+    "productionChanged": false,
+    "businessWrites": false,
+    "anonymousDenied": true,
+    "authorizedSalesInHtml": true,
+    "checks": [
+      {
+        "endpoint": "/api/catalog",
+        "identityBytes": 24376,
+        "gzipBytes": 3875,
+        "gzipMs": 262,
+        "exactContentPreserved": true,
+        "noStore": true
+      },
+      {
+        "endpoint": "/api/inventory",
+        "identityBytes": 19774,
+        "gzipBytes": 2676,
+        "gzipMs": 162,
+        "exactContentPreserved": true,
+        "noStore": true
+      },
+      {
+        "endpoint": "/api/sales?limit=25&offset=0",
+        "identityBytes": 11621,
+        "gzipBytes": 1468,
+        "gzipMs": 115,
+        "exactContentPreserved": true,
+        "noStore": true
+      }
+    ],
+    "temporaryProxyRemoved": true,
+    "productionProxyChanged": false,
+    "proposedChange": "encode zstd gzip only in manzanas.ganamosclub.net",
+    "configBeforeSha256": "2ba9b689fa13f5edc575e04beaf9fa8df02ee2ea513663345cbe189f3b75e2cb",
+    "configAfterSha256": "3c5a92898d75d5699f966a1f3c2c729cfef3f6dfa417d80709edd669551d4f7e",
+    "activeConfigPlanValidated": true
+  },
+  "backupBefore": {
+    "commit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
+    "checkedAt": "2026-11-14T15:52:08.677912+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "approvalReceived": false,
+  "productionChanged": false
+}
