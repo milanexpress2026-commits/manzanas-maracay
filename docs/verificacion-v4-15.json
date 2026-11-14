@@ -1,9 +1,9 @@
 {
   "version": "V4.15",
   "candidateCommit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
-  "productionCommit": "4e99d7bd1bb750f08048463128c3ad609c389fb5",
-  "productionPublished": false,
-  "operationalApprovalPending": true,
+  "productionCommit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
+  "productionPublished": true,
+  "operationalApprovalPending": false,
   "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/16",
   "scope": "Smaller PDFs, batched receipts, scoped deferred inventory validation, one catalog load and no speculative menu prefetch",
   "local": {
@@ -117,7 +117,43 @@
         "bytes": 126771
       }
     ],
-    "physicalTabletAndPrinterLatencyVerified": false
+    "physicalTabletAndPrinterLatencyVerified": false,
+    "existingProductionPdf": [
+      {
+        "size": "letter",
+        "status": 200,
+        "bytes": 126755,
+        "elapsedMs": 1397
+      },
+      {
+        "size": "a4",
+        "status": 200,
+        "bytes": 126790,
+        "elapsedMs": 428
+      }
+    ],
+    "installedAndroidSimulationPages": [
+      {
+        "route": "/recepciones",
+        "networkIdleMs": 2613,
+        "apiRequests": 1
+      },
+      {
+        "route": "/inventario",
+        "networkIdleMs": 2096,
+        "apiRequests": 1
+      },
+      {
+        "route": "/ventas/nueva",
+        "networkIdleMs": 2175,
+        "apiRequests": 3
+      },
+      {
+        "route": "/catalogo",
+        "networkIdleMs": 1655,
+        "apiRequests": 2
+      }
+    ]
   },
   "documentReview": {
     "originalArtworkPreserved": true,
@@ -161,14 +197,64 @@
   },
   "productionPreparation": {
     "localPackagePrepared": true,
-    "uploaded": false,
-    "built": false,
-    "ownerApprovalReceived": false,
-    "plannedScope": "Upload/build exact package; pause own API/web/rates/push; encrypted PC/same-VPS backup and isolated restore; migration0017; preserve all rows/access/tablet; verify runtime and post-backup; no DNS/Caddy/other projects"
+    "uploaded": true,
+    "built": true,
+    "ownerApprovalReceived": true,
+    "plannedScope": "Upload/build exact package; pause own API/web/rates/push; encrypted PC/same-VPS backup and isolated restore; migration0017; preserve all rows/access/tablet; verify runtime and post-backup; no DNS/Caddy/other projects",
+    "activeReleasePreservedDuringPreparation": true
   },
   "pending": [
-    "Specific operational approval",
-    "Production publication and post-publication checks",
-    "Physical tablet and printer speed confirmation"
-  ]
+    "Owner physical tablet/printer performance confirmation; close and reopen installed app to load the new frontend"
+  ],
+  "production": {
+    "commit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
+    "healthy": true,
+    "approvalReference": "call_e8227142e808436ba7a2923aa0c790b5",
+    "migrationCount": 18,
+    "migration0017Executed": true,
+    "allPublicRowsPreservedDuringMigration": true,
+    "accessAndTabletPreserved": true,
+    "collectorResumed": true,
+    "httpsAccessChecksPassed": 21,
+    "accessCheckedAt": "2026-11-14T12:52:58.967156+00:00",
+    "bcvAvailableAtCheck": true,
+    "usdtAvailableAtCheck": true,
+    "letterAndA4ExistingSalePdfChecked": true,
+    "formalIdentityAddressBcvTotalAndSignaturesVerified": true,
+    "existingSaleUnchanged": true,
+    "businessWritesDuringSmoke": false,
+    "physicalTabletAndPrinterSpeedVerified": false,
+    "dnsOrCaddyChanges": false,
+    "singleReceiptCatalogVerified": true,
+    "publicSmokeGuardTestsPassed": 5,
+    "firstPublicSmoke": {
+      "passed": false,
+      "reason": "The reused V4.12 verifier was pinned to migration0016 and its old SHA; it rejected the new release before login",
+      "applicationFailure": false,
+      "failedReportPreserved": true,
+      "resolvedWithExactV415Migration0017Guard": true
+    },
+    "initialPreflightAttempt": {
+      "reason": "Relative approval-file path rejected by the canonical private-path guard",
+      "writersStopped": false,
+      "migrationExecuted": false,
+      "resolvedWithAbsolutePath": true,
+      "sameApprovalAndGuardsRetained": true,
+      "failureLogPreserved": true
+    },
+    "writerWindowBackup": {
+      "checkedAt": "2026-11-14T12:47:51.810126+00:00",
+      "externalCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "remoteEncryptedCopyVerified": true
+    }
+  },
+  "postpublicationBackup": {
+    "checkedAt": "2026-11-14T12:53:54.839993+00:00",
+    "encryptedComputerAndVpsCopiesVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "previousBackupsPreserved": true
+  }
 }

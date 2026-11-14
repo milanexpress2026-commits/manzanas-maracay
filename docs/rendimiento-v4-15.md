@@ -1,6 +1,6 @@
 # Rendimiento de impresión y recepción — V4.15
 
-La mejora reduce el trabajo al imprimir y al ingresar mercancía. No cambia precios, tasas, acuerdos, documentos históricos ni cantidades disponibles. Producción conserva V4.14 hasta la autorización operativa específica del propietario.
+La mejora reduce el trabajo al imprimir y al ingresar mercancía. No cambia precios, tasas, acuerdos, documentos históricos ni cantidades disponibles. V4.15 está publicada con el runtime `501bd3bb06583535f9b3a79d00579721bb35fa1f`, después de la autorización operativa específica del propietario.
 
 ## Cambios
 
@@ -35,7 +35,7 @@ La recepción sintética de 100/500 cajas en una base nueva tardó 850/8.524 ms 
 - Cinco controles del operador de migración y cinco controles de la recuperación acotada aprobados.
 - El respaldo cifrado previo de V4.14 en la computadora y el mismo VPS fue verificado y restaurado en aislamiento, el 14/11/2026 a las 11:21:09 UTC.
 
-Los 14 controles de producción aislada y los 21 controles de acceso/PDF de staging aprobaron. Staging está saludable con el mismo SHA, 18 migraciones, ambos respaldos restaurados y el recolector reanudado. La recuperación conservó las filas y los servicios originales; no repitió la migración. Las mediciones de PDF en el servidor se registran en `verificacion-v4-15.json`. El paquete de producción está preparado localmente; todavía no se ha subido ni activado y requiere autorización operativa específica.
+Los 14 controles de producción aislada y los 21 controles de acceso/PDF de staging aprobaron. Staging está saludable con el mismo SHA, 18 migraciones, ambos respaldos restaurados y el recolector reanudado. La recuperación conservó las filas y los servicios originales; no repitió la migración. Las mediciones de PDF en el servidor se registran en `verificacion-v4-15.json`. El mismo paquete fue publicado con aprobación expresa; producción está saludable y sus documentos reales están verificados.
 
 ## Riesgos y conservación
 
@@ -45,4 +45,10 @@ Se descartó un ensayo de compresión manual de JSON: la versión instalada de N
 
 En staging, la primera activación se detuvo al observar un contenedor temporal del recolector de producción. La migración ya había terminado con todas las filas preservadas y ambos respaldos restaurados. La recuperación conserva el fallo original, vuelve a exigir el comparador original de servicios ajenos y no repite la migración. Una comprobación previa de recuperación usaba las conexiones esperadas de servicios activos sobre servicios detenidos; se corrigió para exigir únicamente sus conexiones activas y mantener el control completo después del arranque. No se detuvo ni modificó el recolector de producción.
 
-Publicación prevista: respaldo cifrado nuevo en los destinos ya autorizados, pausa breve de los procesos propios, migración 17→18 y comparación íntegra de filas antes/después; conservación de acceso y tablet. Sin cambios de DNS, Caddy ni proyectos ajenos. No se hace rollback automático de la base: la recuperación se decide con el respaldo verificado y la evidencia de la fase exacta.
+Alcance ejecutado: respaldo cifrado nuevo en los destinos autorizados, pausa de los procesos propios, migración 17→18 y comparación íntegra de filas antes/después; acceso y tablet conservados. Sin cambios de DNS, Caddy ni proyectos ajenos. No fue necesaria una recuperación de producción ni se repitió la migración.
+
+## Publicación completada
+
+V4.15 publicada y verificada: runtime `501bd3bb06583535f9b3a79d00579721bb35fa1f`, rama `fix/rendimiento-v4-15`, PR #16. Autorización específica `call_e8227142e808436ba7a2923aa0c790b5` recibida y aplicada. PDF aproximadamente 94 % menor, recepción agrupada/validación acotada y catálogo único sin precargas de otros menús. Migración0017 (17→18), todas las filas conservadas durante la pausa, acceso/tablet intactos, recolector reanudado y 21 controles HTTPS reales PASS. Documentos Carta/A4 reales con nombre/RIF/dirección/BCV/firmas comprobados y venta intacta; navegación de tablet instalada simulada y catálogo único verificados. Tipos/builds, 460 unitarias, 170/170 E2E, 14 casos de producción aislada, migraciones y staging PASS. Respaldo posterior cifrado PC/VPS restaurado a `2026-11-14T12:53:54.839993+00:00`. Sin DNS/Caddy ni otros proyectos. No repetir publicación, migración ni vaciados. Cerrar y abrir la app instalada para cargar la interfaz; velocidad física pendiente del propietario. Ver `docs/rendimiento-v4-15.md` y `docs/verificacion-v4-15.json`.
+
+Los tiempos reales de descarga de los documentos y navegación simulada están en `verificacion-v4-15.json`. No se registraron ventas ni recepciones sintéticas en producción. Las mediciones de 500 cajas pertenecen exclusivamente a QA.
