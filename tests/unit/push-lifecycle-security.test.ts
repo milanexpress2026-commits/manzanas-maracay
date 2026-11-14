@@ -22,8 +22,12 @@ import { PushService } from '../../apps/api/src/push.service';
 function configureSyntheticKeys() {
   const pair = createECDH('prime256v1');
   pair.generateKeys();
+  // ECDH can return a 31-byte scalar when its leading byte is zero. VAPID
+  // uses a fixed 32-byte private key; keep this synthetic fixture valid.
+  const scalar = pair.getPrivateKey();
+  const privateKey = Buffer.concat([Buffer.alloc(32 - scalar.length), scalar]);
   vi.stubEnv('MM_VAPID_PUBLIC_KEY', pair.getPublicKey().toString('base64url'));
-  vi.stubEnv('MM_VAPID_PRIVATE_KEY', pair.getPrivateKey().toString('base64url'));
+  vi.stubEnv('MM_VAPID_PRIVATE_KEY', privateKey.toString('base64url'));
   vi.stubEnv('MM_VAPID_SUBJECT', 'https://synthetic-unit-test.example');
 }
 beforeEach(() => {
