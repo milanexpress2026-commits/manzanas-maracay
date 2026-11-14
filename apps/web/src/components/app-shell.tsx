@@ -95,6 +95,7 @@ export function AppShell({
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
             aria-current={current === item.href ? 'page' : undefined}
             className={current === item.href ? 'nav-active' : 'nav-link'}
             onClick={() => setMenu(false)}

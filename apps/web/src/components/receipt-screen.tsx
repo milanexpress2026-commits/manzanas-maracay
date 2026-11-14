@@ -1,14 +1,14 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ZodError } from 'zod';
 import { Plus, ArrowRight, CheckCircle2, RotateCcw } from 'lucide-react';
 import {
   quickReceiptSchema,
   simpleReceiptSchema,
+  buildHabitualCatalogOptions,
   type Catalog,
   type HabitualCatalogOption,
-  type HabitualCatalogOptions,
   type ReceiptResult,
   type Supplier,
 } from '@mm/domain';
@@ -60,8 +60,14 @@ export function ReceiptScreen({
 }) {
   const scope = deviceScope(session.environment, session.operationScopeId ?? session.user.id);
   const storageKey = RECEIPT_STORAGE_PREFIX + scope;
-  const options = useRemote<HabitualCatalogOptions>('/api/catalog/options');
   const catalog = useRemote<Catalog>('/api/catalog');
+  // The same pure builder as the API, from one freshly loaded catalog snapshot.
+  // Avoid downloading its expanded 180KB representation and reading the DB twice.
+  const optionData = useMemo(
+    () => (catalog.data ? buildHabitualCatalogOptions(catalog.data) : null),
+    [catalog.data],
+  );
+  const options = { ...catalog, data: optionData };
   const [draft, setDraft] = useState<ReceiptDraft>(() => emptyReceiptDraft(scope));
   const draftRef = useRef(draft);
   const [hydrated, setHydrated] = useState(false);
@@ -246,7 +252,6 @@ export function ReceiptScreen({
           localStorage.setItem(storageKey, JSON.stringify(editable));
           mutate(() => editable);
           if (response.status === 409) {
-            void options.reload();
             void catalog.reload();
           }
         }
@@ -281,7 +286,6 @@ export function ReceiptScreen({
       }
       mutate(() => emptyReceiptDraft(scope));
       setRestored(false);
-      void options.reload();
       void catalog.reload();
     } catch (reason) {
       setError(
@@ -332,9 +336,6 @@ export function ReceiptScreen({
           </p>
         ) : null}
         {storageError ? <FormError message={storageError} /> : null}
-        {options.error ? (
-          <LoadError error={options.error} retry={() => void options.reload()} />
-        ) : null}
         {catalog.error ? (
           <LoadError error={catalog.error} retry={() => void catalog.reload()} />
         ) : null}
@@ -556,7 +557,6 @@ export function ReceiptScreen({
                 <ReceiptExceptionalCaliber
                   options={options.data}
                   reload={async () => {
-                    await options.reload();
                     await catalog.reload();
                   }}
                 />

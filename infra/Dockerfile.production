@@ -37,7 +37,7 @@ ENV NODE_ENV=production MM_APP_ENV=production MM_API_HOST=0.0.0.0 MM_API_PORT=31
 LABEL org.opencontainers.image.source="https://github.com/milanexpress2026-commits/manzanas-maracay"
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/apps/api/dist ./apps/api/dist
-COPY --from=build /app/apps/web/public/brand/logo-manzanas-maracay.png ./apps/api/assets/brand/logo-manzanas-maracay.png
+COPY --from=build /app/apps/web/public/brand/logo-manzanas-maracay-print.png ./apps/api/assets/brand/logo-manzanas-maracay-print.png
 COPY scripts/production-runtime.mjs scripts/production-health.mjs ./scripts/
 USER 1000:1000
 EXPOSE 3101

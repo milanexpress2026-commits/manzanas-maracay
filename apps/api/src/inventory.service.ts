@@ -675,90 +675,125 @@ export class InventoryService implements OnModuleDestroy {
         counts?.remainingPieces ?? null,
       ],
     );
-    for (const current of changed) {
-      const old = previous.get(current.id);
-      if (!old) {
-        await client.query(
-          'insert into containers(id,lot_id,warehouse_id,parent_id,kind,state) values($1,$2,$3,$4,$5,$6)',
-          [
+    // A reception creates independent sealed boxes. Send each table as one batch,
+    // retaining the exact per-box snapshots, ledger entries and deferred guards.
+    // Existing/split containers keep the ordered path below (parents before children).
+    const receivedBoxes =
+      kind === 'receipt' &&
+      before.length === 0 &&
+      changed.every(
+        (item) => item.kind === 'box' && item.state === 'sealed' && item.parentId === null,
+      );
+    if (receivedBoxes) {
+      const payload = JSON.stringify(changed);
+      await client.query(
+        `insert into containers(id,lot_id,warehouse_id,parent_id,kind,state)
+        select (s->>'id')::uuid,(s->>'lotId')::uuid,(s->>'warehouseId')::uuid,null,s->>'kind',s->>'state'
+        from jsonb_array_elements($1::jsonb) s`,
+        [payload],
+      );
+      await client.query(
+        `insert into stock_balances(container_id,unit,quantity,counted_pieces,version,cost_usd)
+        select (s->>'id')::uuid,s->>'unit',(s->>'quantity')::integer,(s->>'countedPieces')::integer,
+          (s->>'version')::integer,(s->>'costUsd')::numeric from jsonb_array_elements($1::jsonb) s`,
+        [payload],
+      );
+      await client.query(
+        `insert into inventory_entries(movement_id,container_id,unit,quantity_delta,pieces_delta,before_state,after_state)
+        select $1::uuid,(s->>'id')::uuid,s->>'unit',(s->>'quantity')::integer,(s->>'countedPieces')::integer,null,s
+        from jsonb_array_elements($2::jsonb) s`,
+        [movementId, payload],
+      );
+      await client.query(
+        `insert into inventory_cost_entries(movement_id,container_id,before_usd,after_usd)
+        select $1::uuid,(s->>'id')::uuid,null,(s->>'costUsd')::numeric from jsonb_array_elements($2::jsonb) s`,
+        [movementId, payload],
+      );
+    } else
+      for (const current of changed) {
+        const old = previous.get(current.id);
+        if (!old) {
+          await client.query(
+            'insert into containers(id,lot_id,warehouse_id,parent_id,kind,state) values($1,$2,$3,$4,$5,$6)',
+            [
+              current.id,
+              current.lotId,
+              current.warehouseId,
+              current.parentId,
+              current.kind,
+              current.state,
+            ],
+          );
+          await client.query(
+            'insert into stock_balances(container_id,unit,quantity,counted_pieces,version,cost_usd) values($1,$2,$3,$4,$5,$6)',
+            [
+              current.id,
+              current.unit,
+              current.quantity,
+              current.countedPieces,
+              current.version,
+              current.costUsd ?? null,
+            ],
+          );
+        } else {
+          await client.query('update containers set state=$2,parent_id=$3 where id=$1', [
             current.id,
-            current.lotId,
-            current.warehouseId,
-            current.parentId,
-            current.kind,
             current.state,
-          ],
-        );
+            current.parentId,
+          ]);
+          await client.query(
+            'update stock_balances set unit=$2,quantity=$3,counted_pieces=$4,version=$5,cost_usd=$6 where container_id=$1',
+            [
+              current.id,
+              current.unit,
+              current.quantity,
+              current.countedPieces,
+              current.version,
+              current.costUsd ?? null,
+            ],
+          );
+        }
+        const entries: { unit: string; quantity: number; pieces: number | null }[] = [];
+        if (old && old.unit !== current.unit) {
+          entries.push({
+            unit: old.unit,
+            quantity: -old.quantity,
+            pieces: old.countedPieces === null ? null : -old.countedPieces,
+          });
+          entries.push({
+            unit: current.unit,
+            quantity: current.quantity,
+            pieces: current.countedPieces,
+          });
+        } else
+          entries.push({
+            unit: current.unit,
+            quantity: current.quantity - (old?.quantity ?? 0),
+            pieces:
+              current.countedPieces === null
+                ? old?.countedPieces == null
+                  ? null
+                  : -old.countedPieces
+                : current.countedPieces - (old?.countedPieces ?? 0),
+          });
+        for (const entry of entries)
+          await client.query(
+            `insert into inventory_entries(movement_id,container_id,unit,quantity_delta,pieces_delta,before_state,after_state) values($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb)`,
+            [
+              movementId,
+              current.id,
+              entry.unit,
+              entry.quantity,
+              entry.pieces,
+              old ? JSON.stringify(old) : null,
+              JSON.stringify(current),
+            ],
+          );
         await client.query(
-          'insert into stock_balances(container_id,unit,quantity,counted_pieces,version,cost_usd) values($1,$2,$3,$4,$5,$6)',
-          [
-            current.id,
-            current.unit,
-            current.quantity,
-            current.countedPieces,
-            current.version,
-            current.costUsd ?? null,
-          ],
-        );
-      } else {
-        await client.query('update containers set state=$2,parent_id=$3 where id=$1', [
-          current.id,
-          current.state,
-          current.parentId,
-        ]);
-        await client.query(
-          'update stock_balances set unit=$2,quantity=$3,counted_pieces=$4,version=$5,cost_usd=$6 where container_id=$1',
-          [
-            current.id,
-            current.unit,
-            current.quantity,
-            current.countedPieces,
-            current.version,
-            current.costUsd ?? null,
-          ],
+          'insert into inventory_cost_entries(movement_id,container_id,before_usd,after_usd) values($1,$2,$3,$4)',
+          [movementId, current.id, old?.costUsd ?? null, current.costUsd ?? null],
         );
       }
-      const entries: { unit: string; quantity: number; pieces: number | null }[] = [];
-      if (old && old.unit !== current.unit) {
-        entries.push({
-          unit: old.unit,
-          quantity: -old.quantity,
-          pieces: old.countedPieces === null ? null : -old.countedPieces,
-        });
-        entries.push({
-          unit: current.unit,
-          quantity: current.quantity,
-          pieces: current.countedPieces,
-        });
-      } else
-        entries.push({
-          unit: current.unit,
-          quantity: current.quantity - (old?.quantity ?? 0),
-          pieces:
-            current.countedPieces === null
-              ? old?.countedPieces == null
-                ? null
-                : -old.countedPieces
-              : current.countedPieces - (old?.countedPieces ?? 0),
-        });
-      for (const entry of entries)
-        await client.query(
-          `insert into inventory_entries(movement_id,container_id,unit,quantity_delta,pieces_delta,before_state,after_state) values($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb)`,
-          [
-            movementId,
-            current.id,
-            entry.unit,
-            entry.quantity,
-            entry.pieces,
-            old ? JSON.stringify(old) : null,
-            JSON.stringify(current),
-          ],
-        );
-      await client.query(
-        'insert into inventory_cost_entries(movement_id,container_id,before_usd,after_usd) values($1,$2,$3,$4)',
-        [movementId, current.id, old?.costUsd ?? null, current.costUsd ?? null],
-      );
-    }
     await client.query('update lots set inventory_version=inventory_version+1 where id=$1', [
       lot.id,
     ]);
