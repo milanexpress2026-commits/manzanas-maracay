@@ -1,8 +1,8 @@
 # V4.16 — navegación en tablet y celulares
 
-Estado: lista para autorización operativa; **producción continúa en V4.15 / `501bd3bb06583535f9b3a79d00579721bb35fa1f`**. No publicar ni modificar el proxy sin la autorización operativa del propietario sobre la versión y el cambio final.
+Estado: **publicada y verificada**. Autorización específica `call_59d28b34a0da48968140082bb5de523c` recibida y aplicada para código y compresión.
 
-Runtime candidato: `c1f251a85bdded5491148f3a4de2bb558fefd47a`. Paquetes locales de staging y producción idénticos: SHA-256 `8bb28d744fde8c363948491bd691ea3406a8cfab35a26ac79ee25edacdabec0f`; excluyen únicamente capturas de documentación. Los commits posteriores de evidencia no sustituyen ese runtime.
+Runtime publicado: `c1f251a85bdded5491148f3a4de2bb558fefd47a`. Paquetes locales de staging y producción idénticos: SHA-256 `8bb28d744fde8c363948491bd691ea3406a8cfab35a26ac79ee25edacdabec0f`; excluyen únicamente capturas de documentación. Los commits posteriores de evidencia no sustituyen ese runtime.
 
 ## Problema observado
 
@@ -28,7 +28,7 @@ Preparar `encode zstd gzip` exclusivamente dentro del host `manzanas.ganamosclub
 
 La compresión dentro de un Route Handler de Next.js se descartó tras un ensayo local que detectó respuestas ilegibles: la versión instalada 16.4.5 elimina `Content-Encoding` en `server/send-response.js`. Ese código experimental se retiró y no llegó a staging ni producción. Un Caddy aislado con el staging anterior verificó igualdad exacta al descomprimir, acceso anónimo denegado y `Cache-Control: no-store`: catálogo 24.376→3.875 bytes, inventario 19.774→2.676 y ventas 11.621→1.463. El contenedor temporal fue retirado.
 
-El plan del proxy se validó también contra su configuración activa: solo cambia el manejador de compresión del host propio; upstream y resto de la configuración son idénticos. Como el archivo está montado individualmente, el operador preparado conserva su inode, guarda una copia privada, valida, recarga sin reiniciar el contenedor y comprueba la configuración activa y Gzip. Ante fallo puede restaurar únicamente su propio cambio si el hash todavía coincide. No se ha escrito ni recargado el proxy real.
+El plan del proxy se validó también contra su configuración activa: solo cambia el manejador de compresión del host propio; upstream y resto de la configuración son idénticos. Como el archivo está montado individualmente, el operador preparado conserva su inode, guarda una copia privada, valida, recarga sin reiniciar el contenedor y comprueba la configuración activa y Gzip. Ante fallo puede restaurar únicamente su propio cambio si el hash todavía coincide. La única modificación del host propio fue autorizada y aplicada, con copia privada y recarga validada sin reiniciar Caddy.
 
 ## Evidencia y límites
 
@@ -40,7 +40,7 @@ La medición final de `c1f251a` mostró la primera tabla en **466/989/718 ms** y
 
 Verificaciones locales finales: tipos y compilación aprobados, **463 unitarias**, **8 recorridos dirigidos** de navegación/recuperación y **14 casos de producción aislada** aprobados; su base temporal se limpió. El recorrido completo anterior tuvo 173/174 aprobados: una prueba de recuperación abría una consulta y revocaba la misma sesión antes de que terminara; se sincronizó ese paso del ensayo y pasó en las dos ejecuciones dirigidas posteriores. No afirmar que los 175 casos actuales pasaron juntos. Se corrigió además la generación ocasional de una clave VAPID sintética de 31 bytes en una prueba; la configuración push real no cambió. Se conservaron trazas y capturas de los intentos.
 
-Los seis controles del operador de aplicación y cuatro de autorización del proxy pasaron. Las 18 migraciones permanecen idénticas; revisión de 844 archivos sin hallazgos de patrones de credenciales. Staging final saludable y 21 controles de acceso/documentos aprobados. La compresión final conservó el contenido exacto (ventas: 1.468 bytes comprimidos) y verificó registros en el HTML autorizado. Respaldo cifrado previo en PC y mismo VPS, restaurado y comprobado a `2026-11-14T15:52:08.677912+00:00`. Solo queda la autorización operativa sobre código y recarga de compresión. No afirmar que la velocidad física fue validada antes de comprobarlo con el propietario.
+Los seis controles del operador de aplicación y cuatro de autorización del proxy pasaron. Las 18 migraciones permanecen idénticas; revisión de 844 archivos sin hallazgos de patrones de credenciales. Staging final saludable y 21 controles de acceso/documentos aprobados. La compresión final conservó el contenido exacto (ventas: 1.468 bytes comprimidos) y verificó registros en el HTML autorizado. Respaldo cifrado previo en PC y mismo VPS, restaurado y comprobado a `2026-11-14T15:52:08.677912+00:00`. La autorización operativa sobre código y compresión fue recibida y ejecutada. No afirmar que la velocidad física fue validada antes de comprobarlo con el propietario.
 
 ## Fuentes y decisión técnica
 
@@ -52,8 +52,18 @@ Se conserva Next.js, React y PostgreSQL: el trabajo observado se puede reducir e
 - [Caddy: negociación Zstandard/Gzip y compresión de respuestas](https://caddyserver.com/docs/caddyfile/directives/encode).
 - [Chrome DevTools: distinguir espera de red, respuesta y descarga](https://developer.chrome.com/docs/devtools/network/reference).
 
-## Cierre de staging y publicación pendiente
+## Cierre de staging y publicación
 
 El arranque del candidato en staging sufrió un corte SSH. Se preservaron los estados local y remoto y se comprobó que API/web ya estaban saludables, todas las filas seguían idénticas y producción/pares no cambiaron; se continuó la verificación y se reanudó únicamente su recolector, sin reiniciar los servicios. Un primer intento local de guardar esta evidencia recibió un error de tipo antes de operar servicios; se conservó y se completó la copia en bytes. Los intentos iniciales de compresión aislada requirieron la capacidad de puerto del binario Caddy; sus contenedores fueron retirados. No atribuir a producción esas incidencias de preparación.
 
-El cambio está listo para autorización en el [PR #17](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/17), con [evidencia estructurada](verificacion-v4-16.json). La operación propuesta sube/compila el paquete exacto, pausa solo la aplicación/tasas/recordatorios propios, crea y restaura un respaldo cifrado nuevo PC/VPS, conserva las 18 migraciones y todas las filas, activa el candidato y recarga Caddy con la única línea de compresión validada. Incluye copia privada de la configuración y verificación de acceso/documentos/respaldo posterior. DNS y rutas ajenas permanecen fuera del cambio. Producción todavía sigue en V4.15.
+La publicación autorizada está completada en el [PR #17](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/17), con [evidencia estructurada](verificacion-v4-16.json). Se conservan las 18 migraciones, todas las filas, acceso y tablet; los procesos propios están reanudados. Caddy recibió solamente la línea de compresión validada del host de Manzanas, con copia privada y recarga sin reiniciar su contenedor. DNS y rutas ajenas no cambiaron.
+
+## Verificación en producción
+
+Los 21 controles HTTPS y las cinco pantallas verificadas aprobaron. Ventas llega sin otra petición de listado; recepción conserva una sola lectura de catálogo. Las lecturas completas hasta `networkidle` de estas pantallas demoraron 2,2–4,2 segundos desde la computadora del operador; ese indicador espera todas las cargas y no es la primera tabla visible del ensayo sintético. No equivale a una medición física de los celulares del negocio.
+
+Compresión real, contenido exacto y no-store preservados: catálogo 30.619→4.550 bytes, inventario 37.024→5.144, ventas 14.662→2.461 (83–86 % menos). Notas Carta/A4 de una venta real: 126.755/126.790 bytes, respuesta completa en 1.631/491 ms en estas muestras. Se verificaron nombre, RIF, dirección, total BCV del día de venta, firmas y geometría; sin observaciones ni saldo actual. La venta quedó intacta. Esto no certifica el diálogo ni la impresora físicos.
+
+Respaldo posterior cifrado en PC y mismo VPS, restaurado y verificado: `2026-11-14T17:32:20.558992+00:00`. Las incidencias de comprobación se conservan: ruta relativa de autorización rechazada antes de detener servicios; dos textos de prueba con acentos mal codificados, corregidos sin cambiar runtime; y un primer sondeo PDF que falló sin registrar etapa, seguido de lectura instrumentada y verificación de contenido aprobadas. No se estableció la causa del primer sondeo PDF.
+
+Para cargar esta versión, cerrar completamente la app y volver a abrirla en tablet y celulares. No requiere reinstalación ni volver a cargar mercancía.
