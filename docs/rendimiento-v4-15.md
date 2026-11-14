@@ -24,12 +24,25 @@ Comparación local con las mismas notas sintéticas:
 
 Son mediciones locales, no una promesa de latencia de la conexión o impresora física. El documento de una fila pesa aproximadamente un 94 % menos. Las pruebas verifican contenido, geometría, firmas y presupuesto de tamaño; las vistas renderizadas de primera y última página conservaron el diseño.
 
-La recepción sintética de 100/500 cajas en una base nueva tardó 850/8.524 ms antes del cambio. Los resultados definitivos, recorridos completos y staging se registrarán al terminar las verificaciones. Ninguna prueba de velocidad introduce stock en el sistema real.
+La recepción sintética de 100/500 cajas en una base nueva tardó 850/8.524 ms antes del cambio y 328/2.288 ms durante el recorrido completo final. Las 500 cajas requieren aproximadamente un 73 % menos de tiempo en este ensayo. Una ejecución dirigida anterior midió 253/2.191 ms. Los registros, saldos, asientos físicos, costos y reintentos se comprobaron por cada caja; ninguna prueba de velocidad introduce stock en el sistema real.
+
+## Verificaciones
+
+- Tipos, API/web compiladas y 460 pruebas unitarias aprobadas.
+- 170/170 recorridos completos aprobados en una ejecución con base nueva, `cfc121d744967f6ffd282ace`, terminada el 14/11/2026 a las 11:33:54 UTC. Servidor de QA detenido y control de la base local anterior intacto. Capturas y evidencias guardadas en privado.
+- Migraciones desde bases nuevas y versiones históricas aprobadas, ejecución `73e849f3df97838b3b71218e`: dieciocho migraciones, datos/referencias preservados y bases temporales propias retiradas. Staging comprueba específicamente 17→18 y todas sus filas.
+- Análisis del código indexado: 837 archivos, sin coincidencias con los secretos locales conocidos ni los patrones comprobados. No equivale a una garantía de ausencia de toda información sensible.
+- Cinco controles del operador de migración y cinco controles de la recuperación acotada aprobados.
+- El respaldo cifrado previo de V4.14 en la computadora y el mismo VPS fue verificado y restaurado en aislamiento, el 14/11/2026 a las 11:21:09 UTC.
+
+Los 14 controles de producción aislada y los 21 controles de acceso/PDF de staging aprobaron. Staging está saludable con el mismo SHA, 18 migraciones, ambos respaldos restaurados y el recolector reanudado. La recuperación conservó las filas y los servicios originales; no repitió la migración. Las mediciones de PDF en el servidor se registran en `verificacion-v4-15.json`. El paquete de producción está preparado localmente; todavía no se ha subido ni activado y requiere autorización operativa específica.
 
 ## Riesgos y conservación
 
 La validación acotada debe rechazar ciclos, doble conteo de ancestros y descendientes, hijos bajo cajas cerradas y padres abiertos que perdieron su último contenido. Se añaden casos que activan cada restricción específica y revierten la transacción. Las pruebas existentes cubren medias de cuatro/cinco blísteres, granel, ventas simultáneas, movimientos, costos desconocidos y reversas. Las recepciones grandes comprueban las cuatro proyecciones por caja y el reintento idempotente.
 
 Se descartó un ensayo de compresión manual de JSON: la versión instalada de Next elimina `Content-Encoding` al reenviar una respuesta y las pruebas detectaron que resultaba incompatible. No se incluye en el cambio final. Se conservan sus fallos de QA como evidencia, junto con un error inicial del fixture que añadía un campo no admitido a `open-box`; se corrigió el fixture sin relajar el contrato.
+
+En staging, la primera activación se detuvo al observar un contenedor temporal del recolector de producción. La migración ya había terminado con todas las filas preservadas y ambos respaldos restaurados. La recuperación conserva el fallo original, vuelve a exigir el comparador original de servicios ajenos y no repite la migración. Una comprobación previa de recuperación usaba las conexiones esperadas de servicios activos sobre servicios detenidos; se corrigió para exigir únicamente sus conexiones activas y mantener el control completo después del arranque. No se detuvo ni modificó el recolector de producción.
 
 Publicación prevista: respaldo cifrado nuevo en los destinos ya autorizados, pausa breve de los procesos propios, migración 17→18 y comparación íntegra de filas antes/después; conservación de acceso y tablet. Sin cambios de DNS, Caddy ni proyectos ajenos. No se hace rollback automático de la base: la recuperación se decide con el respaldo verificado y la evidencia de la fase exacta.

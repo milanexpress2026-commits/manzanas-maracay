@@ -1,0 +1,174 @@
+{
+  "version": "V4.15",
+  "candidateCommit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
+  "productionCommit": "4e99d7bd1bb750f08048463128c3ad609c389fb5",
+  "productionPublished": false,
+  "operationalApprovalPending": true,
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/16",
+  "scope": "Smaller PDFs, batched receipts, scoped deferred inventory validation, one catalog load and no speculative menu prefetch",
+  "local": {
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "unitTestsPassed": 460,
+    "fullE2E": {
+      "runId": "cfc121d744967f6ffd282ace",
+      "passed": 170,
+      "total": 170,
+      "finishedAt": "2026-11-14T11:33:54.614Z",
+      "exitCode": 0,
+      "legacyDatabaseUnchanged": true,
+      "freshDatabaseStopped": true
+    },
+    "isolatedProduction": {
+      "runId": "bcd87c3acbfdfab3b99e36c4",
+      "passed": 14,
+      "total": 14,
+      "finishedAt": "2026-11-14T11:37:32.914Z",
+      "databaseCleaned": true
+    },
+    "migrations": {
+      "runId": "73e849f3df97838b3b71218e",
+      "passed": true,
+      "finalCount": 18,
+      "temporaryDatabasesCleaned": true
+    },
+    "operatorGuardTestsPassed": 5,
+    "heldRecoveryGuardTestsPassed": 5,
+    "indexedSourceScan": {
+      "indexed_files": 837,
+      "known_private_values_checked": 8,
+      "files_with_private_data": []
+    }
+  },
+  "measurements": {
+    "syntheticPdf": {
+      "rows": [
+        1,
+        19,
+        50
+      ],
+      "beforeBytes": [
+        2105230,
+        2110789,
+        2119588
+      ],
+      "afterBytes": [
+        126593,
+        132152,
+        140949
+      ],
+      "beforeGenerationMs": [
+        2505,
+        1607,
+        1836
+      ],
+      "afterGenerationMs": [
+        372,
+        170,
+        197
+      ]
+    },
+    "syntheticReceipt": {
+      "boxes": [
+        100,
+        500
+      ],
+      "beforeMs": [
+        850,
+        8524
+      ],
+      "finalFullRunMs": [
+        328,
+        2288
+      ],
+      "perBoxProjectionsAndIdempotencyVerified": true
+    },
+    "stagingLoopback": [
+      {
+        "endpoint": "/api/catalog",
+        "ms": 146,
+        "bytes": 24376
+      },
+      {
+        "endpoint": "/api/catalog/options",
+        "ms": 136,
+        "bytes": 209896
+      },
+      {
+        "endpoint": "/api/inventory",
+        "ms": 221,
+        "bytes": 19774
+      },
+      {
+        "endpoint": "/api/sales",
+        "ms": 126,
+        "bytes": 11621
+      },
+      {
+        "endpoint": "existing-demo-note",
+        "size": "letter",
+        "ms": 219,
+        "bytes": 126738
+      },
+      {
+        "endpoint": "existing-demo-note",
+        "size": "a4",
+        "ms": 243,
+        "bytes": 126771
+      }
+    ],
+    "physicalTabletAndPrinterLatencyVerified": false
+  },
+  "documentReview": {
+    "originalArtworkPreserved": true,
+    "proportionalTransparentDerivative": true,
+    "firstAndLastPagesVisuallyReviewed": true,
+    "bcvContentAndPaperGeometryTestsPassed": true
+  },
+  "sourcePackage": {
+    "archiveSha256": "b4bf29d096645f8a188a1a37d858cc5a49822184582532347e63b9405f119a31",
+    "includedFiles": 660,
+    "omittedDocumentationCaptures": 177,
+    "runtimeFilesOmitted": false
+  },
+  "staging": {
+    "commit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
+    "healthy": true,
+    "migrationCount": 18,
+    "migration0017ExecutedOnce": true,
+    "allPublicRowsPreserved": true,
+    "beforeAndAfterBackupsRestored": true,
+    "collectorResumed": true,
+    "accessChecksPassed": 16,
+    "pdfChecksPassed": 5,
+    "businessWritesDuringSmoke": false,
+    "initialActivationHeld": "Original peer audit observed a transient production rate-refresh container; original failure preserved",
+    "forwardRecovery": {
+      "originalPeerComparatorPassed": true,
+      "allRowsUnchangedWhileHeld": true,
+      "sameCandidateContainersResumed": true,
+      "migrationRepeated": false,
+      "passed": true
+    },
+    "productionAndOtherServicesModified": false
+  },
+  "backup": {
+    "commit": "4e99d7bd1bb750f08048463128c3ad609c389fb5",
+    "checkedAt": "2026-11-14T11:21:09.381150+00:00",
+    "encryptedComputerAndSameVpsCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true
+  },
+  "productionPreparation": {
+    "localPackagePrepared": true,
+    "uploaded": false,
+    "built": false,
+    "ownerApprovalReceived": false,
+    "plannedScope": "Upload/build exact package; pause own API/web/rates/push; encrypted PC/same-VPS backup and isolated restore; migration0017; preserve all rows/access/tablet; verify runtime and post-backup; no DNS/Caddy/other projects"
+  },
+  "pending": [
+    "Specific operational approval",
+    "Production publication and post-publication checks",
+    "Physical tablet and printer speed confirmation"
+  ]
+}
