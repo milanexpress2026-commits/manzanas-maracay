@@ -1,0 +1,307 @@
+{
+  "version": "V4.16",
+  "status": "published_verified",
+  "candidateCommit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+  "productionCommit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/17",
+  "migrationCount": 18,
+  "migrationExecuted": false,
+  "archiveSha256": "8bb28d744fde8c363948491bd691ea3406a8cfab35a26ac79ee25edacdabec0f",
+  "local": {
+    "typecheck": true,
+    "build": true,
+    "unitTestsPassed": 463,
+    "targetedE2ePassed": 8,
+    "productionIsolatedPassed": 14,
+    "productionQaDatabaseCleaned": true,
+    "earlierFullE2e": {
+      "commit": "16810717dcb7197cf4adfb2bea43892b1e592651",
+      "passed": 173,
+      "failed": 1,
+      "failure": "Recovery fixture revoked a session while its invoice read was pending; synchronized and passed in subsequent directed runs."
+    },
+    "applicationOperatorTestsPassed": 6,
+    "proxyApprovalTestsPassed": 4,
+    "productionVerificationGuardTestsPassed": 5,
+    "secretScanFiles": 844,
+    "secretScanFindings": []
+  },
+  "benchmark": {
+    "synthetic": true,
+    "physicalDeviceVerified": false,
+    "latencyMs": 250,
+    "downloadBytesPerSecond": 125000,
+    "samples": [
+      {
+        "cpuSlowdown": 1,
+        "step": "first-sales",
+        "visibleMs": 466
+      },
+      {
+        "cpuSlowdown": 1,
+        "step": "return-sales",
+        "visibleMs": 390
+      },
+      {
+        "cpuSlowdown": 6,
+        "step": "first-sales",
+        "visibleMs": 989
+      },
+      {
+        "cpuSlowdown": 6,
+        "step": "return-sales",
+        "visibleMs": 490
+      },
+      {
+        "cpuSlowdown": 12,
+        "step": "first-sales",
+        "visibleMs": 718
+      },
+      {
+        "cpuSlowdown": 12,
+        "step": "return-sales",
+        "visibleMs": 1012
+      }
+    ],
+    "baselineMeasurementMethodDiffers": true,
+    "exactSpeedupClaimed": false
+  },
+  "staging": {
+    "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+    "healthy": true,
+    "checksPassed": 21,
+    "allPublicRowsPreserved": true,
+    "schemaUnchanged": true,
+    "collectorResumed": true,
+    "checkedAt": "2026-11-14T15:51:12.309458+00:00",
+    "interruption": "SSH disconnected while own candidate services started. Preserved original states; healthy candidate and identical rows verified, then completed own collector checks without restarting services.",
+    "recovery": {
+      "originalEvidencePreserved": true,
+      "candidateAlreadyHealthy": true,
+      "noServicesRestarted": true,
+      "allRowsStillIdentical": true
+    }
+  },
+  "compression": {
+    "passed": true,
+    "productionChanged": false,
+    "businessWrites": false,
+    "anonymousDenied": true,
+    "authorizedSalesInHtml": true,
+    "checks": [
+      {
+        "endpoint": "/api/catalog",
+        "identityBytes": 24376,
+        "gzipBytes": 3875,
+        "gzipMs": 262,
+        "exactContentPreserved": true,
+        "noStore": true
+      },
+      {
+        "endpoint": "/api/inventory",
+        "identityBytes": 19774,
+        "gzipBytes": 2676,
+        "gzipMs": 162,
+        "exactContentPreserved": true,
+        "noStore": true
+      },
+      {
+        "endpoint": "/api/sales?limit=25&offset=0",
+        "identityBytes": 11621,
+        "gzipBytes": 1468,
+        "gzipMs": 115,
+        "exactContentPreserved": true,
+        "noStore": true
+      }
+    ],
+    "temporaryProxyRemoved": true,
+    "productionProxyChanged": true,
+    "proposedChange": "encode zstd gzip only in manzanas.ganamosclub.net",
+    "configBeforeSha256": "2ba9b689fa13f5edc575e04beaf9fa8df02ee2ea513663345cbe189f3b75e2cb",
+    "configAfterSha256": "3c5a92898d75d5699f966a1f3c2c729cfef3f6dfa417d80709edd669551d4f7e",
+    "activeConfigPlanValidated": true,
+    "applied": {
+      "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+      "originalSha256": "2ba9b689fa13f5edc575e04beaf9fa8df02ee2ea513663345cbe189f3b75e2cb",
+      "candidateSha256": "3c5a92898d75d5699f966a1f3c2c729cfef3f6dfa417d80709edd669551d4f7e",
+      "onlyManzanasEncodingChanges": true,
+      "validated": true,
+      "reloaded": true,
+      "proxyNotRestarted": true,
+      "healthReady": true,
+      "gzipDecoded": true
+    },
+    "productionReadOnlyVerification": {
+      "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+      "checkedAt": "2026-11-14T17:30:34.689Z",
+      "businessWrites": false,
+      "physicalDeviceVerified": false,
+      "checks": [
+        {
+          "route": "/api/catalog",
+          "identityBytes": 30619,
+          "gzipBytes": 4550,
+          "gzipMs": 735,
+          "exactContentPreserved": true,
+          "noStore": true
+        },
+        {
+          "route": "/api/inventory",
+          "identityBytes": 37024,
+          "gzipBytes": 5144,
+          "gzipMs": 288,
+          "exactContentPreserved": true,
+          "noStore": true
+        },
+        {
+          "route": "/api/sales?search=&limit=25&offset=0",
+          "identityBytes": 14662,
+          "gzipBytes": 2461,
+          "gzipMs": 345,
+          "exactContentPreserved": true,
+          "noStore": true
+        }
+      ],
+      "passed": true
+    }
+  },
+  "backupBefore": {
+    "commit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
+    "checkedAt": "2026-11-14T15:52:08.677912+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "approvalReceived": true,
+  "productionChanged": true,
+  "previousProductionCommit": "501bd3bb06583535f9b3a79d00579721bb35fa1f",
+  "approvalReference": "call_59d28b34a0da48968140082bb5de523c",
+  "production": {
+    "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+    "healthyAt": "2026-11-14T17:22:03.641136+00:00",
+    "allPublicRowsPreserved": true,
+    "schemaUnchanged": true,
+    "migrationExecuted": false,
+    "collectorResumed": true,
+    "postResumeVerification": {
+      "checkedAt": "2026-11-14T17:22:03.641089+00:00",
+      "fixedOwnServicesUnchanged": true,
+      "schedulerProvenanceVerified": true,
+      "httpAndPeerObservationsPreserved": true,
+      "fullAuditCompletedBeforeResume": true
+    },
+    "windowBackup": {
+      "checkedAt": "2026-11-14T17:17:58.461206+00:00",
+      "externalCopyVerified": true,
+      "restoredFromExternalCopy": true,
+      "isolatedRestoreCleaned": true,
+      "remoteEncryptedCopyVerified": true
+    },
+    "accessChecksPassed": 21,
+    "ratesReadyAtVerification": {
+      "usd": true,
+      "usdt": true,
+      "vesBcv": true,
+      "vesUsdt": true
+    },
+    "accessCheckedAt": "2026-11-14T17:30:13.680189+00:00",
+    "ui": {
+      "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+      "checkedAt": "2026-11-14T17:30:14.928Z",
+      "pages": [
+        {
+          "route": "/ventas",
+          "networkIdleMs": 2208,
+          "apiRequests": 0
+        },
+        {
+          "route": "/recepciones",
+          "networkIdleMs": 2917,
+          "apiRequests": 1
+        },
+        {
+          "route": "/inventario",
+          "networkIdleMs": 3298,
+          "apiRequests": 1
+        },
+        {
+          "route": "/ventas/nueva",
+          "networkIdleMs": 4186,
+          "apiRequests": 3
+        },
+        {
+          "route": "/catalogo",
+          "networkIdleMs": 2690,
+          "apiRequests": 2
+        }
+      ],
+      "passed": true,
+      "businessWrites": false,
+      "physicalTabletVerified": false,
+      "initialSalesWithoutDuplicateRead": true,
+      "singleReceiptCatalogVerified": true,
+      "responsive800Verified": true
+    },
+    "documents": {
+      "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+      "checkedAt": "2026-11-14T17:28:36.307Z",
+      "passed": true,
+      "results": [
+        {
+          "size": "letter",
+          "status": 200,
+          "bytes": 126755,
+          "elapsedMs": 1631
+        },
+        {
+          "size": "a4",
+          "status": 200,
+          "bytes": 126790,
+          "elapsedMs": 491
+        }
+      ],
+      "saleUnchanged": true,
+      "businessWrites": false,
+      "physicalPrintingVerified": false
+    },
+    "documentContents": {
+      "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+      "checkedAt": "2026-11-14T17:30:02.057685+00:00",
+      "passed": true,
+      "results": [
+        {
+          "size": "letter",
+          "addressAndFormalIdentityVerified": true,
+          "saleDateBcvAndExactTotalVerified": true,
+          "signaturesPreserved": true,
+          "noObservationsOrCurrentBalance": true,
+          "pages": 1
+        },
+        {
+          "size": "a4",
+          "addressAndFormalIdentityVerified": true,
+          "saleDateBcvAndExactTotalVerified": true,
+          "signaturesPreserved": true,
+          "noObservationsOrCurrentBalance": true,
+          "pages": 1
+        }
+      ],
+      "businessWrites": false,
+      "physicalPrintingVerified": false
+    }
+  },
+  "backupAfter": {
+    "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+    "checkedAt": "2026-11-14T17:32:20.558992+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  },
+  "publicationPreparationIncidents": [
+    "A relative approval-file path was rejected before services stopped; retried with its canonical absolute path and the same owner approval.",
+    "Two post-publication text probes used corrupted accent encodings; regenerated from UTF-8 source, preserved failed reports, then passed unchanged runtime.",
+    "The first existing-PDF probe raised an assertion without a recorded stage. A subsequent instrumented read passed all original assertions; both documents and their contents were verified. The first cause was not established."
+  ]
+}

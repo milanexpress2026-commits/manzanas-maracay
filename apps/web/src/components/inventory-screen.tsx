@@ -195,7 +195,7 @@ export function InventoryScreen({
             <p>Existencias físicas, desde la caja cerrada hasta la fruta contada.</p>
           </div>
           <Button asChild>
-            <Link href="/recepciones">
+            <Link prefetch={false} href="/recepciones">
               <Plus data-icon="inline-start" />
               Registrar recepción
             </Link>
@@ -329,7 +329,9 @@ export function InventoryScreen({
                   </p>
                   {all.length === 0 ? (
                     <Button asChild>
-                      <Link href="/recepciones">Registrar primera recepción</Link>
+                      <Link prefetch={false} href="/recepciones">
+                        Registrar primera recepción
+                      </Link>
                     </Button>
                   ) : (
                     <Button variant="outline" onClick={clearFilters}>
@@ -358,6 +360,7 @@ export function InventoryScreen({
                         <tr key={lot.id} className={initialLotId === lot.id ? 'lot-selected' : ''}>
                           <td data-label="Producto">
                             <Link
+                              prefetch={false}
                               className="lot-product"
                               href={`/inventario?lote=${lot.id}`}
                               scroll={false}
@@ -400,6 +403,7 @@ export function InventoryScreen({
                           <td>
                             <Button variant="ghost" size="icon" asChild>
                               <Link
+                                prefetch={false}
                                 aria-label={`Ver lote ${lot.code}`}
                                 href={`/inventario?lote=${lot.id}`}
                                 scroll={false}
@@ -491,7 +495,7 @@ function LotDetailPanel({ lotId, onChange }: { lotId: string; onChange: () => vo
           </p>
         </div>
         <Button variant="outline" asChild>
-          <Link href="/inventario" scroll={false}>
+          <Link prefetch={false} href="/inventario" scroll={false}>
             Cerrar detalle
           </Link>
         </Button>

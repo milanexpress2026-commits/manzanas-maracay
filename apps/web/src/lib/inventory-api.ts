@@ -10,29 +10,8 @@ import {
   type CommercialSummary,
   type PendingCommercialCommand,
 } from './commercial-journal';
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-  }
-}
-async function decode<T>(response: Response): Promise<T> {
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new ApiError(
-      response.status === 401
-        ? 'Tu sesión terminó. Inicia sesión de nuevo para continuar.'
-        : (body.message ??
-            'No se pudo completar la operación. Conserva los datos y vuelve a intentar.'),
-      response.status,
-    );
-  return body as T;
-}
-export async function readApi<T>(url: string, signal?: AbortSignal): Promise<T> {
-  return decode<T>(await fetch(url, { cache: 'no-store', signal }));
-}
+import { decode, readApi } from './api-read';
+export { ApiError, readApi } from './api-read';
 export function useRemote<T>(url: string) {
   const [result, setResult] = useState<{ url: string; value: T } | null>(null),
     [loading, setLoading] = useState(true),
@@ -222,11 +201,11 @@ export function displayMoney(value: string) {
   const [whole, decimal = ''] = value.split('.');
   return `USD ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${decimal.padEnd(2, '0').slice(0, 4)}`;
 }
+const businessDateFormatter = new Intl.DateTimeFormat('es-VE', {
+  dateStyle: 'medium',
+  timeZone: 'America/Caracas',
+});
 export function displayDate(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.valueOf())
-    ? value
-    : new Intl.DateTimeFormat('es-VE', { dateStyle: 'medium', timeZone: 'America/Caracas' }).format(
-        date,
-      );
+  return Number.isNaN(date.valueOf()) ? value : businessDateFormatter.format(date);
 }

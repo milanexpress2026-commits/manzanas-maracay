@@ -1,6 +1,6 @@
 'use client';
 import Image from 'next/image';
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   Package,
@@ -18,12 +18,17 @@ import {
   HandCoins,
   ContactRound,
   House,
+  LoaderCircle,
 } from 'lucide-react';
 import type { SessionInfo } from '@mm/domain';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 export type AppSession = SessionInfo;
+function NavigationPending() {
+  const { pending } = useLinkStatus();
+  return pending ? <LoaderCircle className="nav-pending spin" aria-hidden="true" /> : null;
+}
 const navigation = [
   { href: '/inicio', label: 'Inicio', icon: House },
   { href: '/catalogo', label: 'Catálogo', icon: Package },
@@ -102,6 +107,7 @@ export function AppShell({
           >
             <item.icon aria-hidden="true" />
             {item.label}
+            <NavigationPending />
             {current === item.href ? <ChevronRight aria-hidden="true" /> : null}
           </Link>
         ))}

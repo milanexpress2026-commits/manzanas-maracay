@@ -113,7 +113,7 @@ export function ClientsScreen({ session }: { session: AppSession }) {
                       {rows.map((c) => (
                         <tr key={c.id}>
                           <td>
-                            <Link className="row-link" href={'/clientes/' + c.id}>
+                            <Link prefetch={false} className="row-link" href={'/clientes/' + c.id}>
                               {c.name}
                             </Link>
                             <small>
@@ -201,7 +201,7 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
   return (
     <AppShell session={session} current="/clientes">
       <main id="app-main" className="main-content operations-page">
-        <Link href="/clientes" className="back-link">
+        <Link prefetch={false} href="/clientes" className="back-link">
           <ArrowLeft aria-hidden="true" />
           Clientes
         </Link>
@@ -276,7 +276,7 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
                 <div className="commercial-empty">
                   <p>Este cliente todavía no tiene ventas.</p>
                   <Button asChild variant="outline">
-                    <Link href={'/ventas/nueva?cliente=' + account.data.client.id}>
+                    <Link prefetch={false} href={'/ventas/nueva?cliente=' + account.data.client.id}>
                       Registrar venta
                     </Link>
                   </Button>
