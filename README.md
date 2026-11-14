@@ -1,5 +1,7 @@
 # Manzanas Maracay
 
+**V4.16 en preparación:** carga inicial de ventas desde el servidor, paginación y menos descargas al navegar. Producción todavía usa V4.15. [Evidencia y límites](docs/navegacion-tablet-v4-16.md) · [PR #17](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/17).
+
 **V4.15 publicada:** notas más ligeras y recepción más rápida, con catálogo único y menos descargas al navegar. Inventario, ventas, acceso y tablet conservados; documentos reales y respaldo restaurado verificados. Cerrar y abrir la app instalada para cargar la interfaz nueva. [Entrar al sistema](https://manzanas.ganamosclub.net) · [Cambios y mediciones](docs/rendimiento-v4-15.md) · [PR #16](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/16).
 
 **Antecedente V4.14:** la nota incluye la dirección del local y, para ventas pactadas a BCV, el total en bolívares con la tasa del día de la venta. Se puede reimprimir la venta existente. Datos conservados, Carta/A4 y respaldo restaurado verificados. [Entrar al sistema](https://manzanas.ganamosclub.net/ventas) · [Cambios](docs/nota-direccion-bcv-v4-14.md) · [PR #15](https://github.com/milanexpress2026-commits/manzanas-maracay/pull/15).
