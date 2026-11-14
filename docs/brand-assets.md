@@ -14,6 +14,8 @@ Las cuatro imágenes en `docs/referencias` siguen siendo modelos conceptuales de
 
 ## Uso
 
+La impresión utiliza `logo-manzanas-maracay-print.png`: derivado proporcional de 256 px, PNG con transparencia, 132.520 bytes. A 48 puntos conserva 384 ppp y evita incluir el original de 2,2 MB en cada documento. Se regenera con `node scripts/prepare-print-logo.mjs`; el script verifica el SHA-256 del original antes de producir la variante, sin sobrescribirlo.
+
 Conservar proporción, colores, lettering y composición completa. Ajustar dimensiones y compresión para cada superficie sin estirar, recortar partes, recolorear ni generar un nuevo dibujo. Mantener espacio alrededor para que los bordes del contenedor o las máscaras de iconos no corten la marca. Usar un nombre accesible cuando la imagen identifique el negocio; evitar duplicarlo si el texto adyacente ya cumple esa función.
 
 El original no se sobrescribe al regenerar variantes. La incorporación del logo no cambia el alcance funcional de la fase 1.

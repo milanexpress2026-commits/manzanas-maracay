@@ -111,8 +111,8 @@ let logoPromise: Promise<Buffer> | undefined;
 function officialLogo() {
   return (logoPromise ??= (async () => {
     for (const filename of [
-      path.resolve('apps/api/assets/brand/logo-manzanas-maracay.png'),
-      path.resolve('apps/web/public/brand/logo-manzanas-maracay.png'),
+      path.resolve('apps/api/assets/brand/logo-manzanas-maracay-print.png'),
+      path.resolve('apps/web/public/brand/logo-manzanas-maracay-print.png'),
     ]) {
       try {
         return await fs.readFile(filename);

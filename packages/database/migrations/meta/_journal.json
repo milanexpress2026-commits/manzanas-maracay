@@ -120,6 +120,13 @@
       "when": 1794307114210,
       "tag": "0016_commercial_half_boxes",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794654427423,
+      "tag": "0017_inventory_validation_scope",
+      "breakpoints": true
     }
   ]
 }

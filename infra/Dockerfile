@@ -28,7 +28,7 @@ CMD ["migrate"]
 FROM dependencies AS api
 ENV NODE_ENV=production MM_APP_ENV=staging MM_API_HOST=0.0.0.0 MM_API_PORT=3101
 COPY --from=build /app/apps/api/dist ./apps/api/dist
-COPY --from=build /app/apps/web/public/brand/logo-manzanas-maracay.png ./apps/api/assets/brand/logo-manzanas-maracay.png
+COPY --from=build /app/apps/web/public/brand/logo-manzanas-maracay-print.png ./apps/api/assets/brand/logo-manzanas-maracay-print.png
 COPY scripts/staging-runtime.mjs ./scripts/staging-runtime.mjs
 USER node
 ENTRYPOINT ["node", "scripts/staging-runtime.mjs"]

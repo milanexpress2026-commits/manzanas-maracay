@@ -106,6 +106,8 @@ describe('composición comercial V4.7', () => {
         generatedAt: PDF_QA_PRINTED_AT,
       });
       const { doc, pages } = await extractedPages(bytes);
+      // A tiny printed logo must not reintroduce a multi-megabyte Android download.
+      expect(bytes.length).toBeLessThan(220000);
       expect(JSON.stringify(sale)).toBe(before);
       expect(doc.getPage(0).getSize()).toEqual({ width: 612, height: 792 });
       expect(
