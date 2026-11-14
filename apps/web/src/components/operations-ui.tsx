@@ -51,10 +51,10 @@ export function SavedNotice({ children }: { children: ReactNode }) {
 export function LoadingRows() {
   return (
     <div className="operation-loading" aria-label="Cargando registros" role="status">
+      <p>Cargando registros…</p>
       <Skeleton className="h-12 w-full" />
       <Skeleton className="h-20 w-full" />
       <Skeleton className="h-20 w-full" />
-      <span className="sr-only">Cargando registros…</span>
     </div>
   );
 }

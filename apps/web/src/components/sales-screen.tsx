@@ -3,20 +3,10 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Decimal from 'decimal.js';
-import {
-  Plus,
-  Minus,
-  ChevronDown,
-  Search,
-  ShoppingCart,
-  Trash2,
-  ArrowLeft,
-  UserPlus,
-} from 'lucide-react';
+import { Plus, Minus, ChevronDown, Trash2, ArrowLeft, UserPlus } from 'lucide-react';
 import {
   manualSaleSchema,
   paymentMethodLabel,
-  type SaleSummary,
   type SaleDetail,
   type Catalog,
   type Presentation,
@@ -33,7 +23,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { LoadError, LoadingRows, PageFooter, FormError } from './operations-ui';
 import {
   ClientDialog,
-  SaleTable,
   RateNotice,
   RateSnapshot,
   UsdtReference,
@@ -70,85 +59,6 @@ import {
   type SaleDraftLine,
 } from '@/lib/sales-flow';
 import styles from './sales-flow.module.css';
-import { usePagedList } from '@/lib/use-paged-list';
-export function SalesScreen({ session }: { session: AppSession }) {
-  const [query, setQuery] = useState('');
-  const sales = usePagedList<SaleSummary>('/api/sales?search=' + encodeURIComponent(query.trim()));
-  const pendingSale = useDurableCommercialCommand(
-    session.environment + ':' + (session.operationScopeId ?? session.user.id),
-    'sale',
-  );
-  const rows = sales.data ?? [];
-  return (
-    <AppShell session={session} current="/ventas">
-      <main id="app-main" className="main-content operations-page">
-        <div className="page-heading">
-          <div>
-            <h1>Ventas</h1>
-            <p>La mercancía entregada, el precio pactado y cada saldo pendiente.</p>
-          </div>
-          <Button asChild>
-            <Link href="/ventas/nueva">
-              <Plus aria-hidden="true" />
-              Nueva venta
-            </Link>
-          </Button>
-        </div>
-        <FormError message={pendingSale.storageError} />
-        {pendingSale.pending ? (
-          <section className="saved-notice" aria-label="Venta pendiente de confirmación">
-            <p>Hay una venta pendiente de confirmación en este dispositivo.</p>
-            <Button asChild variant="outline">
-              <Link href="/ventas/nueva">Recuperar venta pendiente</Link>
-            </Button>
-          </section>
-        ) : null}
-        <div className="commercial-toolbar">
-          <div className="search-field">
-            <Search aria-hidden="true" />
-            <Input
-              aria-label="Buscar ventas"
-              maxLength={120}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar comprobante o cliente…"
-            />
-          </div>
-        </div>
-        {sales.error ? <LoadError error={sales.error} retry={() => void sales.reload()} /> : null}
-        {sales.loading && !sales.data ? <LoadingRows /> : null}
-        {sales.data ? (
-          <>
-            <section className="operations-panel" aria-label="Ventas registradas">
-              {rows.length ? (
-                <SaleTable sales={rows} />
-              ) : (
-                <div className="commercial-empty">
-                  <ShoppingCart aria-hidden="true" />
-                  <h2>{query ? 'No encontramos coincidencias' : 'Registra la primera venta'}</h2>
-                  <p>Selecciona cliente y productos e indica el precio de esta venta.</p>
-                  <Button asChild variant="outline">
-                    <Link href="/ventas/nueva">Registrar venta</Link>
-                  </Button>
-                </div>
-              )}
-            </section>
-            {sales.hasMore ? (
-              <Button
-                variant="outline"
-                disabled={sales.loading}
-                onClick={() => void sales.loadMore()}
-              >
-                Cargar más ventas
-              </Button>
-            ) : null}
-          </>
-        ) : null}
-        <PageFooter />
-      </main>
-    </AppShell>
-  );
-}
 export function NewSaleScreen({ session }: { session: AppSession }) {
   const router = useRouter();
   const catalog = useRemote<Catalog>('/api/catalog');

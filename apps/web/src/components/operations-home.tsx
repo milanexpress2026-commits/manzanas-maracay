@@ -98,7 +98,7 @@ export function OperationsHome({ session }: { session: AppSession }) {
                   </dt>
                   <dd>
                     <span className="operation-overview-value">{data.inventory.sealedBoxes}</span>
-                    <Link href="/inventario">
+                    <Link prefetch={false} href="/inventario">
                       Consultar inventario
                       <ArrowRight aria-hidden="true" />
                     </Link>
@@ -113,7 +113,7 @@ export function OperationsHome({ session }: { session: AppSession }) {
                     <span className="operation-overview-value">
                       {displayMoney(data.receivablesUsd)}
                     </span>
-                    <Link href="/cobranza">
+                    <Link prefetch={false} href="/cobranza">
                       Revisar cobranza
                       <ArrowRight aria-hidden="true" />
                     </Link>
@@ -126,7 +126,7 @@ export function OperationsHome({ session }: { session: AppSession }) {
                   </dt>
                   <dd>
                     <span className="operation-overview-value">{data.counts.sales}</span>
-                    <Link href="/ventas">
+                    <Link prefetch={false} href="/ventas">
                       Ver comprobantes
                       <ArrowRight aria-hidden="true" />
                     </Link>
@@ -149,7 +149,7 @@ export function OperationsHome({ session }: { session: AppSession }) {
                 </p>
                 {pending && data.ready ? (
                   <Button asChild>
-                    <Link href={pending.href}>
+                    <Link prefetch={false} href={pending.href}>
                       {pending.action}
                       <ArrowRight aria-hidden="true" />
                     </Link>
@@ -158,13 +158,13 @@ export function OperationsHome({ session }: { session: AppSession }) {
                 {!pending && data.ready ? (
                   <div className="inline-actions">
                     <Button asChild>
-                      <Link href="/ventas/nueva">
+                      <Link prefetch={false} href="/ventas/nueva">
                         <ShoppingCart aria-hidden="true" />
                         Nueva venta
                       </Link>
                     </Button>
                     <Button variant="outline" asChild>
-                      <Link href="/recepciones">
+                      <Link prefetch={false} href="/recepciones">
                         <Truck aria-hidden="true" />
                         Registrar recepción
                       </Link>
@@ -193,7 +193,7 @@ export function OperationsHome({ session }: { session: AppSession }) {
                             <span>{step.done ? 'Registrado' : 'Pendiente'}</span>
                           </h3>
                           <p>{step.description}</p>
-                          <Link href={step.href}>
+                          <Link prefetch={false} href={step.href}>
                             {step.action}
                             <ArrowRight aria-hidden="true" />
                           </Link>
@@ -230,7 +230,9 @@ export function OperationsHome({ session }: { session: AppSession }) {
                       {data.counts.pendingConfigurations} configuraciones pendientes. Confirma sus
                       reglas antes de recibir o vender en producción.
                     </p>
-                    <Link href="/catalogo">Revisar catálogo</Link>
+                    <Link prefetch={false} href="/catalogo">
+                      Revisar catálogo
+                    </Link>
                   </section>
                 ) : null}
                 <section>
