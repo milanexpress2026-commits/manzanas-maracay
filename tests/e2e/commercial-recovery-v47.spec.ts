@@ -258,9 +258,20 @@ test('abono completo: cierre y login recuperan el recibo aun cuando ya no hay sa
   // A foreign-client modal must not reuse A after another tab resolves A.
   const other = await context.newPage();
   await other.goto('/clientes/' + otherFixture.client.id);
+  // Finish B's authorized read before deliberately revoking the shared cookie.
+  // Otherwise the test races a 401 with logout instead of testing journal ownership.
+  const otherInvoices = other.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      url.pathname === '/api/sales' &&
+      url.searchParams.get('clientId') === otherFixture.client.id &&
+      url.searchParams.get('status') === 'pending'
+    );
+  });
   await other.getByRole('button', { name: 'Registrar abono', exact: true }).click();
   await expect(other.getByRole('dialog').getByRole('alert')).toContainText('otro cliente');
   await expect(other.getByLabel('Monto recibido')).toBeDisabled();
+  expect((await otherInvoices).status()).toBe(200);
   expect(
     (
       await page.request.post('/api/auth/logout', {

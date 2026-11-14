@@ -26,5 +26,7 @@ async function initialSales(): Promise<SaleSummary[] | null> {
 }
 export default async function Page() {
   const session = await requireSession();
-  return <SalesScreen session={session} initialRows={await initialSales()} />;
+  return (
+    <SalesScreen session={session} initialRows={await initialSales()} initialReadAt={Date.now()} />
+  );
 }

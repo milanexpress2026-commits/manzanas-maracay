@@ -13,15 +13,18 @@ import { usePagedList } from '@/lib/use-paged-list';
 export function SalesScreen({
   session,
   initialRows,
+  initialReadAt,
 }: {
   session: AppSession;
   initialRows?: SaleSummary[] | null;
+  initialReadAt?: number;
 }) {
   const [query, setQuery] = useState('');
   const sales = usePagedList<SaleSummary>(
     '/api/sales?search=' + encodeURIComponent(query.trim()),
     25,
     initialRows,
+    initialReadAt,
   );
   const pendingSale = useDurableCommercialCommand(
     session.environment + ':' + (session.operationScopeId ?? session.user.id),
@@ -68,6 +71,7 @@ export function SalesScreen({
         </div>
         {sales.error ? <LoadError error={sales.error} retry={() => void sales.reload()} /> : null}
         {sales.loading && !sales.data ? <LoadingRows /> : null}
+        {sales.loading && sales.data ? <p role="status">Actualizando ventas…</p> : null}
         {sales.data ? (
           <>
             <section className="operations-panel" aria-label="Ventas registradas">

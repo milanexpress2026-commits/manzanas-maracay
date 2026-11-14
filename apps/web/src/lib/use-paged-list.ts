@@ -2,17 +2,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { readApi } from './inventory-api';
 
+// Only a server timestamp is retained, never business records. History can reuse
+// an old RSC response; a page already seen must revalidate when it mounts again.
+let newestInitialRead = 0;
+
 /** Keep selections from earlier pages, but never show another query's rows. */
 export function usePagedList<T extends { id: string }>(
   url: string,
   pageSize = 100,
   initialRows?: T[] | null,
+  initialReadAt?: number,
 ) {
-  const initial = useRef({ url, rows: initialRows });
+  const initial = useRef({
+    url,
+    rows: initialRows,
+    readAt: initialReadAt,
+    fresh: initialReadAt === undefined || initialReadAt > newestInitialRead,
+  });
   const [result, setResult] = useState<{ url: string; rows: T[] } | null>(
     initialRows ? { url, rows: initialRows } : null,
   );
-  const [loading, setLoading] = useState(!initialRows);
+  const [loading, setLoading] = useState(!initialRows || !initial.current.fresh);
   const [error, setError] = useState('');
   const [hasMore, setHasMore] = useState(initialRows?.length === pageSize);
   const request = useRef(0);
@@ -56,16 +66,37 @@ export function usePagedList<T extends { id: string }>(
     [url, pageSize],
   );
   useEffect(() => {
+    const cancel = () => {
+      if (controller.current) {
+        ++request.current;
+        controller.current.abort();
+        busy.current = false;
+      }
+    };
     // The authorized server response already contains this first page. Do not
     // repeat it on hydration; later searches/reloads always request fresh data.
-    if (request.current === 0 && url === initial.current.url && initial.current.rows) return;
+    if (
+      request.current === 0 &&
+      url === initial.current.url &&
+      initial.current.rows &&
+      initial.current.fresh &&
+      initial.current.readAt === initialReadAt
+    ) {
+      if (initialReadAt !== undefined)
+        newestInitialRead = Math.max(newestInitialRead, initialReadAt);
+      return cancel;
+    }
     void page(0);
-    return () => {
-      ++request.current;
-      controller.current?.abort();
-      busy.current = false;
+    return cancel;
+  }, [page, url, initialReadAt]);
+  useEffect(() => {
+    if (initialReadAt === undefined) return;
+    const restored = (event: PageTransitionEvent) => {
+      if (event.persisted) void page(0);
     };
-  }, [page]);
+    window.addEventListener('pageshow', restored);
+    return () => window.removeEventListener('pageshow', restored);
+  }, [page, initialReadAt]);
   const current = result?.url === url;
   return {
     data: current ? result.rows : null,

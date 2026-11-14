@@ -1,6 +1,31 @@
 import { test, expect } from '@playwright/test';
 import { loginPage } from './helpers/auth';
 
+test('V4.16 Atrás y restaurar una página vuelven a consultar ventas sin conservar saldos viejos', async ({
+  page,
+}) => {
+  await loginPage(page);
+  await page.setViewportSize({ width: 800, height: 1100 });
+  await page.goto('/ventas');
+  await page.waitForLoadState('networkidle');
+  let reads = 0;
+  await page.route('**/api/sales?**', async (route) => {
+    reads++;
+    await route.fulfill({ json: [{ ...sales[0], clientName: `Datos actualizados ${reads}` }] });
+  });
+  await page.locator('.desktop-sidebar').getByRole('link', { name: 'Inicio', exact: true }).click();
+  await expect(page).toHaveURL(/\/inicio$/);
+  await page.goBack();
+  await expect(page.locator('.commercial-table tbody tr')).toHaveCount(1);
+  await expect(page.locator('.commercial-table')).toContainText('Datos actualizados 1');
+  expect(reads).toBe(1);
+  await page.evaluate(() =>
+    window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })),
+  );
+  await expect(page.locator('.commercial-table')).toContainText('Datos actualizados 2');
+  expect(reads).toBe(2);
+});
+
 test('V4.16 una carga lenta se ve y no impide salir a otro menú', async ({ page }) => {
   await loginPage(page);
   await page.setViewportSize({ width: 800, height: 1100 });
