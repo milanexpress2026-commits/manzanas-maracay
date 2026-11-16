@@ -1,6 +1,6 @@
 # V4.17 — Vendedores, agregar productos y anular pedidos
 
-Estado: preparada y verificada en staging, versión `d25879918810f9e0a9257aefcf7eb7dcdeac3b94`, PR #18. Producción continúa en V4.16; falta la autorización operativa específica para publicar V4.17.
+Estado: publicada y verificada en producción y staging, versión `d25879918810f9e0a9257aefcf7eb7dcdeac3b94`, PR #18. Autorización específica del propietario recibida y aplicada; migración 0018 completada sin alterar los datos anteriores.
 
 ## Uso para Carlos y Randy
 
@@ -30,7 +30,7 @@ Anular una venta reciente puede revertir su salida original. Si el lote ya tuvo 
 
 La evidencia final se registra en `verificacion-v4-17.json`. QA usa datos sintéticos en bases exclusivas, nunca ventas reales de producción. Debe cubrir nueva venta por vendedor, ampliación de contado, crédito sin abonos, rechazo de crédito abonado, concurrencia, cancelación tras movimientos posteriores, medias de cinco blísteres, recuperación tras respuesta perdida, resumen y documentos.
 
-La publicación conservará los datos reales, acceso y tablet. Requiere respaldo cifrado en la computadora y el mismo VPS con recuperación aislada, pausa breve de aplicación/tasas/recordatorios, migración0018 y verificación posterior. No necesita cambios de DNS, Caddy ni otros proyectos. Tras publicar, cerrar y volver a abrir la aplicación instalada permite cargar la interfaz nueva. La validación de escritorio/celular/tablet simulada no sustituye la comprobación del dispositivo físico por sus dueños.
+La publicación conservó los datos reales, acceso y tablet. Se verificaron respaldos cifrados en la computadora y el mismo VPS con recuperación aislada, antes y después del cambio; aplicación/tasas/recordatorios se pausaron durante la migración0018 y volvieron a quedar activos. No hubo cambios de DNS, Caddy ni otros proyectos. Tras publicar, cerrar y volver a abrir la aplicación instalada permite cargar la interfaz nueva. La validación de escritorio/celular/tablet simulada no sustituye la comprobación del dispositivo físico por sus dueños.
 
 ## Incidencias de desarrollo conservadas
 
@@ -44,6 +44,16 @@ La publicación conservará los datos reales, acceso y tablet. Requiere respaldo
 
 Tipos/build y 464 unitarias aprobados. Batería completa186/187, seguida de5/5: el caso pendiente requería seleccionar vendedor tras una recarga; se corrigió la prueba sin cambiar el runtime. Producción aislada15/15; migración limpia e historia18→19 conservada; operador11/11. Staging saludable,19 migraciones, filas anteriores conservadas, respaldo anterior/posterior restaurados y18 controles autenticados aprobados. Respaldo cifrado actual de producción en computadora y VPS recuperado en aislamiento.
 
-El PR está abierto sin merge. El paquete de producción está preparado localmente; no fue activado ni se aplicó0018 en producción. La publicación aprobada incluirá subir/compilar el mismo candidato, pausar solo sus escritores y tareas propias, renovar el respaldo, aplicar0018 y verificar datos/acceso/documentos antes de reanudar. No hay rollback automático: si la migración o las comprobaciones fallan, conservar la evidencia y mantener los escritores propios pausados para evaluar la recuperación; no restaurar sobre operaciones posteriores ni eliminar datos.
+El PR permanece abierto sin merge. Después de la autorización se subió y compiló el mismo candidato, se pausaron solo los escritores y tareas propias, se renovó el respaldo y se aplicó0018 en producción, conservando todos los campos y filas anteriores. El acceso, los documentos y las tareas quedaron verificados después de reanudar. No hay rollback automático: si la migración o las comprobaciones fallan, conservar la evidencia y mantener los escritores propios pausados para evaluar la recuperación; no restaurar sobre operaciones posteriores ni eliminar datos.
 
 Una consulta de progreso de solo lectura coincidió con la escritura del archivo de estado y se repitió correctamente. No fue un fallo de migración; la evidencia privada se conserva.
+
+## Publicación completada
+
+Producción saludable con 19 migraciones, historia conservada y recolector reanudado. Pasaron 21 controles HTTPS de acceso/tasas, las pantallas nuevas en una simulación Android instalada de 800 px, la lectura de notas reales Carta/A4 y su comprobación visual. Se conservaron identidad formal, dirección, BCV del día de la venta, firmas y el registro original. La compresión continúa activa. No se registraron ventas sintéticas ni modificaciones de negocio durante estas comprobaciones.
+
+Después de la migración, un contenedor temporal terminó entre el listado de Docker y su inspección. El operador de despliegue mantuvo sus escritores pausados. Se conservó el fallo original, se repitieron los comparadores originales de servicios y datos y se reanudaron los mismos contenedores aprobados; no se repitió la migración ni se restauró sobre datos reales. La lectura de inventario de contenedores ahora reintenta únicamente ese error específico, sin omitir servicios ni relajar comparaciones.
+
+La comprobación previa a reanudar se ajustó para esperar 502 solo en la API propia pausada, manteniendo iguales los controles de los demás servicios y del proxy. Luego un corte SSH interrumpió una verificación de lectura con la aplicación ya activa. Se retomó mediante una conexión nueva con identidad del servidor verificada, sin otro reinicio. El acceso normal 200, la integridad y los controles originales pasaron antes del cierre.
+
+El respaldo posterior cifrado PC/VPS se restauró correctamente a `2026-11-16T20:36:29.643027+00:00`. Cerrar completamente y volver a abrir la aplicación en cada teléfono/tablet carga la interfaz publicada; no requiere reinstalar. La comprobación física del dispositivo y de la impresora corresponde a los dueños. No repetir esta publicación, la migración ni vaciados.
