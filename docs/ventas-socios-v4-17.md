@@ -1,6 +1,6 @@
 # V4.17 — Vendedores, agregar productos y anular pedidos
 
-Estado: implementación y verificación en curso. Producción continúa en V4.16; esta actualización necesita autorización operativa sobre la versión concreta antes de activarse.
+Estado: preparada y verificada en staging, versión `d25879918810f9e0a9257aefcf7eb7dcdeac3b94`, PR #18. Producción continúa en V4.16; falta la autorización operativa específica para publicar V4.17.
 
 ## Uso para Carlos y Randy
 
@@ -39,3 +39,11 @@ La publicación conservará los datos reales, acceso y tablet. Requiere respaldo
 - Las pruebas detectaron que el retorno de media comercial necesitaba admitir piezas desconocidas y contabilizar media caja en su equivalencia. Se corrigieron ambos puntos y se comprobó su reventa.
 - Se actualizó el doble de consulta de una prueba unitaria para la vista de total vigente.
 - La revisión visual pidió evitar sumar dos veces el extra en el diálogo de recuperación, mostrar todas las cifras del resumen móvil y compactar los filtros. Se aplicaron los ajustes y se añadió un corte de respuesta después del commit con recarga real en el navegador.
+
+## Cierre de preparación
+
+Tipos/build y 464 unitarias aprobados. Batería completa186/187, seguida de5/5: el caso pendiente requería seleccionar vendedor tras una recarga; se corrigió la prueba sin cambiar el runtime. Producción aislada15/15; migración limpia e historia18→19 conservada; operador11/11. Staging saludable,19 migraciones, filas anteriores conservadas, respaldo anterior/posterior restaurados y18 controles autenticados aprobados. Respaldo cifrado actual de producción en computadora y VPS recuperado en aislamiento.
+
+El PR está abierto sin merge. El paquete de producción está preparado localmente; no fue activado ni se aplicó0018 en producción. La publicación aprobada incluirá subir/compilar el mismo candidato, pausar solo sus escritores y tareas propias, renovar el respaldo, aplicar0018 y verificar datos/acceso/documentos antes de reanudar. No hay rollback automático: si la migración o las comprobaciones fallan, conservar la evidencia y mantener los escritores propios pausados para evaluar la recuperación; no restaurar sobre operaciones posteriores ni eliminar datos.
+
+Una consulta de progreso de solo lectura coincidió con la escritura del archivo de estado y se repitió correctamente. No fue un fallo de migración; la evidencia privada se conserva.

@@ -1,11 +1,17 @@
 {
   "version": "V4.17",
-  "status": "local_verified_staging_pending",
-  "candidateCommit": null,
+  "status": "staging_verified_awaiting_production_approval",
+  "candidateCommit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
   "productionCommit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
   "productionApproved": false,
   "productionChanged": false,
-  "migration": { "tag": "0018_sellers_sale_additions", "from": 18, "to": 19, "historicalSqlUnchanged": true, "productionExecuted": false },
+  "migration": {
+    "tag": "0018_sellers_sale_additions",
+    "from": 18,
+    "to": 19,
+    "historicalSqlUnchanged": true,
+    "productionExecuted": false
+  },
   "local": {
     "typecheck": true,
     "build": true,
@@ -17,7 +23,17 @@
       "failed": 1,
       "failure": "Client-search fixture reloaded the form but omitted the newly required seller selection. The app correctly required a choice. Fixture updated; no runtime change."
     },
-    "followupE2e": { "runId": "ef95bb8d8adfa6775ac5e018", "passed": 5, "failed": 0, "covers": ["client-search with explicit seller after reload", "seller and same-folio addition at 390/800/1440", "lost response after commit then reload and retry", "single cancellation confirmation"] },
+    "followupE2e": {
+      "runId": "ef95bb8d8adfa6775ac5e018",
+      "passed": 5,
+      "failed": 0,
+      "covers": [
+        "client-search with explicit seller after reload",
+        "seller and same-folio addition at 390/800/1440",
+        "lost response after commit then reload and retry",
+        "single cancellation confirmation"
+      ]
+    },
     "productionIsolatedPassed": 15,
     "productionQaRunId": "cd7b0c3a995eb7df3d10a2e8",
     "productionQaDatabaseCleaned": true,
@@ -31,10 +47,53 @@
   },
   "uiReview": {
     "disposition": "ship",
-    "viewports": [390,800,1440],
-    "fixesVerified": ["recovery does not double-count a committed addition", "mobile summary values visible", "compact date filters", "panel padding", "stable review dialogs"],
+    "viewports": [
+      390,
+      800,
+      1440
+    ],
+    "fixesVerified": [
+      "recovery does not double-count a committed addition",
+      "mobile summary values visible",
+      "compact date filters",
+      "panel padding",
+      "stable review dialogs"
+    ],
     "physicalDeviceVerified": false,
     "designDocumentation": "No changes: ordinary extension of incumbent interface; historical PRODUCT/DESIGN drift not rewritten."
   },
-  "limitations": ["No automatic historical seller attribution", "Edition adds products; it does not delete or reprice previous lines", "Credit with active payments cannot be extended", "Cancellation requires no active payments and merchandise kept or returned", "Period summary uses original sale dates and current payment balances", "Production activation needs exact owner approval"]
+  "limitations": [
+    "No automatic historical seller attribution",
+    "Edition adds products; it does not delete or reprice previous lines",
+    "Credit with active payments cannot be extended",
+    "Cancellation requires no active payments and merchandise kept or returned",
+    "Period summary uses original sale dates and current payment balances",
+    "Production activation needs exact owner approval"
+  ],
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/18",
+  "archiveSha256": "77a06623b2302c988160ed1f82add26e7d517f2cce3c9ddca32047120a88b291",
+  "staging": {
+    "commit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+    "healthy": true,
+    "migrations": 19,
+    "originalRowsPreserved": true,
+    "historicalSellersNull": true,
+    "backupAndPostMigrationRestoreVerified": true,
+    "collectorResumed": true,
+    "authenticatedChecksPassed": 18,
+    "checkedAt": "2026-11-16T17:31:07.443569+00:00",
+    "productionAndPeersUnchanged": true
+  },
+  "prepublicationBackup": {
+    "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true,
+    "checkedAt": "2026-11-16T17:19:10.494921+00:00"
+  },
+  "incidents": [
+    "Full E2E fixture updated to choose seller after page reload; follow-up5/5 passed without runtime changes.",
+    "Read-only progress query read a partially written state file; retry succeeded. Deployment did not fail."
+  ]
 }
