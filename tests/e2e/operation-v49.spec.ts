@@ -33,6 +33,7 @@ test('V4.9 hora automática: reloj adelantado/atrasado, stock recibido después 
     expect((await preview.json()).valid).toBe(true);
     const body = {
       ...manualSaleInput(client, product, 1),
+      seller: 'carlos',
       soldAt,
       dateMode: 'automatic',
       initialPayment: {

@@ -1,0 +1,40 @@
+{
+  "version": "V4.17",
+  "status": "local_verified_staging_pending",
+  "candidateCommit": null,
+  "productionCommit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+  "productionApproved": false,
+  "productionChanged": false,
+  "migration": { "tag": "0018_sellers_sale_additions", "from": 18, "to": 19, "historicalSqlUnchanged": true, "productionExecuted": false },
+  "local": {
+    "typecheck": true,
+    "build": true,
+    "unitTestsPassed": 464,
+    "initialTargetedE2ePassed": 12,
+    "fullE2e": {
+      "runId": "15708d2d32c0348ac6a6cfab",
+      "passed": 186,
+      "failed": 1,
+      "failure": "Client-search fixture reloaded the form but omitted the newly required seller selection. The app correctly required a choice. Fixture updated; no runtime change."
+    },
+    "followupE2e": { "runId": "ef95bb8d8adfa6775ac5e018", "passed": 5, "failed": 0, "covers": ["client-search with explicit seller after reload", "seller and same-folio addition at 390/800/1440", "lost response after commit then reload and retry", "single cancellation confirmation"] },
+    "productionIsolatedPassed": 15,
+    "productionQaRunId": "cd7b0c3a995eb7df3d10a2e8",
+    "productionQaDatabaseCleaned": true,
+    "migrationRunId": "7301b53166dba73cfb6d3b8a",
+    "migrationFreshAndUpgradePassed": true,
+    "migrationOriginalColumnsPreserved": true,
+    "migrationHistoricalSellersNull": true,
+    "migrationTemporaryDatabasesCleaned": true,
+    "operatorGuardTestsPassed": 11,
+    "secretScanFindings": []
+  },
+  "uiReview": {
+    "disposition": "ship",
+    "viewports": [390,800,1440],
+    "fixesVerified": ["recovery does not double-count a committed addition", "mobile summary values visible", "compact date filters", "panel padding", "stable review dialogs"],
+    "physicalDeviceVerified": false,
+    "designDocumentation": "No changes: ordinary extension of incumbent interface; historical PRODUCT/DESIGN drift not rewritten."
+  },
+  "limitations": ["No automatic historical seller attribution", "Edition adds products; it does not delete or reprice previous lines", "Credit with active payments cannot be extended", "Cancellation requires no active payments and merchandise kept or returned", "Period summary uses original sale dates and current payment balances", "Production activation needs exact owner approval"]
+}

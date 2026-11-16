@@ -19,6 +19,9 @@ import {
   commerceListSchema,
   saleListSchema,
   saleSchema,
+  saleAdditionSchema,
+  sellerReportSchema,
+  type SellerReport,
   paymentSchema,
   changeSaleDatesSchema,
   commerceReversalSchema,
@@ -56,16 +59,16 @@ import type { HistoricalOfficialRate, HistoricalUsdtRate } from './bcv-rate';
 
 const clientSelect = `select c.id,c.name,c.phone,c.tax_id as "taxId",c.address,c.notes,c.active,c.version,c.is_demo as "isDemo",
   coalesce((select sum(balance_usd) from receivables r where r.client_id=c.id),0)::numeric(18,2)::text as "balanceUsd" from clients c`;
-const saleSelect = `select s.id,s.number,s.client_id as "clientId",s.client_snapshot->>'name' as "clientName",s.condition,s.settlement_basis as "settlementBasis",
+const saleSelect = `select s.id,s.number,s.client_id as "clientId",s.client_snapshot->>'name' as "clientName",s.condition,s.seller,t.version,s.settlement_basis as "settlementBasis",
   case when cancel.id is null then 'confirmed' else 'cancelled' end as status,s.sold_at as "soldAt",s.due_date::text as "originalDueDate",
   case when dates.id is null then s.due_date::text else dates.due_date::text end as "dueDate",
   case when dates.id is null then s.reminder_date::text else dates.reminder_date::text end as "reminderDate",
-  s.total_usd::text as "totalUsd",coalesce(paid.amount,0)::numeric(18,2)::text as "paidUsd",
-  case when cancel.id is null then (s.total_usd-coalesce(paid.amount,0)) else 0 end::numeric(18,2)::text as "balanceUsd",
+  t.total_usd::text as "totalUsd",coalesce(paid.amount,0)::numeric(18,2)::text as "paidUsd",
+  case when cancel.id is null then (t.total_usd-coalesce(paid.amount,0)) else 0 end::numeric(18,2)::text as "balanceUsd",
   null::text as "costUsd",null::text as "grossProfitUsd",
-  (select case when bool_and(l.reference_unit_usd is not null) then sum(round(l.quantity*l.reference_unit_usd,2))-s.total_usd end from sale_lines l where l.sale_id=s.id)::numeric(18,2)::text as "discountUsd",
+  (select case when bool_and(l.reference_unit_usd is not null) then sum(round(l.quantity*l.reference_unit_usd,2))-t.total_usd end from sale_lines l where l.sale_id=s.id)::numeric(18,2)::text as "discountUsd",
   s.is_demo as "isDemo",s.notes,s.actor,s.client_snapshot as client
-  from sales s left join sale_cancellations cancel on cancel.sale_id=s.id
+  from sales s join sale_totals t on t.sale_id=s.id left join sale_cancellations cancel on cancel.sale_id=s.id
   left join lateral(select id,due_date,reminder_date from sale_date_events where sale_id=s.id order by event_order desc limit 1) dates on true
   left join lateral(select sum(a.amount_usd) as amount from payment_applications a where a.sale_id=s.id and not exists(select 1 from payment_reversals r where r.payment_id=a.payment_id))paid on true`;
 const paymentSelect = `select p.id,p.number,p.client_id as "clientId",p.client_snapshot->>'name' as "clientName",p.currency,
@@ -258,7 +261,7 @@ export class CommerceService implements OnModuleDestroy {
       await client.query(
         `${saleSelect} where ($1::uuid is null or s.client_id=$1)
         and ($2::text is null or s.number ilike '%'||$2||'%' or s.client_snapshot->>'name' ilike '%'||$2||'%')
-        ${pending ? 'and cancel.id is null and s.total_usd>coalesce(paid.amount,0)' : ''} ${agenda}
+        ${pending ? 'and cancel.id is null and t.total_usd>coalesce(paid.amount,0)' : ''} ${agenda}
         order by (s.id=$6::uuid) desc nulls last,
         ${pending ? `coalesce(${reminder},${due}) nulls last,s.sold_at` : 's.sold_at desc'},s.id limit $3 offset $4`,
         [
@@ -303,7 +306,7 @@ export class CommerceService implements OnModuleDestroy {
       await client.query(
         `select l.id,l.variant_id as "variantId",r.id as "configurationId",l.description_snapshot as description,l.presentation,l.quantity,l.price_basis as "priceBasis",
       l.reference_unit_usd::text as "referenceUnitUsd",l.agreed_unit_usd::text as "agreedUnitUsd",l.line_total_usd::text as "totalUsd",null::text as "costUsd",l.commercial_unit_label_snapshot as "commercialUnitLabel"
-      from sale_lines l join packing_rules r on r.variant_id=l.variant_id where l.sale_id=$1 order by l.id`,
+      from sale_lines l join packing_rules r on r.variant_id=l.variant_id left join sale_additions e on e.id=l.addition_id where l.sale_id=$1 order by e.created_at nulls first,e.id,l.id`,
         [id],
       )
     ).rows as SaleLine[];
@@ -355,6 +358,12 @@ export class CommerceService implements OnModuleDestroy {
         appliedUsd: applications.find((a) => a.payment_id === p.id)!.amount,
       })),
       dateHistory,
+      additions: (
+        await client.query(
+          'select id,total_usd::text as "totalUsd",created_at as "createdAt" from sale_additions where sale_id=$1 order by created_at,id',
+          [id],
+        )
+      ).rows.map((e) => ({ ...e, createdAt: new Date(e.createdAt).toISOString() })),
       cancellation,
       whatsappUrl:
         row.status === 'confirmed'
@@ -517,6 +526,119 @@ export class CommerceService implements OnModuleDestroy {
       roundingUsd,
     };
   }
+  private async prepareSaleLines(client: PoolClient, inputs: z.infer<typeof saleSchema>['lines']) {
+    const lines: {
+      id: string;
+      configurationId: string;
+      variantId: string;
+      description: string;
+      presentation: Presentation;
+      quantity: number;
+      priceBasis: SalePriceBasis;
+      referenceUnitUsd: string | null;
+      commercialUnitLabel: string | null;
+      agreedUnitUsd: string;
+      totalUsd: string;
+    }[] = [];
+    // The historical reader orders by UUID. Assign independent random UUIDs in
+    // byte/hex order to the original request positions, without reordering the
+    // document or physical FIFO dispatch. Existing rows and replay stay intact.
+    const lineIds = inputs.map(() => randomUUID()).sort();
+    for (const input of inputs) {
+      const rule = (
+        await client.query(
+          `select r.id,r.variant_id,r.allowed_presentations,r.packing_model,r.blisters_per_box,r.confirmation_status,r.commercial_unit_label,f.name as fruit,v.name as variety,c.label as caliber,p.commercial_line
+          from packing_rules r join product_variants p on p.id=r.variant_id join fruits f on f.id=p.fruit_id
+          left join varieties v on v.id=p.variety_id left join calibers c on c.id=p.caliber_id where r.id=$1 for update of r`,
+          [input.configurationId],
+        )
+      ).rows[0];
+      if (!rule) throw new NotFoundException('El producto no existe. Actualiza el catálogo.');
+      if (authConfig().environment === 'production' && rule.confirmation_status !== 'confirmed')
+        throw new ConflictException(
+          'Confirma la configuración comercial antes de vender mercancía real.',
+        );
+      if (
+        !effectiveSalePresentations({
+          allowedPresentations: rule.allowed_presentations,
+          packingModel: rule.packing_model,
+          blistersPerBox: rule.blisters_per_box,
+        }).includes(input.presentation)
+      )
+        throw new BadRequestException('Esa presentación no está habilitada para el producto.');
+      const price =
+        'priceBasis' in input
+          ? (
+              await client.query(
+                'select i.unit_usd::text from price_items i join price_lists l on l.id=i.price_list_id where i.variant_id=$1 and i.presentation=$2 and l.payment_basis=$3',
+                [rule.variant_id, input.presentation, input.priceBasis],
+              )
+            ).rows[0]
+          : null;
+      if ('priceBasis' in input && !price)
+        throw new ConflictException(
+          'Configura el precio de referencia de esa presentación antes de vender.',
+        );
+      const description = [
+        rule.fruit,
+        rule.variety,
+        rule.caliber ? `Cal. ${rule.caliber}` : null,
+        rule.commercial_line,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      lines.push({
+        ...input,
+        id: lineIds[lines.length],
+        variantId: rule.variant_id,
+        description,
+        priceBasis: 'priceBasis' in input ? input.priceBasis : 'manual',
+        referenceUnitUsd: price?.unit_usd ?? null,
+        commercialUnitLabel: rule.commercial_unit_label ?? null,
+        totalUsd: new Decimal(input.agreedUnitUsd)
+          .times(input.quantity)
+          .toFixed(2, Decimal.ROUND_HALF_UP),
+      });
+    }
+    return lines;
+  }
+  private async insertSaleLines(
+    client: PoolClient,
+    id: string,
+    lines: Awaited<ReturnType<CommerceService['prepareSaleLines']>>,
+    allocations: SaleAllocation[],
+    additionId: string | null = null,
+  ) {
+    for (const line of lines) {
+      const lineAllocations = allocations.filter((a) => a.saleLineId === line.id);
+      const cost = lineAllocations.some((a) => a.costUsd === null)
+        ? null
+        : lineAllocations.reduce((sum, a) => sum.add(a.costUsd!), new Decimal(0)).toFixed(4);
+      await client.query(
+        `insert into sale_lines(id,sale_id,variant_id,presentation,quantity,reference_unit_usd,agreed_unit_usd,price_basis,description_snapshot,line_total_usd,cost_usd,commercial_unit_label_snapshot,addition_id) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [
+          line.id,
+          id,
+          line.variantId,
+          line.presentation,
+          line.quantity,
+          line.referenceUnitUsd,
+          line.agreedUnitUsd,
+          line.priceBasis,
+          line.description,
+          line.totalUsd,
+          cost,
+          line.commercialUnitLabel,
+          additionId,
+        ],
+      );
+    }
+    for (const a of allocations)
+      await client.query(
+        'insert into sale_allocations(sale_line_id,lot_id,container_id,movement_id,quantity,cost_usd) values($1,$2,$3,$4,$5,$6)',
+        [a.saleLineId, a.lotId, a.containerId, a.movementId, a.quantity, a.costUsd],
+      );
+  }
   async createSale(body: unknown, key: string | undefined, actor: string): Promise<SaleDetail> {
     const requested = saleSchema.parse(body);
     return this.inventory.runCommand('sale', requested, key, actor, async (client, hash) => {
@@ -524,6 +646,10 @@ export class CommerceService implements OnModuleDestroy {
       // A slow review or an inaccurate device clock must not date a normal sale.
       const now = new Date().toISOString();
       const automatic = 'dateMode' in requested && requested.dateMode === 'automatic';
+      if (automatic && !('seller' in requested && requested.seller))
+        throw new BadRequestException(
+          'Selecciona Carlos o Randy en Vendedor. Si no aparece, cierra y vuelve a abrir la aplicación.',
+        );
       const data = {
         ...requested,
         soldAt: automatic ? now : requested.soldAt,
@@ -557,79 +683,7 @@ export class CommerceService implements OnModuleDestroy {
         throw new ConflictException(
           'Este entorno no puede mezclar clientes reales con operaciones DEMO.',
         );
-      const lines: {
-        id: string;
-        configurationId: string;
-        variantId: string;
-        description: string;
-        presentation: Presentation;
-        quantity: number;
-        priceBasis: SalePriceBasis;
-        referenceUnitUsd: string | null;
-        commercialUnitLabel: string | null;
-        agreedUnitUsd: string;
-        totalUsd: string;
-      }[] = [];
-      // The historical reader orders by UUID. Assign independent random UUIDs in
-      // byte/hex order to the original request positions, without reordering the
-      // document or physical FIFO dispatch. Existing rows and replay stay intact.
-      const lineIds = data.lines.map(() => randomUUID()).sort();
-      for (const input of data.lines) {
-        const rule = (
-          await client.query(
-            `select r.id,r.variant_id,r.allowed_presentations,r.packing_model,r.blisters_per_box,r.confirmation_status,r.commercial_unit_label,f.name as fruit,v.name as variety,c.label as caliber,p.commercial_line
-          from packing_rules r join product_variants p on p.id=r.variant_id join fruits f on f.id=p.fruit_id
-          left join varieties v on v.id=p.variety_id left join calibers c on c.id=p.caliber_id where r.id=$1 for update of r`,
-            [input.configurationId],
-          )
-        ).rows[0];
-        if (!rule) throw new NotFoundException('El producto no existe. Actualiza el catálogo.');
-        if (authConfig().environment === 'production' && rule.confirmation_status !== 'confirmed')
-          throw new ConflictException(
-            'Confirma la configuración comercial antes de vender mercancía real.',
-          );
-        if (
-          !effectiveSalePresentations({
-            allowedPresentations: rule.allowed_presentations,
-            packingModel: rule.packing_model,
-            blistersPerBox: rule.blisters_per_box,
-          }).includes(input.presentation)
-        )
-          throw new BadRequestException('Esa presentación no está habilitada para el producto.');
-        const price =
-          'priceBasis' in input
-            ? (
-                await client.query(
-                  'select i.unit_usd::text from price_items i join price_lists l on l.id=i.price_list_id where i.variant_id=$1 and i.presentation=$2 and l.payment_basis=$3',
-                  [rule.variant_id, input.presentation, input.priceBasis],
-                )
-              ).rows[0]
-            : null;
-        if ('priceBasis' in input && !price)
-          throw new ConflictException(
-            'Configura el precio de referencia de esa presentación antes de vender.',
-          );
-        const description = [
-          rule.fruit,
-          rule.variety,
-          rule.caliber ? `Cal. ${rule.caliber}` : null,
-          rule.commercial_line,
-        ]
-          .filter(Boolean)
-          .join(' · ');
-        lines.push({
-          ...input,
-          id: lineIds[lines.length],
-          variantId: rule.variant_id,
-          description,
-          priceBasis: 'priceBasis' in input ? input.priceBasis : 'manual',
-          referenceUnitUsd: price?.unit_usd ?? null,
-          commercialUnitLabel: rule.commercial_unit_label ?? null,
-          totalUsd: new Decimal(input.agreedUnitUsd)
-            .times(input.quantity)
-            .toFixed(2, Decimal.ROUND_HALF_UP),
-        });
-      }
+      const lines = await this.prepareSaleLines(client, data.lines);
       const totals = totalSaleLines(lines);
       const conversion = data.initialPayment
         ? await this.conversion(data.initialPayment, settlementBasis, totals.totalUsd)
@@ -684,7 +738,7 @@ export class CommerceService implements OnModuleDestroy {
         await client.query("select 'V-'||lpad(nextval('mm_sale_number_seq')::text,8,'0') as number")
       ).rows[0].number;
       await client.query(
-        `insert into sales(id,number,client_id,condition,status,sold_at,due_date,reminder_date,client_snapshot,notes,actor,is_demo,total_usd,cost_usd,settlement_basis) values($1,$2,$3,$4,'confirmed',$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13,$14)`,
+        `insert into sales(id,number,client_id,condition,status,sold_at,due_date,reminder_date,client_snapshot,notes,actor,is_demo,total_usd,cost_usd,settlement_basis,seller) values($1,$2,$3,$4,'confirmed',$5,$6,$7,$8::jsonb,$9,$10,$11,$12,$13,$14,$15)`,
         [
           id,
           number,
@@ -700,36 +754,10 @@ export class CommerceService implements OnModuleDestroy {
           totals.totalUsd,
           costUsd,
           settlementBasis,
+          'seller' in data ? (data.seller ?? null) : null,
         ],
       );
-      for (const line of lines) {
-        const lineAllocations = allocations.filter((a) => a.saleLineId === line.id);
-        const cost = lineAllocations.some((a) => a.costUsd === null)
-          ? null
-          : lineAllocations.reduce((sum, a) => sum.add(a.costUsd!), new Decimal(0)).toFixed(4);
-        await client.query(
-          `insert into sale_lines(id,sale_id,variant_id,presentation,quantity,reference_unit_usd,agreed_unit_usd,price_basis,description_snapshot,line_total_usd,cost_usd,commercial_unit_label_snapshot) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-          [
-            line.id,
-            id,
-            line.variantId,
-            line.presentation,
-            line.quantity,
-            line.referenceUnitUsd,
-            line.agreedUnitUsd,
-            line.priceBasis,
-            line.description,
-            line.totalUsd,
-            cost,
-            line.commercialUnitLabel,
-          ],
-        );
-      }
-      for (const a of allocations)
-        await client.query(
-          'insert into sale_allocations(sale_line_id,lot_id,container_id,movement_id,quantity,cost_usd) values($1,$2,$3,$4,$5,$6)',
-          [a.saleLineId, a.lotId, a.containerId, a.movementId, a.quantity, a.costUsd],
-        );
+      await this.insertSaleLines(client, id, lines, allocations);
       if (data.initialPayment && conversion)
         await this.insertPayment(
           client,
@@ -755,6 +783,139 @@ export class CommerceService implements OnModuleDestroy {
         key!,
       );
       return result;
+    });
+  }
+  async addSaleProducts(
+    id: string,
+    body: unknown,
+    key: string | undefined,
+    actor: string,
+  ): Promise<SaleDetail> {
+    z.uuid().parse(id);
+    const data = saleAdditionSchema.parse(body);
+    return this.inventory.runCommand(`sale-add:${id}`, data, key, actor, async (client, hash) => {
+      const before = await this.saleDetail(client, id);
+      if (
+        (data.saleId && data.saleId !== id) ||
+        (data.clientId && data.clientId !== before.clientId)
+      )
+        throw new BadRequestException(
+          'Los productos extra corresponden a otra venta. Vuelve a abrir el comprobante.',
+        );
+      if (before.status !== 'confirmed')
+        throw new ConflictException('Esta venta está anulada. Registra una venta nueva.');
+      if ((before.version ?? 0) !== data.expectedVersion)
+        throw new ConflictException(
+          'La venta cambió en otro dispositivo. Vuelve a abrirla antes de agregar productos.',
+        );
+      if (before.condition === 'credit' && new Decimal(before.paidUsd).gt(0))
+        throw new ConflictException(
+          'Las ventas a crédito con abonos se conservan sin cambios. Registra los productos extra en una venta nueva.',
+        );
+      if (
+        before.lines.length + data.lines.length > 50 ||
+        [...before.lines, ...data.lines].reduce((n, l) => n + l.quantity, 0) > 1000
+      )
+        throw new BadRequestException(
+          'Esta nota alcanzó su capacidad. Registra los productos extra en otra venta.',
+        );
+      const customer = await this.client(client, before.clientId, true);
+      const lines = await this.prepareSaleLines(client, data.lines);
+      const total = totalSaleLines(lines).totalUsd;
+      const now = new Date().toISOString();
+      const payment = data.payment
+        ? { ...data.payment, receivedAt: now, dateMode: 'automatic' as const }
+        : null;
+      const due = new Decimal(before.balanceUsd).add(total).toFixed(2);
+      const conversion = payment
+        ? await this.conversion(
+            payment,
+            before.settlementBasis === 'divisa' ? 'divisa' : 'bcv',
+            due,
+          )
+        : null;
+      if (conversion && new Decimal(conversion.amountUsd).gt(due))
+        throw new BadRequestException('El cobro supera el saldo de la venta ampliada.');
+      if (before.condition === 'cash' && !new Decimal(conversion?.amountUsd ?? '0').eq(due))
+        throw new BadRequestException(
+          'Cobra el importe pendiente para conservar la venta de contado. Lo ya pagado no se vuelve a cobrar.',
+        );
+      const allocations = await this.inventory.consumeSale(
+        client,
+        lines.map((l) => ({
+          lineId: l.id,
+          configurationId: l.configurationId,
+          presentation: l.presentation,
+          quantity: l.quantity,
+        })),
+        actor,
+        key!,
+        hash,
+        before.isDemo,
+        now,
+      );
+      const cost = allocations.some((a) => a.costUsd === null)
+        ? null
+        : allocations.reduce((n, a) => n.add(a.costUsd!), new Decimal(0)).toFixed(4);
+      const addition = randomUUID();
+      await client.query(
+        'insert into sale_additions(id,sale_id,total_usd,cost_usd,actor,created_at) values($1,$2,$3,$4,$5,$6)',
+        [addition, id, total, cost, actor, now],
+      );
+      await this.insertSaleLines(client, id, lines, allocations, addition);
+      if (payment && conversion)
+        await this.insertPayment(
+          client,
+          {
+            ...payment,
+            clientId: before.clientId,
+            applications: [{ saleId: id, amountUsd: conversion.amountUsd }],
+          },
+          conversion,
+          actor,
+          key!,
+          customer,
+        );
+      await this.audit(
+        client,
+        'sale',
+        id,
+        'add_products',
+        { totalUsd: before.totalUsd, version: before.version ?? 0 },
+        { additionId: addition, totalUsd: total, allocations },
+        actor,
+        key!,
+      );
+      return this.saleDetail(client, id);
+    });
+  }
+  async sellerReport(query: unknown): Promise<SellerReport> {
+    const filter = sellerReportSchema.parse(query);
+    return this.read(async (client) => {
+      const rows = (
+        await client.query(
+          `with selected as (${saleSelect}
+        where s.sold_at >= ($1::date::timestamp at time zone 'America/Caracas')
+        and s.sold_at < (($2::date+1)::timestamp at time zone 'America/Caracas') and cancel.id is null)
+        select seller,count(*)::integer as count,sum("totalUsd"::numeric)::numeric(18,2)::text as "totalUsd",
+        sum("paidUsd"::numeric)::numeric(18,2)::text as "paidUsd",sum("balanceUsd"::numeric)::numeric(18,2)::text as "balanceUsd"
+        from selected group by seller`,
+          [filter.from, filter.to],
+        )
+      ).rows;
+      return {
+        ...filter,
+        rows: (['carlos', 'randy', null] as const).map(
+          (seller) =>
+            rows.find((r) => r.seller === seller) ?? {
+              seller,
+              count: 0,
+              totalUsd: '0.00',
+              paidUsd: '0.00',
+              balanceUsd: '0.00',
+            },
+        ),
+      };
     });
   }
   private async insertPayment(
@@ -997,12 +1158,12 @@ export class CommerceService implements OnModuleDestroy {
           throw new ConflictException('El comprobante ya está anulado.');
         if (new Decimal(before.paidUsd).gt(0))
           throw new ConflictException(
-            'Primero rectifica los abonos asociados. La anulación no devuelve dinero automáticamente.',
+            'Esta venta tiene cobros registrados. No se puede anular sin resolverlos; no se devuelve dinero automáticamente.',
           );
         const movementIds = [
           ...new Set(before.lines.flatMap((line) => line.allocations.map((a) => a.movementId))),
         ];
-        await this.inventory.reverseSale(client, movementIds, actor, key!, hash);
+        await this.inventory.cancelSaleStock(client, id, movementIds, actor, key!, hash);
         await client.query(
           'insert into sale_cancellations(sale_id,reason,actor) values($1,$2,$3)',
           [id, data.reason, actor],

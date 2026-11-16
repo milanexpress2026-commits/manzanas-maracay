@@ -70,6 +70,9 @@ export function SaleTable({
                   {s.clientName}
                   {s.isDemo ? ' · DEMO' : ''}
                 </small>
+                {s.seller ? (
+                  <small>Vendedor: {s.seller === 'carlos' ? 'Carlos' : 'Randy'}</small>
+                ) : null}
               </td>
               <td>{displayDate(s.soldAt)}</td>
               <td>{displayMoney(s.totalUsd)}</td>

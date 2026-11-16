@@ -101,6 +101,8 @@ test('cliente fuera de los primeros 200: búsqueda, paginación, borrador y enla
   await expect(page.getByLabel('Cliente', { exact: true })).toHaveValue(target.id);
   await page.reload();
   await expect(page.getByLabel('Cliente', { exact: true })).toHaveValue(target.id);
+  await expect(page.getByLabel('Vendedor', { exact: true })).toHaveValue('');
+  await page.getByLabel('Vendedor', { exact: true }).selectOption('carlos');
   await page.getByLabel('Producto', { exact: true }).selectOption(product.id);
   await page.getByLabel('Acuerdo de cobro', { exact: true }).selectOption('divisa');
   await page.getByLabel('Precio por unidad (USD)', { exact: true }).fill('40');

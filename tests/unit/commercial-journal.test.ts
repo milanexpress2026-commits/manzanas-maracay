@@ -54,6 +54,36 @@ const paymentResult = {
   amount: '80.00',
   applications: payment.applications,
 };
+
+it('recupera productos extra con la misma clave y exige la venta y revisión correctas', async () => {
+  const h = harness();
+  const body = { saleId, clientId, expectedVersion: 0, lines: sale.lines };
+  h.send.mockRejectedValueOnce(new Error('lost response'));
+  await expect(sendCommercialCommand(h.deps, scope, 'sale-addition', body)).rejects.toThrow(
+    'No llegó',
+  );
+  const pending = await readCommercialPending(h.storage, scope, 'sale-addition');
+  expect(pending).not.toBeNull();
+  const result = {
+    ...saleResult,
+    totalUsd: '120.00',
+    version: 1,
+    additions: [{ id: actor, totalUsd: '80.00' }],
+  };
+  h.send.mockResolvedValueOnce(response(201, { ...result, id: actor }));
+  await expect(
+    sendCommercialCommand(h.deps, scope, 'sale-addition', body, null, pending!),
+  ).rejects.toThrow();
+  h.send.mockResolvedValueOnce(response(201, result));
+  expect(await sendCommercialCommand(h.deps, scope, 'sale-addition', body, null, pending!)).toEqual(
+    result,
+  );
+  expect(new Set(h.send.mock.calls.map((call) => call[1])).size).toBe(1);
+  expect(h.send.mock.calls.every((call) => call[0] === `/api/sales/${saleId}/add-products`)).toBe(
+    true,
+  );
+  expect(await readCommercialPending(h.storage, scope, 'sale-addition')).toBeNull();
+});
 const response = (status: number, data: unknown) => ({
   ok: status >= 200 && status < 300,
   status,

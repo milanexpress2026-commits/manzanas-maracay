@@ -402,7 +402,8 @@ export type InventoryMovement = {
     | 'commercial_split'
     | 'adjustment'
     | 'transfer'
-    | 'reversal';
+    | 'reversal'
+    | 'sale_return';
   reason: string;
   actor: string;
   createdAt: string;
@@ -455,6 +456,7 @@ export function summarizeContainers(
   packingModel: PackingModel = 'blister',
 ): StockSummary {
   const total = emptyStockSummary();
+  let commercialHalves = 0;
   for (const container of containers) {
     if (
       container.state === 'open' &&
@@ -473,13 +475,18 @@ export function summarizeContainers(
     if (container.unit === 'prepared_half_box') {
       total.preparedHalfBoxes += container.quantity;
       total.preparedPieces += container.countedPieces ?? 0;
+      if (container.countedPieces === null) commercialHalves += container.quantity;
     }
   }
   total.equivalentIntactBlisters = total.closedBoxes * (blistersPerBox ?? 0) + total.intactBlisters;
   // Counted fruit/halves do not have an invented equivalence to sealed boxes.
   total.equivalentBoxes =
     total.closedBoxes +
-    (packingModel === 'halves' ? total.preparedHalfBoxes / 2 : 0) +
+    (packingModel === 'halves'
+      ? total.preparedHalfBoxes / 2
+      : packingModel === 'blister' && blistersPerBox
+        ? commercialHalves / 2
+        : 0) +
     (packingModel === 'blister' && blistersPerBox ? total.intactBlisters / blistersPerBox : 0);
   const portions = containers
     .filter((c) => c.unit === 'box_fraction' && c.quantity > 0)
@@ -489,6 +496,7 @@ export function summarizeContainers(
     total.fractionalBoxes = portions / perBox;
     total.equivalentBoxes += total.fractionalBoxes;
   }
-  if (packingModel === 'blister') total.equivalentIntactBlisters += portions / 2;
+  if (packingModel === 'blister')
+    total.equivalentIntactBlisters += portions / 2 + (commercialHalves * (blistersPerBox ?? 0)) / 2;
   return total;
 }

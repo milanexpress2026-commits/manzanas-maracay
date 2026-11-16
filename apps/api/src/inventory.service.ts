@@ -433,7 +433,7 @@ export class InventoryService implements OnModuleDestroy {
           );
         if (
           ['sale', 'payment', 'receipt', 'simple-receipt', 'quick-receipt'].includes(kind) ||
-          /^(sale-dates|sale-cancel|payment-reverse|open-box|withdraw-blisters|open-blister|prepare-half|split-halves|adjust|reverse):/.test(
+          /^(sale-add|sale-dates|sale-cancel|payment-reverse|open-box|withdraw-blisters|open-blister|prepare-half|split-halves|adjust|reverse):/.test(
             kind,
           )
         ) {
@@ -1451,6 +1451,10 @@ export class InventoryService implements OnModuleDestroy {
     const movement = (await client.query('select * from inventory_movements where id=$1', [id]))
       .rows[0];
     if (!movement?.lot_id) throw new NotFoundException('Este movimiento no admite reversa.');
+    if (movement.kind === 'sale_return')
+      throw new ConflictException(
+        'Esta entrada pertenece a una venta anulada. Usa una nueva venta para entregar la mercancía.',
+      );
     if (
       !commercial &&
       (await client.query('select 1 from sale_allocations where movement_id=$1 limit 1', [id]))
@@ -1522,6 +1526,82 @@ export class InventoryService implements OnModuleDestroy {
       id,
     );
     return { movementId, lotId: lot.id };
+  }
+  async cancelSaleStock(
+    client: PoolClient,
+    saleId: string,
+    movementIds: string[],
+    actor: string,
+    key: string,
+    hash: string,
+  ) {
+    // The exact inverse still restores unopened packaging when no later operation
+    // used that lot. Otherwise return just this sale's packages, never rewind peers.
+    const movements = (
+      await client.query(
+        `select m.id,m.lot_id,m.lot_version_after,l.inventory_version
+      from inventory_movements m join lots l on l.id=m.lot_id where m.id=any($1::uuid[]) order by m.lot_id,m.id`,
+        [movementIds],
+      )
+    ).rows;
+    if (
+      movements.length === movementIds.length &&
+      new Set(movements.map((m) => m.lot_id)).size === movements.length &&
+      movements.every((m) => m.lot_version_after === m.inventory_version)
+    )
+      return this.reverseSale(client, movementIds, actor, key, hash);
+    const allocations = (
+      await client.query(
+        `select a.*,l.presentation,m.before_state,c.warehouse_id
+      from sale_allocations a join sale_lines l on l.id=a.sale_line_id join inventory_movements m on m.id=a.movement_id
+      join containers c on c.id=a.container_id where l.sale_id=$1 order by a.lot_id,a.id`,
+        [saleId],
+      )
+    ).rows;
+    for (const lotId of [...new Set<string>(allocations.map((a) => a.lot_id))].sort()) {
+      const lot = await this.lockedLot(client, lotId);
+      const before = await this.stock(client, lotId);
+      const state: StateMap = new Map(before.map((c) => [c.id, { ...c }]));
+      const returned: { allocationId: string; containerId: string }[] = [];
+      for (const a of allocations.filter((a) => a.lot_id === lotId)) {
+        const original = (a.before_state as ContainerStock[]).find((c) => c.id === a.container_id);
+        const unit =
+          a.presentation === 'box'
+            ? 'sealed_box'
+            : a.presentation === 'blister'
+              ? 'intact_blister'
+              : 'prepared_half_box';
+        const kind =
+          a.presentation === 'box' ? 'box' : a.presentation === 'blister' ? 'blister' : 'half_box';
+        const restored = this.newContainer(
+          lotId,
+          a.warehouse_id,
+          kind,
+          unit,
+          1,
+          original?.countedPieces ?? null,
+        );
+        restored.costUsd = a.cost_usd;
+        state.set(restored.id, restored);
+        returned.push({ allocationId: a.id, containerId: restored.id });
+      }
+      const movement = await this.persistMovement(
+        client,
+        lot,
+        before,
+        state,
+        'sale_return',
+        'Mercancía de pedido anulado',
+        actor,
+        key,
+        hash,
+      );
+      for (const item of returned)
+        await client.query(
+          'insert into sale_stock_returns(allocation_id,container_id,movement_id) values($1,$2,$3)',
+          [item.allocationId, item.containerId, movement],
+        );
+    }
   }
   async reverseSale(
     client: PoolClient,

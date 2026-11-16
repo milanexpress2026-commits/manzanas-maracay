@@ -48,6 +48,7 @@ test('V4.12 producción aislada: media de caja con cinco blísteres sin habilita
     condition: 'credit',
     settlementBasis: 'divisa',
     dateMode: 'automatic',
+    seller: 'carlos',
     soldAt: new Date().toISOString(),
     lines: [
       { configurationId: rule.id, presentation: 'half_box', quantity: 1, agreedUnitUsd: '20' },
@@ -69,6 +70,80 @@ test('V4.12 producción aislada: media de caja con cinco blísteres sin habilita
     expect(lot.lot.allowedPresentations).toEqual(['box', 'blister']);
   }
   expect((await request.post('/api/sales', { headers: headers(), data: body })).status()).toBe(409);
+});
+
+test('V4.17 rol de producción: ampliar, resumir y anular sin modificar una venta posterior', async ({
+  request,
+}) => {
+  const rule = await configuration(request),
+    client = await customer(request);
+  const incoming = await receipt(request, rule, 4, '25');
+  const input = {
+    schemaVersion: 2,
+    dateMode: 'automatic',
+    seller: 'randy',
+    clientId: client.id,
+    condition: 'credit',
+    settlementBasis: 'divisa',
+    soldAt: new Date().toISOString(),
+    lines: [{ configurationId: rule.id, presentation: 'box', quantity: 1, agreedUnitUsd: '40' }],
+  };
+  const sale = await post<SaleDetail>(request, '/api/sales', input);
+  const command = {
+    expectedVersion: 0,
+    lines: [{ configurationId: rule.id, presentation: 'box', quantity: 1, agreedUnitUsd: '45' }],
+  };
+  const key = randomUUID();
+  const expanded = await post<SaleDetail>(
+    request,
+    `/api/sales/${sale.id}/add-products`,
+    command,
+    key,
+  );
+  expect(expanded).toMatchObject({
+    number: sale.number,
+    seller: 'randy',
+    totalUsd: '85.00',
+    balanceUsd: '85.00',
+    version: 1,
+  });
+  expect(expanded.lines).toHaveLength(2);
+  expect(
+    await post<SaleDetail>(request, `/api/sales/${sale.id}/add-products`, command, key),
+  ).toEqual(expanded);
+  const later = await post<SaleDetail>(request, '/api/sales', { ...input, seller: 'carlos' });
+  await post(request, `/api/sales/${sale.id}/cancel`, {
+    reason: 'Pedido cancelado en prueba aislada',
+  });
+  const lot: LotDetail = await (
+    await request.get(`/api/inventory/lots/${incoming.lots[0]!.id}`)
+  ).json();
+  expect(lot.lot.closedBoxes).toBe(3);
+  expect(await (await request.get(`/api/sales/${later.id}`)).json()).toEqual(later);
+  const report = await request.get('/api/sales/sellers/summary?from=2020-01-01&to=2100-01-01');
+  expect(report.status()).toBe(200);
+  await database('application', async (db) => {
+    expect(
+      (await db.query('select total_usd from sale_totals where sale_id=$1', [sale.id])).rows[0]
+        .total_usd,
+    ).toBe('85.00');
+    expect(
+      (await db.query('select count(*)::int n from sale_additions where sale_id=$1', [sale.id]))
+        .rows[0].n,
+    ).toBe(1);
+    expect(
+      (
+        await db.query(
+          'select count(*)::int n from sale_stock_returns r join sale_allocations a on a.id=r.allocation_id join sale_lines l on l.id=a.sale_line_id where l.sale_id=$1',
+          [sale.id],
+        )
+      ).rows[0].n,
+    ).toBe(2);
+    expect(
+      (await db.query("select has_table_privilege(current_user,'sale_additions','UPDATE') allowed"))
+        .rows[0].allowed,
+    ).toBe(false);
+  });
 });
 
 async function state() {

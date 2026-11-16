@@ -258,6 +258,7 @@ export const legacySaleSchema = z
 export const manualSaleSchema = z
   .object({
     schemaVersion: z.literal(2),
+    seller: z.enum(['carlos', 'randy']).optional(),
     clientId: z.uuid(),
     condition: z.enum(['cash', 'credit']),
     settlementBasis: z.enum(['divisa', 'bcv']),
@@ -305,6 +306,42 @@ export const manualSaleSchema = z
         if (sale[field] !== null) ctx.addIssue({ code: 'custom', path: [field], message: error });
   });
 export const saleSchema = z.union([manualSaleSchema, legacySaleSchema]);
+
+export const saleAdditionSchema = z
+  .object({
+    saleId: z.uuid().optional(),
+    clientId: z.uuid().optional(),
+    expectedVersion: z.number().int().min(0),
+    lines: manualSaleSchema.shape.lines,
+    payment: initialPaymentSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.lines.reduce((sum, line) => sum + line.quantity, 0) <= 1000,
+    'Divide las ventas de más de 1.000 presentaciones.',
+  );
+export const saleAdditionCommandSchema = saleAdditionSchema.safeExtend({
+  saleId: z.uuid(),
+  clientId: z.uuid(),
+});
+export const sellerReportSchema = z
+  .object({
+    from: z.iso.date(),
+    to: z.iso.date(),
+  })
+  .strict()
+  .refine((value) => value.from <= value.to, 'La fecha inicial debe ser anterior a la final.');
+export type SellerReport = {
+  from: string;
+  to: string;
+  rows: {
+    seller: 'carlos' | 'randy' | null;
+    count: number;
+    totalUsd: string;
+    paidUsd: string;
+    balanceUsd: string;
+  }[];
+};
 
 /** Dates are an instruction to collect outstanding credit, never a paid sale. */
 export function saleCollectionDatesError(
@@ -464,6 +501,8 @@ export type SaleSummary = {
   clientId: string;
   clientName: string;
   condition: 'cash' | 'credit';
+  seller?: 'carlos' | 'randy' | null;
+  version?: number;
   settlementBasis: SettlementBasis;
   status: 'confirmed' | 'cancelled';
   soldAt: string;
@@ -529,6 +568,7 @@ export type PaymentDetail = PaymentSummary & {
   reversal: { reason: string; actor: string; createdAt: string } | null;
 };
 export type SaleDetail = SaleSummary & {
+  additions?: { id: string; totalUsd: string; createdAt: string }[];
   client: ClientSnapshot;
   notes: string;
   actor: string;

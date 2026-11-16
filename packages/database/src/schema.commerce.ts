@@ -46,6 +46,23 @@ export const saleAllocations = pgTable(
     check('sale_allocations_cost_usd_check', sql`${t.costUsd}>=0`),
   ],
 );
+export const saleStockReturns = pgTable(
+  'sale_stock_returns',
+  {
+    allocationId: uuid('allocation_id')
+      .primaryKey()
+      .references(() => saleAllocations.id),
+    containerId: uuid('container_id')
+      .notNull()
+      .unique()
+      .references(() => containers.id),
+    movementId: uuid('movement_id')
+      .notNull()
+      .references(() => inventoryMovements.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index('sale_stock_returns_movement_idx').on(t.movementId)],
+);
 export const saleDateEvents = pgTable(
   'sale_date_events',
   {
