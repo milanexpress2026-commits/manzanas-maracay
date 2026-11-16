@@ -50,6 +50,7 @@ const movementNames: Record<InventoryMovement['kind'], string> = {
   adjustment: 'Ajuste de inventario',
   transfer: 'Traslado',
   reversal: 'Reversa',
+  sale_return: 'Mercancía de venta anulada',
 };
 function hasStock(lot: StockSummary) {
   return (

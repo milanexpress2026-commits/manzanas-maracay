@@ -121,6 +121,7 @@ export function saleReviewInstant(date: string, dateEdited: boolean, now = new D
 }
 
 export type SaleFormDraft = {
+  seller?: 'carlos' | 'randy' | '';
   clientId: string;
   settlementBasis?: 'divisa' | 'bcv' | '';
   condition: 'cash' | 'credit';

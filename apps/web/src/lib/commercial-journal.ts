@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js';
-import { manualSaleSchema, paymentSchema } from '@mm/domain';
+import { manualSaleSchema, paymentSchema, saleAdditionCommandSchema } from '@mm/domain';
 import { receiptFingerprint, type StorageAccess } from './receipt-storage';
 
-export type CommercialCommandKind = 'sale' | 'payment';
+export type CommercialCommandKind = 'sale' | 'payment' | 'sale-addition';
 export const COMMERCIAL_JOURNAL_PREFIX = 'mm.commerce.pending.v1:';
 export const COMMERCIAL_JOURNAL_EVENT = 'mm-commercial-journal-changed';
 const money = z.string().regex(/^\d{1,16}\.\d{2}$/);
@@ -13,8 +13,8 @@ const recordSchema = z
   .object({
     version: z.literal(1),
     scope: z.string().regex(/^(local|test|staging|production):[a-f0-9-]{36}$/i),
-    kind: z.enum(['sale', 'payment']),
-    payloadVersion: z.enum(['sale-manual-v2', 'payment-v1']),
+    kind: z.enum(['sale', 'payment', 'sale-addition']),
+    payloadVersion: z.enum(['sale-manual-v2', 'payment-v1', 'sale-addition-v1']),
     key: z.uuid(),
     body: z.string().min(2).max(65536),
     hash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -43,18 +43,28 @@ export function commercialCommandBody(record: PendingCommercialCommand) {
   const body: unknown = JSON.parse(record.body);
   if (record.kind === 'sale' && record.payloadVersion === 'sale-manual-v2') {
     manualSaleSchema.parse(body);
+  } else if (record.kind === 'sale-addition' && record.payloadVersion === 'sale-addition-v1') {
+    saleAdditionCommandSchema.parse(body);
   } else if (record.kind === 'payment' && record.payloadVersion === 'payment-v1') {
     paymentSchema.parse(body);
   } else throw new CommercialJournalError('La versión de la operación pendiente no es compatible.');
   // Validation must never rewrite the original bytes used by the first attempt.
-  return body as ReturnType<typeof manualSaleSchema.parse> | ReturnType<typeof paymentSchema.parse>;
+  return body as
+    | ReturnType<typeof manualSaleSchema.parse>
+    | ReturnType<typeof paymentSchema.parse>
+    | ReturnType<typeof saleAdditionCommandSchema.parse>;
 }
 
 /** Compare the validated review, not object insertion order or optional defaults.
  * The POST still uses the original saved bytes, never this canonical form. */
 export function commercialReviewMatches(record: PendingCommercialCommand, review: unknown) {
   try {
-    const schema = record.kind === 'sale' ? manualSaleSchema : paymentSchema;
+    const schema =
+      record.kind === 'sale'
+        ? manualSaleSchema
+        : record.kind === 'sale-addition'
+          ? saleAdditionCommandSchema
+          : paymentSchema;
     return (
       JSON.stringify(schema.parse(review)) ===
       JSON.stringify(schema.parse(commercialCommandBody(record)))
@@ -166,6 +176,25 @@ export function validCommercialConfirmation(record: PendingCommercialCommand, va
         response.lines.length === sale.lines.length
       );
     }
+    if (record.kind === 'sale-addition') {
+      const addition = saleAdditionCommandSchema.parse(body);
+      const total = addition.lines.reduce(
+        (n, l) =>
+          n.add(
+            new Decimal(l.agreedUnitUsd).mul(l.quantity).toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
+          ),
+        new Decimal(0),
+      );
+      return (
+        response.id === addition.saleId &&
+        response.version === addition.expectedVersion + 1 &&
+        Array.isArray(response.additions) &&
+        response.additions.length === addition.expectedVersion + 1 &&
+        response.additions.some((item: { totalUsd: string }) =>
+          new Decimal(item.totalUsd).eq(total),
+        )
+      );
+    }
     const payment = paymentSchema.parse(body);
     if (
       response.currency !== payment.currency ||
@@ -229,7 +258,12 @@ export async function sendCommercialCommand<T>(
         'Hay una operación pendiente en otra pestaña. Recupérala antes de registrar otra; no se sobrescribieron sus datos.',
       );
     } else {
-      (kind === 'sale' ? manualSaleSchema : paymentSchema).parse(body);
+      (kind === 'sale'
+        ? manualSaleSchema
+        : kind === 'sale-addition'
+          ? saleAdditionCommandSchema
+          : paymentSchema
+      ).parse(body);
       const json = JSON.stringify(body);
       if (new TextEncoder().encode(json).length > 65536)
         throw new CommercialJournalError(
@@ -240,7 +274,12 @@ export async function sendCommercialCommand<T>(
         version: 1,
         scope,
         kind,
-        payloadVersion: kind === 'sale' ? 'sale-manual-v2' : 'payment-v1',
+        payloadVersion:
+          kind === 'sale'
+            ? 'sale-manual-v2'
+            : kind === 'sale-addition'
+              ? 'sale-addition-v1'
+              : 'payment-v1',
         key: crypto.randomUUID(),
         body: json,
         hash: await receiptFingerprint(json),
@@ -255,7 +294,11 @@ export async function sendCommercialCommand<T>(
     let response: ResponseLike, result: unknown;
     try {
       response = await deps.send(
-        kind === 'sale' ? '/api/sales' : '/api/payments',
+        kind === 'sale'
+          ? '/api/sales'
+          : kind === 'sale-addition'
+            ? `/api/sales/${saleAdditionCommandSchema.parse(commercialCommandBody(record)).saleId}/add-products`
+            : '/api/payments',
         record.key,
         record.body,
       );

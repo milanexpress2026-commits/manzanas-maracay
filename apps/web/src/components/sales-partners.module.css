@@ -1,0 +1,83 @@
+.actions,
+.history,
+.summaryNotes {
+  padding: 1rem 1.25rem;
+}
+.actions {
+  margin-block: 1rem;
+}
+.history {
+  margin-block: 1rem;
+}
+.history summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem;
+  margin-block: 1.5rem;
+}
+.filters > div {
+  flex: 0 1 12rem;
+}
+.filterActions {
+  display: flex;
+  gap: 0.75rem;
+  flex: 0 0 auto !important;
+}
+.reportTable tbody th {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+}
+.summaryNotes p {
+  margin-block: 0.25rem 0.75rem;
+}
+.mobileLabel {
+  display: none;
+}
+@media (max-width: 600px) {
+  .filters > div {
+    flex: 1 1 8rem;
+  }
+  .reportTable {
+    min-width: 0 !important;
+    width: 100%;
+  }
+  .reportTable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .reportTable,
+  .reportTable tbody {
+    display: block;
+  }
+  .reportTable tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 1rem;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .reportTable tbody th {
+    grid-column: 1 / -1;
+  }
+  .reportTable tbody th,
+  .reportTable tbody td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .mobileLabel {
+    display: block;
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+  }
+}

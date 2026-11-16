@@ -194,8 +194,8 @@ async function main() {
   assert.equal(phase4Journal.entries.length, 13);
   assert.equal(
     currentJournal.entries.length,
-    18,
-    'La prueba incluye V4.15 y la migración 0017 de validación acotada.',
+    19,
+    'La prueba incluye V4.17 y la migración 0018 de vendedores y ampliaciones.',
   );
   const phase4Migrations = path.join(scratch, 'phase4-13-migrations');
   await fs.mkdir(path.join(phase4Migrations, 'meta'), { recursive: true });
@@ -518,10 +518,69 @@ async function main() {
     } finally {
       await v42Pool.end();
     }
+    const v416Migrations = path.join(scratch, 'v416-18-migrations');
+    await fs.mkdir(path.join(v416Migrations, 'meta'), { recursive: true });
+    const v416Journal = {
+      ...currentJournal,
+      entries: currentJournal.entries.filter((entry) => entry.idx <= 17),
+    };
+    assert.equal(v416Journal.entries.length, 18);
+    await fs.writeFile(
+      path.join(v416Migrations, 'meta/_journal.json'),
+      JSON.stringify(v416Journal),
+    );
+    for (const entry of v416Journal.entries)
+      await fs.copyFile(
+        path.join(currentMigrations, entry.tag + '.sql'),
+        path.join(v416Migrations, entry.tag + '.sql'),
+      );
+    const v416Pool = new Pool({ connectionString: upgradeUrl, max: 1 });
+    let v416Before: Snapshot;
+    try {
+      await migrate(drizzle(v416Pool), { migrationsFolder: v416Migrations });
+      const read = await v416Pool.connect();
+      try {
+        v416Before = await snapshot(read as unknown as Client);
+        assert.equal(v416Before.hashes.length, 18);
+      } finally {
+        read.release();
+      }
+    } finally {
+      await v416Pool.end();
+    }
     await migrateDatabase(upgradeUrl);
     const updated = new Client({ connectionString: upgradeUrl });
     await updated.connect();
     try {
+      const v417After = await snapshot(updated, v416Before!.columns);
+      assert.deepEqual(
+        v417After.rows,
+        v416Before!.rows,
+        '0018 debe conservar todas las columnas y filas históricas.',
+      );
+      assert.deepEqual(v417After.hashes.slice(0, 18), v416Before!.hashes);
+      assert.equal(v417After.hashes.length, 19);
+      assert.equal(
+        (await updated.query('select count(*)::int n from sales where seller is not null')).rows[0]
+          .n,
+        0,
+        'No atribuir ventas históricas.',
+      );
+      assert.equal(
+        (await updated.query('select count(*)::int n from sale_additions')).rows[0].n,
+        0,
+      );
+      assert.equal(
+        (await updated.query('select count(*)::int n from sale_stock_returns')).rows[0].n,
+        0,
+      );
+      report.v417Upgrade = {
+        fromMigrationCount: 18,
+        toMigrationCount: 19,
+        preservedTables: tables.length,
+        historicalSellerUnassigned: true,
+        historyPreserved: true,
+      };
       const v45After = await snapshot(updated, v42Before!.columns);
       assert.deepEqual(
         v45After.rows,

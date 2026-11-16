@@ -80,6 +80,16 @@ BEGIN
       RAISE EXCEPTION 'Restored application can mutate administrative data';
     END IF;
   END LOOP;
+  -- V4.17 remains optional when verifying restoration of an older backup.
+  IF to_regclass('public.sale_additions') IS NOT NULL THEN
+    FOREACH required_table IN ARRAY ARRAY['sale_additions','sale_stock_returns'] LOOP
+      IF NOT has_table_privilege('mm_prod_app','public.'||required_table,'SELECT,INSERT')
+        OR has_table_privilege('mm_prod_app','public.'||required_table,'UPDATE,DELETE,TRUNCATE,TRIGGER') THEN
+        RAISE EXCEPTION 'Restored additions/returns must be append-only'; END IF;
+    END LOOP;
+    IF NOT has_table_privilege('mm_prod_app','public.sale_totals','SELECT') THEN
+      RAISE EXCEPTION 'Restored application cannot read effective sale totals'; END IF;
+  END IF;
   -- V3/V4 rate schema is optional for restoration of older phase-4 backups.
   usdt_table:=to_regclass('public.usdt_rates');
   IF usdt_table IS NOT NULL THEN
@@ -213,6 +223,12 @@ BEGIN
   IF to_regclass('public.usdt_rates') IS NOT NULL THEN
     SELECT count(*) INTO actual_count FROM usdt_rates;
     expected := expected || jsonb_build_object('usdt_rates', actual_count);
+  END IF;
+  IF to_regclass('public.sale_additions') IS NOT NULL THEN
+    FOREACH relation_name IN ARRAY ARRAY['sale_additions','sale_stock_returns','sale_totals'] LOOP
+      EXECUTE format('SELECT count(*) FROM public.%I',relation_name) INTO actual_count;
+      expected:=expected||jsonb_build_object(relation_name,actual_count);
+    END LOOP;
   END IF;
   PERFORM set_config('mm.restore_expected_counts', expected::text, true);
 END $$;

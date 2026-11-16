@@ -84,7 +84,9 @@ Los movimientos, entradas y documentos confirmados son inmutables. Cada entrada 
 
 ## Correcciones comerciales
 
-La anulación completa exige ausencia de abonos activos y posibilidad de revertir los movimientos de todos los lotes afectados sin dependencias posteriores. Crea evento de anulación y movimientos compensatorios, restituyendo el mismo costo. Reversar un abono crea un evento; no significa ejecutar una devolución bancaria. Fechas reprogramadas dejan historial separado, sin sobrescribir silenciosamente el vencimiento original. Devoluciones parciales siguen pendientes de definición comercial.
+La anulación completa exige ausencia de cobros activos y confirmación de la mercancía en el local/devuelta. Sin dependencias posteriores se revierte la salida exacta; con ellas se crean recipientes independientes por asignación vendida, conservando lote, presentación, piezas y costo. `sale_stock_returns` enlaza cada asignación con su recipiente y movimiento `sale_return`, impidiendo devolverla dos veces. Los movimientos posteriores permanecen intactos. Las medias comerciales devueltas conservan piezas NULL y su equivalencia de media caja, sin inventar cajas cerradas. Reversar un abono crea un evento; no significa ejecutar una devolución bancaria. Fechas reprogramadas dejan historial separado, sin sobrescribir silenciosamente el vencimiento original. Devoluciones parciales siguen pendientes de definición comercial.
+
+V4.17 añade `sale_additions`: líneas y asignaciones de una ampliación pertenecen a su propia transacción y usan FIFO a la hora de confirmación. La vista `sale_totals` suma el total original y las ampliaciones; `receivables` deriva el saldo de ese total vigente. Triggers diferidos comprueban las sumas, el pago completo de contado y la integridad de los retornos. Ni la cabecera original ni sus líneas se sobrescriben. La versión de edición cuenta ampliaciones y el bloqueo común serializa ampliaciones, cobros y anulaciones.
 
 ## Contratos y evidencia
 

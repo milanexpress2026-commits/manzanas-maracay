@@ -1,0 +1,238 @@
+{
+  "version": "V4.17",
+  "status": "published_verified",
+  "candidateCommit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+  "productionCommit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+  "productionApproved": true,
+  "productionChanged": true,
+  "migration": {
+    "tag": "0018_sellers_sale_additions",
+    "from": 18,
+    "to": 19,
+    "historicalSqlUnchanged": true,
+    "productionExecuted": true
+  },
+  "local": {
+    "typecheck": true,
+    "build": true,
+    "unitTestsPassed": 464,
+    "initialTargetedE2ePassed": 12,
+    "fullE2e": {
+      "runId": "15708d2d32c0348ac6a6cfab",
+      "passed": 186,
+      "failed": 1,
+      "failure": "Client-search fixture reloaded the form but omitted the newly required seller selection. The app correctly required a choice. Fixture updated; no runtime change."
+    },
+    "followupE2e": {
+      "runId": "ef95bb8d8adfa6775ac5e018",
+      "passed": 5,
+      "failed": 0,
+      "covers": [
+        "client-search with explicit seller after reload",
+        "seller and same-folio addition at 390/800/1440",
+        "lost response after commit then reload and retry",
+        "single cancellation confirmation"
+      ]
+    },
+    "productionIsolatedPassed": 15,
+    "productionQaRunId": "cd7b0c3a995eb7df3d10a2e8",
+    "productionQaDatabaseCleaned": true,
+    "migrationRunId": "7301b53166dba73cfb6d3b8a",
+    "migrationFreshAndUpgradePassed": true,
+    "migrationOriginalColumnsPreserved": true,
+    "migrationHistoricalSellersNull": true,
+    "migrationTemporaryDatabasesCleaned": true,
+    "operatorGuardTestsPassed": 11,
+    "secretScanFindings": []
+  },
+  "uiReview": {
+    "disposition": "ship",
+    "viewports": [
+      390,
+      800,
+      1440
+    ],
+    "fixesVerified": [
+      "recovery does not double-count a committed addition",
+      "mobile summary values visible",
+      "compact date filters",
+      "panel padding",
+      "stable review dialogs"
+    ],
+    "physicalDeviceVerified": false,
+    "designDocumentation": "No changes: ordinary extension of incumbent interface; historical PRODUCT/DESIGN drift not rewritten."
+  },
+  "limitations": [
+    "No automatic historical seller attribution",
+    "Edition adds products; it does not delete or reprice previous lines",
+    "Credit with active payments cannot be extended",
+    "Cancellation requires no active payments and merchandise kept or returned",
+    "Period summary uses original sale dates and current payment balances"
+  ],
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/18",
+  "archiveSha256": "77a06623b2302c988160ed1f82add26e7d517f2cce3c9ddca32047120a88b291",
+  "staging": {
+    "commit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+    "healthy": true,
+    "migrations": 19,
+    "originalRowsPreserved": true,
+    "historicalSellersNull": true,
+    "backupAndPostMigrationRestoreVerified": true,
+    "collectorResumed": true,
+    "authenticatedChecksPassed": 18,
+    "checkedAt": "2026-11-16T17:31:07.443569+00:00",
+    "productionAndPeersUnchanged": true
+  },
+  "prepublicationBackup": {
+    "commit": "c1f251a85bdded5491148f3a4de2bb558fefd47a",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true,
+    "checkedAt": "2026-11-16T17:19:10.494921+00:00"
+  },
+  "incidents": [
+    "Full E2E fixture updated to choose seller after page reload; follow-up5/5 passed without runtime changes.",
+    "Read-only progress query read a partially written state file; retry succeeded. Deployment did not fail.",
+    "A transient container ended between Docker listing and inspection after the production migration. The deployer held its writers. Original failure preserved; original peer/data checks passed and the same candidate containers resumed without repeating migration or restoring real data.",
+    "During held recovery, the own health endpoint correctly returned 502 and the held preflight was corrected to expect that status only for its own paused API; all other host, proxy and container comparisons remained unchanged. A subsequent SSH disconnect interrupted read-only verification after API/web had resumed. Verification continued over a fresh pinned-host connection, without repeating migration or service restart; normal 200 health and all original comparisons passed before completion."
+  ],
+  "productionRecovery": {
+    "reference": "inspect-read-race-after-verified-migration",
+    "startedAt": "2026-11-16T17:58:28.882783+00:00",
+    "originalFailurePreserved": true,
+    "migrationRepeated": false,
+    "originalPeerComparatorPassed": true,
+    "heldRowsPreservedDuringPreflight": true,
+    "passed": true,
+    "completedAt": "2026-11-16T20:35:58.215371+00:00",
+    "sshDisconnectRecovered": true,
+    "recoveryGuardTestsPassed": 10
+  },
+  "production": {
+    "commit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+    "healthy": true,
+    "migrations": 19,
+    "allOriginalRowsPreserved": true,
+    "historicalSellersUnassigned": true,
+    "accessAndTabletPreserved": true,
+    "collectorResumed": true,
+    "dnsOrProxyChanged": false,
+    "otherProjectsChanged": false,
+    "accessChecksPassed": 21,
+    "checkedAt": "2026-11-16T20:36:33.979671+00:00",
+    "ratesReadyAtCheck": {
+      "usd": true,
+      "usdt": true,
+      "vesBcv": true,
+      "vesUsdt": true
+    },
+    "previewReadOnly": true,
+    "businessWritesDuringSmoke": false,
+    "operatorGuardTestsPassed": 11,
+    "publicGuardTestsPassed": 5,
+    "ownerApprovalReference": "call_58e3123a077540a2af5dab416401613f"
+  },
+  "liveUi": {
+    "commit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+    "checkedAt": "2026-11-16T20:34:38.899Z",
+    "passed": true,
+    "businessWrites": false,
+    "physicalTabletVerified": false,
+    "explicitSellerVerified": true,
+    "sellerSummaryVerified": true,
+    "existingSaleUnchanged": true,
+    "pages": [
+      {
+        "route": "/ventas",
+        "networkIdleMs": 3173,
+        "apiRequests": 0
+      },
+      {
+        "route": "/recepciones",
+        "networkIdleMs": 2067,
+        "apiRequests": 1
+      },
+      {
+        "route": "/inventario",
+        "networkIdleMs": 1762,
+        "apiRequests": 1
+      },
+      {
+        "route": "/ventas/nueva",
+        "networkIdleMs": 2505,
+        "apiRequests": 3
+      },
+      {
+        "route": "/catalogo",
+        "networkIdleMs": 1924,
+        "apiRequests": 2
+      },
+      {
+        "route": "/ventas/resumen",
+        "networkIdleMs": 1937,
+        "apiRequests": 1
+      }
+    ]
+  },
+  "documents": {
+    "commit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+    "passed": true,
+    "existingSaleUnchanged": true,
+    "letterAndA4Verified": true,
+    "formalIdentityAddressBcvAndSignaturesVerified": true,
+    "visuallyReviewed": true,
+    "physicalPrintingVerified": false,
+    "http": [
+      {
+        "size": "letter",
+        "status": 200,
+        "bytes": 126755,
+        "elapsedMs": 1963
+      },
+      {
+        "size": "a4",
+        "status": 200,
+        "bytes": 126789,
+        "elapsedMs": 1022
+      }
+    ]
+  },
+  "compression": {
+    "passed": true,
+    "checks": [
+      {
+        "route": "/api/catalog",
+        "identityBytes": 30619,
+        "gzipBytes": 4555,
+        "gzipMs": 586,
+        "exactContentPreserved": true,
+        "noStore": true
+      },
+      {
+        "route": "/api/inventory",
+        "identityBytes": 37011,
+        "gzipBytes": 5124,
+        "gzipMs": 338,
+        "exactContentPreserved": true,
+        "noStore": true
+      },
+      {
+        "route": "/api/sales?search=&limit=25&offset=0",
+        "identityBytes": 15310,
+        "gzipBytes": 2581,
+        "gzipMs": 228,
+        "exactContentPreserved": true,
+        "noStore": true
+      }
+    ]
+  },
+  "postpublicationBackup": {
+    "commit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+    "checkedAt": "2026-11-16T20:36:29.643027+00:00",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true
+  }
+}

@@ -383,7 +383,7 @@ export const inventoryMovements = pgTable(
     foreignKey({ columns: [t.reversalOf], foreignColumns: [t.id] }),
     check(
       'movement_kind_valid',
-      sql`${t.kind} in ('receipt','dispatch','open_box','open_blister','fraction','commercial_split','adjustment','transfer','reversal')`,
+      sql`${t.kind} in ('receipt','dispatch','open_box','open_blister','fraction','commercial_split','adjustment','transfer','reversal','sale_return')`,
     ),
     check('movement_reason_required', sql`length(btrim(${t.reason}))>0`),
     check(
@@ -575,6 +575,7 @@ export const sales = pgTable(
       .notNull()
       .references(() => clients.id),
     condition: text('condition').notNull(),
+    seller: text('seller'),
     settlementBasis: text('settlement_basis').notNull().default('legacy_bcv'),
     status: text('status').notNull().default('draft'),
     currency: text('currency').notNull().default('USD'),
@@ -598,12 +599,35 @@ export const sales = pgTable(
     unique('sales_number_uq').on(t.number),
     unique('sales_id_client_uq').on(t.id, t.clientId),
     index('sales_client_date_idx').on(t.clientId, t.soldAt),
+    index('sales_date_seller_idx').on(t.soldAt, t.seller),
     index('sales_due_idx').on(t.dueDate),
     check('sales_condition_valid', sql`${t.condition} in ('cash','credit')`),
+    check('sales_seller_valid', sql`${t.seller} is null or ${t.seller} in ('carlos','randy')`),
     check('sales_settlement_valid', sql`${t.settlementBasis} in ('divisa','bcv','legacy_bcv')`),
     check('sales_status_valid', sql`${t.status} in ('draft','confirmed','cancelled')`),
     check('sales_currency_usd', sql`${t.currency}='USD'`),
     check('sales_amounts_valid', sql`${t.totalUsd}>=0 and ${t.costUsd}>=0`),
+  ],
+);
+export const saleAdditions = pgTable(
+  'sale_additions',
+  {
+    id: id(),
+    saleId: uuid('sale_id')
+      .notNull()
+      .references(() => sales.id),
+    totalUsd: numeric('total_usd', { precision: 18, scale: 2 }).notNull(),
+    costUsd: money('cost_usd'),
+    actor: text('actor').notNull(),
+    creationTransaction: bigint('creation_transaction', { mode: 'bigint' })
+      .notNull()
+      .default(sql`txid_current()`),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('sale_additions_sale_idx').on(t.saleId),
+    unique('sale_additions_id_sale_uq').on(t.id, t.saleId),
+    check('sale_additions_amounts_valid', sql`${t.totalUsd}>0 and ${t.costUsd}>=0`),
   ],
 );
 export const saleLines = pgTable(
@@ -613,6 +637,7 @@ export const saleLines = pgTable(
     saleId: uuid('sale_id')
       .notNull()
       .references(() => sales.id),
+    additionId: uuid('addition_id').references(() => saleAdditions.id),
     variantId: uuid('variant_id')
       .notNull()
       .references(() => variants.id),
@@ -768,8 +793,8 @@ export const receivables = pgView('receivables', {
   balanceUsd: numeric('balance_usd', { precision: 18, scale: 2 }),
 }).as(
   sql`SELECT s.id AS sale_id,s.client_id,s.number,CASE WHEN d.id IS NULL THEN s.due_date ELSE d.due_date END AS due_date,
-  'USD'::text AS currency,s.total_usd,coalesce(p.paid,0)::numeric(18,2) AS paid_usd,(s.total_usd-coalesce(p.paid,0))::numeric(18,2) AS balance_usd
-FROM sales s
+  'USD'::text AS currency,t.total_usd,coalesce(p.paid,0)::numeric(18,2) AS paid_usd,(t.total_usd-coalesce(p.paid,0))::numeric(18,2) AS balance_usd
+FROM sales s JOIN sale_totals t ON t.sale_id=s.id
 LEFT JOIN LATERAL(SELECT id,due_date FROM sale_date_events WHERE sale_id=s.id ORDER BY event_order DESC LIMIT 1)d ON true
 LEFT JOIN LATERAL(SELECT sum(a.amount_usd) AS paid FROM payment_applications a WHERE a.sale_id=s.id
   AND NOT EXISTS(SELECT 1 FROM payment_reversals r WHERE r.payment_id=a.payment_id))p ON true

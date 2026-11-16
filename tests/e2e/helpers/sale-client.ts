@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 
 /** Exercise the server search, including clients outside the first page. */
 export async function chooseSaleClient(page: Page, client: { id?: string; name: string }) {
+  await page.getByLabel('Vendedor', { exact: true }).selectOption('carlos');
   const search = page.getByLabel('Buscar cliente', { exact: true });
   if ((await search.inputValue()) !== client.name) {
     const response = page.waitForResponse((result) => {

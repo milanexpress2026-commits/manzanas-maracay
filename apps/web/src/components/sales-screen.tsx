@@ -6,6 +6,7 @@ import Decimal from 'decimal.js';
 import { Plus, Minus, ChevronDown, Trash2, ArrowLeft, UserPlus } from 'lucide-react';
 import {
   manualSaleSchema,
+  saleAdditionCommandSchema,
   paymentMethodLabel,
   type SaleDetail,
   type Catalog,
@@ -59,15 +60,26 @@ import {
   type SaleDraftLine,
 } from '@/lib/sales-flow';
 import styles from './sales-flow.module.css';
-export function NewSaleScreen({ session }: { session: AppSession }) {
+export function NewSaleScreen({
+  session,
+  additionSale,
+}: {
+  session: AppSession;
+  additionSale?: SaleDetail;
+}) {
   const router = useRouter();
+  const returnPath = additionSale ? '/ventas/' + additionSale.id + '/editar' : '/ventas/nueva';
   const catalog = useRemote<Catalog>('/api/catalog');
   const rate = useCurrentRates();
-  const [clientId, setClientId] = useState('');
+  const [clientId, setClientId] = useState(additionSale?.clientId ?? '');
   const clients = useClientDirectory(clientId);
   const [newClient, setNewClient] = useState(false);
-  const [condition, setCondition] = useState<'cash' | 'credit'>('cash');
-  const [basis, setBasis] = useState<'divisa' | 'bcv' | ''>('');
+  const [condition, setCondition] = useState<'cash' | 'credit'>(additionSale?.condition ?? 'cash');
+  const [basis, setBasis] = useState<'divisa' | 'bcv' | ''>(
+    additionSale ? (additionSale.settlementBasis === 'divisa' ? 'divisa' : 'bcv') : '',
+  );
+  const [seller, setSeller] = useState<'carlos' | 'randy' | ''>('');
+  const [additionVersion, setAdditionVersion] = useState(additionSale?.version ?? 0);
   const [due, setDue] = useState('');
   const [reminder, setReminder] = useState('');
   const [notes, setNotes] = useState('');
@@ -85,7 +97,8 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   const [reviewTotals, setReviewTotals] = useState({ total: '0.00', balance: '0.00' });
   const [review, setReview] = useState<ReturnType<typeof manualSaleSchema.parse> | null>(null);
   const scope = session.environment + ':' + (session.operationScopeId ?? session.user.id);
-  const command = useDurableCommercialCommand(scope, 'sale');
+  const draftScope = additionSale ? scope + ':addition:' + additionSale.id : scope;
+  const command = useDurableCommercialCommand(scope, additionSale ? 'sale-addition' : 'sale');
   const [checkingStock, setCheckingStock] = useState(false);
   const checkingRef = useRef(false);
   const lineKeys = useRef(new Map<number, string>());
@@ -95,9 +108,10 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    const draft = takeSaleDraft(scope);
+    const draft = takeSaleDraft(draftScope);
     if (draft) {
       setClientId(draft.clientId);
+      setSeller(draft.seller ?? '');
       setCondition(draft.condition);
       setDue(draft.due);
       setReminder(draft.reminder);
@@ -113,12 +127,28 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       const requestedClient = new URL(window.location.href).searchParams.get('cliente');
       if (requestedClient && /^[a-f0-9-]{36}$/i.test(requestedClient)) setClientId(requestedClient);
     }
-  }, [scope]);
+  }, [scope, draftScope]);
   useEffect(() => {
     if (!command.pending || command.busy || restoredCommandKey.current === command.pending.key)
       return;
     const pending = command.pending;
-    const saved = manualSaleSchema.parse(commercialCommandBody(pending));
+    const body = commercialCommandBody(pending);
+    const addition = additionSale ? saleAdditionCommandSchema.parse(body) : null;
+    const saved =
+      addition && additionSale
+        ? manualSaleSchema.parse({
+            schemaVersion: 2,
+            clientId: addition.clientId,
+            condition: additionSale.condition,
+            settlementBasis: additionSale.settlementBasis === 'divisa' ? 'divisa' : 'bcv',
+            soldAt: pending.createdAt,
+            dateMode: 'automatic',
+            lines: addition.lines,
+            ...(addition.payment ? { initialPayment: addition.payment } : {}),
+          })
+        : manualSaleSchema.parse(body);
+    if (addition) setAdditionVersion(addition.expectedVersion);
+    setSeller(saved.seller ?? '');
     restoredCommandKey.current = pending.key;
     setClientId(saved.clientId);
     setBasis(saved.settlementBasis);
@@ -141,7 +171,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
       balance: pending.summary?.balanceUsd ?? total.toFixed(2),
     });
     setRestored(true);
-  }, [command.pending, command.busy]);
+  }, [command.pending, command.busy, additionSale]);
   const activeClients = clients.options.filter((client) => client.active);
   const catalogConfigurations = catalog.data?.configurations ?? [];
   const configurations = catalogConfigurations.filter(
@@ -303,8 +333,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         )
         .join(' · ');
   function preserveDraft() {
-    keepSaleDraft(scope, {
+    keepSaleDraft(draftScope, {
       clientId,
+      seller,
       settlementBasis: basis,
       condition,
       date: '',
@@ -403,12 +434,21 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
           }
         }
         setReviewAttempted(true);
-        const result = await command.run<SaleDetail>(review, {
+        const body = additionSale
+          ? saleAdditionCommandSchema.parse({
+              saleId: additionSale.id,
+              clientId: additionSale.clientId,
+              expectedVersion: additionVersion,
+              lines: review.lines,
+              ...(review.initialPayment ? { payment: review.initialPayment } : {}),
+            })
+          : review;
+        const result = await command.run<SaleDetail>(body, {
           totalUsd: reviewTotals.total,
           balanceUsd: reviewTotals.balance,
         });
         clearSaleDraft();
-        router.push('/ventas/' + result.id + '?guardada=1');
+        router.push('/ventas/' + result.id + (additionSale ? '?ampliada=1' : '?guardada=1'));
       } catch (error) {
         if (error instanceof CommercialJournalError && error.editable) {
           setReviewAttempted(false);
@@ -418,6 +458,11 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         checkingRef.current = false;
         setCheckingStock(false);
       }
+      return;
+    }
+    if (!additionSale && !seller) {
+      command.setError('Selecciona Carlos o Randy en Vendedor.');
+      document.getElementById('sale-seller')?.focus();
       return;
     }
     if (
@@ -491,6 +536,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
     const soldAt = reviewedAt.toISOString();
     const parsed = manualSaleSchema.safeParse({
       schemaVersion: 2,
+      ...(!additionSale && seller ? { seller } : {}),
       settlementBasis: basis,
       clientId,
       condition,
@@ -567,8 +613,12 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         </Link>
         <div className="page-heading">
           <div>
-            <h1>Nueva venta</h1>
-            <p>Elige el cliente, agrega la mercancía y revisa el cobro.</p>
+            <h1>{additionSale ? 'Agregar productos' : 'Nueva venta'}</h1>
+            <p>
+              {additionSale
+                ? `${additionSale.number} · ${additionSale.clientName}. Conservamos los productos y cobros anteriores.`
+                : 'Elige el cliente, agrega la mercancía y revisa el cobro.'}
+            </p>
           </div>
         </div>
         {restored ? (
@@ -605,95 +655,124 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               }
               className={styles.main}
             >
-              <section className={styles.surface} aria-label="Cliente y condición de venta">
-                <Field className={styles.customerSearch}>
-                  <FieldLabel htmlFor="sale-client-search">Buscar cliente</FieldLabel>
-                  <Input
-                    id="sale-client-search"
-                    type="search"
-                    maxLength={120}
-                    placeholder="Nombre, teléfono o RIF…"
-                    value={clients.search}
-                    onChange={(event) => clients.setSearch(event.target.value)}
-                  />
-                  <FieldDescription>
-                    Busca en todos tus clientes. El cliente elegido se conserva al cambiar la
-                    búsqueda.
-                  </FieldDescription>
-                </Field>
-                <div className={styles.customer}>
-                  <Field>
-                    <FieldLabel htmlFor="sale-client">Cliente</FieldLabel>
-                    <NativeSelect
-                      id="sale-client"
-                      required
-                      value={clientId}
-                      onChange={(event) => setClientId(event.target.value)}
-                    >
-                      <option value="">Selecciona un cliente</option>
-                      {activeClients.map((client) => (
-                        <option key={client.id} value={client.id}>
-                          {client.name}
-                        </option>
-                      ))}
-                    </NativeSelect>
-                  </Field>
-                  <Button type="button" variant="outline" onClick={() => setNewClient(true)}>
-                    <UserPlus aria-hidden="true" />
-                    Nuevo cliente
-                  </Button>
-                </div>
-                {clients.loading ? (
-                  <p role="status" className={styles.lineHelp}>
-                    Buscando clientes…
+              {additionSale ? (
+                <section className={styles.surface} aria-label="Venta original">
+                  <h2>{additionSale.number}</h2>
+                  <p>
+                    {additionSale.clientName} · {condition === 'cash' ? 'Contado' : 'Crédito'}
                   </p>
-                ) : null}
-                {clients.hasMore ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={clients.loading}
-                    onClick={() => void clients.loadMore()}
-                  >
-                    Cargar más clientes
-                  </Button>
-                ) : null}
-                {clients.selectedError ? (
-                  <LoadError error={clients.selectedError} retry={clients.retrySelection} />
-                ) : null}
-                {!activeClients.length ? (
-                  <p className={styles.lineHelp}>
-                    {clients.search || clients.hasMore
-                      ? 'No hay clientes activos entre estos resultados. Cambia la búsqueda o carga más clientes.'
-                      : 'Crea el primer cliente con su nombre. WhatsApp es opcional.'}
+                  <p>
+                    Ya registrado: {displayMoney(additionSale.totalUsd)} · Ya cobrado:{' '}
+                    {displayMoney(additionSale.paidUsd)}
                   </p>
-                ) : null}
-                <FieldSet className={styles.condition}>
-                  <FieldLegend>Condición de venta</FieldLegend>
-                  <div className={styles.segments}>
-                    <label>
-                      <input
-                        type="radio"
-                        name="sale-condition"
-                        value="cash"
-                        checked={condition === 'cash'}
-                        onChange={() => changeCondition('cash')}
+                  <p>Agrega únicamente la mercancía extra. La nota reunirá todos los productos.</p>
+                </section>
+              ) : (
+                <>
+                  <section className={styles.surface} aria-label="Cliente y condición de venta">
+                    <Field style={{ maxWidth: '16rem' }}>
+                      <FieldLabel htmlFor="sale-seller">Vendedor</FieldLabel>
+                      <NativeSelect
+                        id="sale-seller"
+                        required
+                        value={seller}
+                        onChange={(e) => setSeller(e.target.value as 'carlos' | 'randy' | '')}
+                      >
+                        <option value="">Selecciona vendedor</option>
+                        <option value="carlos">Carlos</option>
+                        <option value="randy">Randy</option>
+                      </NativeSelect>
+                    </Field>
+                    <Field className={styles.customerSearch}>
+                      <FieldLabel htmlFor="sale-client-search">Buscar cliente</FieldLabel>
+                      <Input
+                        id="sale-client-search"
+                        type="search"
+                        maxLength={120}
+                        placeholder="Nombre, teléfono o RIF…"
+                        value={clients.search}
+                        onChange={(event) => clients.setSearch(event.target.value)}
                       />
-                      Contado
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        name="sale-condition"
-                        value="credit"
-                        checked={condition === 'credit'}
-                        onChange={() => changeCondition('credit')}
-                      />
-                      Crédito
-                    </label>
-                  </div>
-                </FieldSet>
-              </section>
+                      <FieldDescription>
+                        Busca en todos tus clientes. El cliente elegido se conserva al cambiar la
+                        búsqueda.
+                      </FieldDescription>
+                    </Field>
+                    <div className={styles.customer}>
+                      <Field>
+                        <FieldLabel htmlFor="sale-client">Cliente</FieldLabel>
+                        <NativeSelect
+                          id="sale-client"
+                          required
+                          value={clientId}
+                          onChange={(event) => setClientId(event.target.value)}
+                        >
+                          <option value="">Selecciona un cliente</option>
+                          {activeClients.map((client) => (
+                            <option key={client.id} value={client.id}>
+                              {client.name}
+                            </option>
+                          ))}
+                        </NativeSelect>
+                      </Field>
+                      <Button type="button" variant="outline" onClick={() => setNewClient(true)}>
+                        <UserPlus aria-hidden="true" />
+                        Nuevo cliente
+                      </Button>
+                    </div>
+                    {clients.loading ? (
+                      <p role="status" className={styles.lineHelp}>
+                        Buscando clientes…
+                      </p>
+                    ) : null}
+                    {clients.hasMore ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={clients.loading}
+                        onClick={() => void clients.loadMore()}
+                      >
+                        Cargar más clientes
+                      </Button>
+                    ) : null}
+                    {clients.selectedError ? (
+                      <LoadError error={clients.selectedError} retry={clients.retrySelection} />
+                    ) : null}
+                    {!activeClients.length ? (
+                      <p className={styles.lineHelp}>
+                        {clients.search || clients.hasMore
+                          ? 'No hay clientes activos entre estos resultados. Cambia la búsqueda o carga más clientes.'
+                          : 'Crea el primer cliente con su nombre. WhatsApp es opcional.'}
+                      </p>
+                    ) : null}
+                    <FieldSet className={styles.condition}>
+                      <FieldLegend>Condición de venta</FieldLegend>
+                      <div className={styles.segments}>
+                        <label>
+                          <input
+                            type="radio"
+                            name="sale-condition"
+                            value="cash"
+                            checked={condition === 'cash'}
+                            onChange={() => changeCondition('cash')}
+                          />
+                          Contado
+                        </label>
+                        <label>
+                          <input
+                            type="radio"
+                            name="sale-condition"
+                            value="credit"
+                            checked={condition === 'credit'}
+                            onChange={() => changeCondition('credit')}
+                          />
+                          Crédito
+                        </label>
+                      </div>
+                    </FieldSet>
+                  </section>
+                </>
+              )}
               <section className={styles.surface} aria-label="Productos de la venta">
                 <div className={styles.productsHeader}>
                   <h2>Productos</h2>
@@ -704,7 +783,16 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                 {!catalogConfigurations.length ? (
                   <p className={styles.lineHelp}>
                     Aún no hay productos con empaque confirmado.{' '}
-                    <Link href="/catalogo?returnTo=/ventas/nueva" onClick={preserveDraft}>
+                    <Link
+                      href={
+                        additionSale
+                          ? '/catalogo'
+                          : '/catalogo?returnTo=' + encodeURIComponent(returnPath)
+                      }
+                      target={additionSale ? '_blank' : undefined}
+                      rel={additionSale ? 'noopener' : undefined}
+                      onClick={preserveDraft}
+                    >
                       Agregar producto
                     </Link>
                     .
@@ -915,11 +1003,17 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                                 href={
                                   '/recepciones?producto=' +
                                   line.configurationId +
-                                  '&returnTo=/ventas/nueva'
+                                  (additionSale
+                                    ? ''
+                                    : '&returnTo=' + encodeURIComponent(returnPath))
                                 }
+                                target={additionSale ? '_blank' : undefined}
+                                rel={additionSale ? 'noopener' : undefined}
                                 onClick={preserveDraft}
                               >
-                                Registrar recepción
+                                {additionSale
+                                  ? 'Registrar recepción (otra pestaña)'
+                                  : 'Registrar recepción'}
                               </Link>
                             ) : null}
                           </div>
@@ -945,12 +1039,21 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                           ? 'producto requiere'
                           : 'productos requieren'}{' '}
                         confirmar sus presentaciones antes de vender.{' '}
-                        <Link href="/catalogo?returnTo=/ventas/nueva" onClick={preserveDraft}>
+                        <Link
+                          href={
+                            additionSale
+                              ? '/catalogo'
+                              : '/catalogo?returnTo=' + encodeURIComponent(returnPath)
+                          }
+                          target={additionSale ? '_blank' : undefined}
+                          rel={additionSale ? 'noopener' : undefined}
+                          onClick={preserveDraft}
+                        >
                           Revisar empaques en catálogo
                         </Link>
                       </p>
                     ) : null}
-                    <Field className={styles.agreement}>
+                    <Field className={styles.agreement} hidden={!!additionSale}>
                       <FieldLabel htmlFor="sale-basis">Acuerdo de cobro</FieldLabel>
                       <NativeSelect
                         id="sale-basis"
@@ -973,7 +1076,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                   </>
                 )}
               </section>
-              <details className={styles.optional}>
+              <details className={styles.optional} hidden={!!additionSale}>
                 <summary>
                   Más opciones
                   <ChevronDown aria-hidden="true" />
@@ -1002,7 +1105,15 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
               className={styles.surface + ' ' + styles.summary + ' ' + styles.payment}
               aria-label="Resumen y cobro"
             >
-              <h2>{condition === 'cash' ? 'Cobrar venta' : 'Registrar crédito'}</h2>
+              <h2>
+                {additionSale
+                  ? condition === 'cash'
+                    ? 'Cobrar productos extra'
+                    : 'Agregar al crédito'
+                  : condition === 'cash'
+                    ? 'Cobrar venta'
+                    : 'Registrar crédito'}
+              </h2>
               <dl>
                 <div className={styles.total}>
                   <dt>Total a cobrar</dt>
@@ -1089,7 +1200,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     </strong>
                   </p>
                 ) : null}
-                {condition === 'credit' && !fullyPaid ? (
+                {condition === 'credit' && !fullyPaid && !additionSale ? (
                   <div className={styles.dates}>
                     <Field>
                       <FieldLabel htmlFor="sale-due">Fecha acordada (opcional)</FieldLabel>
@@ -1266,7 +1377,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
         >
           <DialogContent className="catalog-dialog">
             <DialogHeader>
-              <DialogTitle>Confirmar venta</DialogTitle>
+              <DialogTitle>
+                {additionSale ? 'Confirmar productos extra' : 'Confirmar venta'}
+              </DialogTitle>
               <DialogDescription>
                 Revisa la mercancía y el cobro. Al confirmar se descontará del inventario.
               </DialogDescription>
@@ -1283,6 +1396,31 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                     {basisChoices.find((choice) => choice.value === basis)?.label}
                   </small>
                 </p>
+                {!additionSale ? (
+                  <p>
+                    Vendedor:{' '}
+                    {review.seller === 'carlos'
+                      ? 'Carlos'
+                      : review.seller === 'randy'
+                        ? 'Randy'
+                        : 'Sin asignar'}
+                  </p>
+                ) : command.pending ? (
+                  <p>
+                    Recuperando la solicitud pendiente. Se comprobará si los productos extra ya
+                    quedaron guardados; no se cobrarán otra vez.
+                  </p>
+                ) : (
+                  <p>
+                    Nuevo total de la nota:{' '}
+                    <strong>
+                      {displayMoney(
+                        new Decimal(additionSale.totalUsd).add(reviewTotals.total).toFixed(2),
+                      )}
+                    </strong>
+                    . Lo ya cobrado se conserva.
+                  </p>
+                )}
                 <ul>
                   {review.lines.map((line, index) => (
                     <li key={index}>
@@ -1317,7 +1455,7 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                 </ul>
                 <dl>
                   <div className={styles.reviewTotal}>
-                    <dt>Total</dt>
+                    <dt>{additionSale ? 'Productos extra' : 'Total'}</dt>
                     <dd>{displayMoney(reviewTotals.total)}</dd>
                   </div>
                   <div>
@@ -1436,7 +1574,9 @@ export function NewSaleScreen({ session }: { session: AppSession }) {
                       ? 'Guardando…'
                       : checkingStock
                         ? 'Comprobando existencias…'
-                        : 'Confirmar venta'}
+                        : additionSale
+                          ? 'Guardar productos extra'
+                          : 'Confirmar venta'}
                   </Button>
                 </div>
               </form>

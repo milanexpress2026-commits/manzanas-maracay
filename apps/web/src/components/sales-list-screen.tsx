@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, ShoppingCart } from 'lucide-react';
-import type { SaleSummary } from '@mm/domain';
+import { saleAdditionCommandSchema, type SaleSummary } from '@mm/domain';
+import { commercialCommandBody } from '@/lib/commercial-journal';
 import { AppShell, type AppSession } from './app-shell';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -31,6 +32,13 @@ export function SalesScreen({
     'sale',
   );
   const rows = sales.data ?? [];
+  const pendingAddition = useDurableCommercialCommand(
+    session.environment + ':' + (session.operationScopeId ?? session.user.id),
+    'sale-addition',
+  );
+  const addition = pendingAddition.pending
+    ? saleAdditionCommandSchema.parse(commercialCommandBody(pendingAddition.pending))
+    : null;
   return (
     <AppShell session={session} current="/ventas">
       <main id="app-main" className="main-content operations-page">
@@ -39,14 +47,30 @@ export function SalesScreen({
             <h1>Ventas</h1>
             <p>La mercancía entregada, el precio pactado y cada saldo pendiente.</p>
           </div>
-          <Button asChild>
-            <Link prefetch={false} href="/ventas/nueva">
-              <Plus aria-hidden="true" />
-              Nueva venta
-            </Link>
-          </Button>
+          <div className="inline-actions">
+            <Button asChild variant="outline">
+              <Link prefetch={false} href="/ventas/resumen">
+                Resumen por vendedor
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link prefetch={false} href="/ventas/nueva">
+                <Plus aria-hidden="true" />
+                Nueva venta
+              </Link>
+            </Button>
+          </div>
         </div>
         <FormError message={pendingSale.storageError} />
+        <FormError message={pendingAddition.storageError} />
+        {addition ? (
+          <section className="saved-notice">
+            <p>Hay productos extra pendientes de confirmación.</p>
+            <Link href={'/ventas/' + addition.saleId + '/editar'}>
+              Recuperar productos pendientes
+            </Link>
+          </section>
+        ) : null}
         {pendingSale.pending ? (
           <section className="saved-notice" aria-label="Venta pendiente de confirmación">
             <p>Hay una venta pendiente de confirmación en este dispositivo.</p>

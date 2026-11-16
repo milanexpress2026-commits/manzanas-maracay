@@ -28,6 +28,7 @@ import { PaymentDialog, PaymentSaved, PendingPaymentRecovery, DueBadge } from '.
 import { SaleDocumentActions } from './sale-document-actions';
 import { useRemote, useCommand, readApi, displayMoney, displayDate } from '@/lib/inventory-api';
 import { presentationNames, caracasDate, addCaracasDays } from '@/lib/commercial-ui';
+import partnerStyles from './sales-partners.module.css';
 export function SaleDetailScreen({
   session,
   id,
@@ -104,7 +105,67 @@ export function SaleDetailScreen({
               </SavedNotice>
             ) : null}
             <SaleDocumentActions id={id} cancelled={sale.status === 'cancelled'} />
+            {sale.status === 'confirmed' ? (
+              <section
+                className={'operations-panel ' + partnerStyles.actions}
+                aria-label="Cambiar pedido"
+              >
+                <div className="inline-actions">
+                  {(
+                    sale.condition === 'credit'
+                      ? new Decimal(sale.paidUsd).eq(0)
+                      : new Decimal(sale.balanceUsd).eq(0)
+                  ) ? (
+                    <Button asChild variant="outline">
+                      <Link prefetch={false} href={'/ventas/' + id + '/editar'}>
+                        Agregar productos a esta venta
+                      </Link>
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    disabled={new Decimal(sale.paidUsd).gt(0)}
+                    onClick={() =>
+                      setCorrection({
+                        url: '/api/sales/' + id + '/cancel',
+                        title: 'Anular venta',
+                        text: 'Confirma que esta mercancía permanece en el local o ya fue devuelta. Se quitará la deuda y volverá al inventario. La nota quedará marcada como anulada.',
+                      })
+                    }
+                  >
+                    Anular venta
+                  </Button>
+                </div>
+                {sale.condition === 'credit' && new Decimal(sale.paidUsd).gt(0) ? (
+                  <p className="commercial-help">
+                    Esta venta a crédito ya tiene abonos y se conserva sin cambios.{' '}
+                    <Link href={'/ventas/nueva?cliente=' + sale.clientId}>
+                      Registrar productos en otra venta
+                    </Link>
+                    .
+                  </p>
+                ) : null}
+                {new Decimal(sale.paidUsd).gt(0) ? (
+                  <p className="commercial-help">
+                    Tiene cobros registrados. Para anularla, primero hay que resolver esos cobros;
+                    la aplicación no devuelve dinero automáticamente.
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
             {notice ? <SavedNotice>{notice}</SavedNotice> : null}
+            {sale.additions?.length ? (
+              <details className={'operations-panel ' + partnerStyles.history}>
+                <summary>Productos agregados ({sale.additions.length})</summary>
+                <ul>
+                  {sale.additions.map((item) => (
+                    <li key={item.id}>
+                      {displayDate(item.createdAt)} · {displayMoney(item.totalUsd)}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
             {payment ? <PaymentSaved payment={payment} /> : null}
             <div className="commercial-layout">
               <div>
@@ -117,6 +178,16 @@ export function SaleDetailScreen({
                     <div>
                       <dt>Condición</dt>
                       <dd>{sale.condition === 'cash' ? 'Contado' : 'Crédito'}</dd>
+                    </div>
+                    <div>
+                      <dt>Vendedor</dt>
+                      <dd>
+                        {sale.seller === 'carlos'
+                          ? 'Carlos'
+                          : sale.seller === 'randy'
+                            ? 'Randy'
+                            : 'Sin vendedor asignado'}
+                      </dd>
                     </div>
                     <div>
                       <dt>Acuerdo de cobro</dt>
@@ -344,19 +415,6 @@ export function SaleDetailScreen({
                         Cambiar fechas
                       </Button>
                     ) : null}
-                    <Button
-                      variant="ghost"
-                      onClick={() =>
-                        setCorrection({
-                          url: '/api/sales/' + id + '/cancel',
-                          title: 'Anular venta',
-                          text: 'La anulación conserva el documento y crea movimientos compensatorios. Primero deben revertirse los abonos; el servidor comprobará que las existencias se puedan restaurar sin afectar movimientos posteriores.',
-                        })
-                      }
-                    >
-                      <Undo2 aria-hidden="true" />
-                      Anular venta
-                    </Button>
                   </>
                 ) : null}
               </aside>
@@ -524,8 +582,9 @@ function CorrectionDialog({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
-  const [reason, setReason] = useState(''),
-    [review, setReview] = useState(false);
+  const cancelling = url.endsWith('/cancel');
+  const [reason, setReason] = useState(cancelling ? 'Pedido cancelado' : ''),
+    [review, setReview] = useState(cancelling);
   const command = useCommand();
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -553,7 +612,7 @@ function CorrectionDialog({
       <DialogContent className="catalog-dialog">
         <DialogHeader>
           <DialogTitle>
-            {review ? 'Confirmar: ' : ''}
+            {review && !cancelling ? 'Confirmar: ' : ''}
             {title}
           </DialogTitle>
           <DialogDescription>{text}</DialogDescription>
@@ -568,7 +627,7 @@ function CorrectionDialog({
                 minLength={5}
                 maxLength={500}
                 value={reason}
-                readOnly={review}
+                readOnly={review && !cancelling}
                 onChange={(e) => setReason(e.target.value)}
               />
             </Field>
@@ -577,12 +636,16 @@ function CorrectionDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => (review ? setReview(false) : onClose())}
+                onClick={() => (review && !cancelling ? setReview(false) : onClose())}
               >
-                {review ? 'Volver a editar' : 'Cancelar'}
+                {review && !cancelling ? 'Volver a editar' : 'Cancelar'}
               </Button>
               <SaveButton busy={command.busy}>
-                {review ? 'Confirmar corrección' : 'Revisar corrección'}
+                {cancelling
+                  ? 'Confirmar anulación'
+                  : review
+                    ? 'Confirmar corrección'
+                    : 'Revisar corrección'}
               </SaveButton>
             </div>
           </fieldset>

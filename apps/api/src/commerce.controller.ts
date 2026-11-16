@@ -74,6 +74,17 @@ export class CommerceController {
   ) {
     return this.commerce.createSale(body, key, request.user.id);
   }
+  @Get('sales/sellers/summary') sellers(@Query() query: unknown) {
+    return this.commerce.sellerReport(query);
+  }
+  @Post('sales/:id/add-products') addProducts(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.commerce.addSaleProducts(id, body, key, request.user.id);
+  }
   @Get('sales/:id') sale(@Param('id') id: string) {
     return this.commerce.sale(id);
   }
