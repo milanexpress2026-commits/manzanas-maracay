@@ -1,6 +1,6 @@
 {
   "version": "V4.18",
-  "status": "local_verified_staging_pending",
+  "status": "staging_verified_awaiting_production_approval",
   "productionCommit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
   "productionApproved": false,
   "productionChanged": false,
@@ -34,7 +34,9 @@
     "secretScanFindings": [],
     "productionIsolatedPassed": 16,
     "productionQaRunId": "18968dca0188780896616755",
-    "productionQaDatabaseCleaned": true
+    "productionQaDatabaseCleaned": true,
+    "peerPolicyTestsPassed": 26,
+    "stagingRecoveryGuardTestsPassed": 7
   },
   "uiReview": {
     "disposition": "ship",
@@ -64,5 +66,25 @@
     "preserveAllOriginalRows": true,
     "dnsOrCaddyChanges": false,
     "otherProjectsChanged": false
-  }
+  },
+  "candidateCommit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/19",
+  "archiveSha256": "4391198656c30a7fc68ba996858f4bc25dca0efc2cd92d051104762c9a1a8969",
+  "staging": {
+    "commit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+    "healthy": true,
+    "migrationCount": 20,
+    "originalRowsAndColumnsPreserved": true,
+    "backupAndPostMigrationRestoreVerified": true,
+    "collectorResumed": true,
+    "authenticatedChecksPassed": 19,
+    "checkedAt": "2026-11-17T20:29:17.158218+00:00",
+    "productionAndPeersConfigurationUnchanged": true,
+    "heldRecoveryVerified": true
+  },
+  "incidents": [
+    "Full E2E local connection timeout followed by35/35 final directed tests including unchanged original case.",
+    "Initial upload and read-only recheck observed a known peer moving from restarting to running with equal RestartCount; preserved raw failure snapshots. Same identity/configuration, subsequent count increment confirmed. Bounded transition guard fixed;8 focused and18 prior checks passed. New verification and build passed; no peer commands changed it.",
+    "Staging paused after migration when the scheduled production rate-refresh container appeared. Original failure retained. Exact held-candidate recovery verified all data/backups/peers and resumed the same containers without repeated DDL;7 recovery guard tests passed."
+  ]
 }

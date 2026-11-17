@@ -1,6 +1,6 @@
 # V4.18 — Correcciones de cobros y mercancía por vendedor
 
-Estado: implementación terminada; cierre de verificación y preparación de staging. Producción sigue en V4.17 (`d25879918810f9e0a9257aefcf7eb7dcdeac3b94`). No se cambiaron operaciones reales. Publicar requiere autorización operativa sobre el candidato exacto.
+Estado: preparada y verificada en staging, candidato `de8bb83651b39c62ff8fcf149ca67249b4659a48`, PR #19. Producción sigue en V4.17 (`d25879918810f9e0a9257aefcf7eb7dcdeac3b94`). No se cambiaron operaciones reales. Publicar requiere autorización operativa sobre el candidato exacto.
 
 ## Uso diario
 
@@ -40,3 +40,11 @@ Se conservan las incidencias iniciales: sintaxis CASE, proxy compilado anterior,
 Verificar primero el candidato en staging. La autorización final incluye subir/compilar producción, pausa breve de aplicación/tasas/recordatorios, respaldo cifrado nuevo en esta computadora y mismo VPS, restauración aislada y migración0019. Conservar ventas, inventario, clientes, acceso y tablet; sin DNS/Caddy ni otros proyectos.
 
 No hay rollback automático sobre datos posteriores. Ante fallo, mantener escritores propios pausados, conservar evidencia y evaluar recuperación. No eliminar bases ni restaurar encima de operaciones nuevas. Después comprobar acceso, notas y respaldo posterior.
+
+## Cierre de staging
+
+Candidato exacto compilado y saludable;20 migraciones, filas y columnas anteriores conservadas, respaldo previo y posterior a la migración restaurados y19 comprobaciones autenticadas aprobadas. Recolector propio reanudado. Producción y configuración de otros proyectos intactas. El paquete idéntico de producción está preparado localmente; aún no subido ni autorizado.
+
+Se conservan dos verificaciones fallidas por el estado intermedio del reinicio automático de un peer conocido. Su identidad/configuración permanecieron iguales y la observación posterior confirmó el incremento del contador. Se corrigió únicamente esa transición acotada del verificador, con8 pruebas nuevas y18 anteriores aprobadas. Una verificación nueva y la compilación pasaron; no se modificó el servicio ajeno.
+
+La verificación posterior coincidió con un contenedor temporal del recolector programado de producción y mantuvo staging pausado. Se conservó la incidencia y se recuperó el mismo candidato tras comprobar nuevamente datos, respaldos y pares. No se repitió la migración ni se intervino el recolector de producción;7 controles de recuperación aprobados.
