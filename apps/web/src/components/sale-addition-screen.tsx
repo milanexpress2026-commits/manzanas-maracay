@@ -21,7 +21,6 @@ export function SaleAdditionScreen({ session, id }: { session: AppSession; id: s
   // A committed request can leave a paid sale: recovery takes priority over current eligibility.
   const blocked =
     sale?.status === 'cancelled' ||
-    (sale?.condition === 'credit' && new Decimal(sale.paidUsd).gt(0)) ||
     (sale?.condition === 'cash' && new Decimal(sale.balanceUsd).gt(0));
   if (
     sale &&

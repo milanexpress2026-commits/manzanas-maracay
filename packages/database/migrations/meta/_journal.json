@@ -134,6 +134,13 @@
       "when": 1794846654241,
       "tag": "0018_sellers_sale_additions",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794933942680,
+      "tag": "0019_corrections_credit",
+      "breakpoints": true
     }
   ]
 }

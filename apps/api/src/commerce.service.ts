@@ -1,4 +1,10 @@
 import {
+  saleReductionSchema,
+  paymentCorrectionSchema,
+  correctedPaymentAmount,
+} from '../../../packages/domain/src/commerce-corrections';
+import { planSaleReduction } from '../../../packages/domain/src/sale-reduction';
+import {
   BadRequestException,
   ConflictException,
   Inject,
@@ -58,7 +64,7 @@ import { authConfig } from './auth/config';
 import type { HistoricalOfficialRate, HistoricalUsdtRate } from './bcv-rate';
 
 const clientSelect = `select c.id,c.name,c.phone,c.tax_id as "taxId",c.address,c.notes,c.active,c.version,c.is_demo as "isDemo",
-  coalesce((select sum(balance_usd) from receivables r where r.client_id=c.id),0)::numeric(18,2)::text as "balanceUsd" from clients c`;
+  coalesce((select sum(balance_usd) from receivables r where r.client_id=c.id),0)::numeric(18,2)::text as "balanceUsd",coalesce((select credit_usd from client_credit_balances b where b.client_id=c.id),0)::text as "creditUsd" from clients c`;
 const saleSelect = `select s.id,s.number,s.client_id as "clientId",s.client_snapshot->>'name' as "clientName",s.condition,s.seller,t.version,s.settlement_basis as "settlementBasis",
   case when cancel.id is null then 'confirmed' else 'cancelled' end as status,s.sold_at as "soldAt",s.due_date::text as "originalDueDate",
   case when dates.id is null then s.due_date::text else dates.due_date::text end as "dueDate",
@@ -66,14 +72,15 @@ const saleSelect = `select s.id,s.number,s.client_id as "clientId",s.client_snap
   t.total_usd::text as "totalUsd",coalesce(paid.amount,0)::numeric(18,2)::text as "paidUsd",
   case when cancel.id is null then (t.total_usd-coalesce(paid.amount,0)) else 0 end::numeric(18,2)::text as "balanceUsd",
   null::text as "costUsd",null::text as "grossProfitUsd",
-  (select case when bool_and(l.reference_unit_usd is not null) then sum(round(l.quantity*l.reference_unit_usd,2))-t.total_usd end from sale_lines l where l.sale_id=s.id)::numeric(18,2)::text as "discountUsd",
+  (select case when bool_and(l.reference_unit_usd is not null) then sum(round(l.quantity*l.reference_unit_usd,2))-t.total_usd end from effective_sale_lines l where l.sale_id=s.id)::numeric(18,2)::text as "discountUsd",
   s.is_demo as "isDemo",s.notes,s.actor,s.client_snapshot as client
   from sales s join sale_totals t on t.sale_id=s.id left join sale_cancellations cancel on cancel.sale_id=s.id
   left join lateral(select id,due_date,reminder_date from sale_date_events where sale_id=s.id order by event_order desc limit 1) dates on true
-  left join lateral(select sum(a.amount_usd) as amount from payment_applications a where a.sale_id=s.id and not exists(select 1 from payment_reversals r where r.payment_id=a.payment_id))paid on true`;
-const paymentSelect = `select p.id,p.number,p.client_id as "clientId",p.client_snapshot->>'name' as "clientName",p.currency,
+  left join lateral(select sum(a.amount_usd) as amount from effective_payment_applications a where a.sale_id=s.id and not exists(select 1 from payment_reversals r where r.payment_id=a.payment_id))paid on true`;
+const paymentSelect = `select p.id,p.version,p.number,p.client_id as "clientId",p.client_snapshot->>'name' as "clientName",p.currency,
+  coalesce((select rate from bcv_rates where id=p.bcv_rate_id),(select rate from usdt_rates where id=p.usdt_rate_id))::text as "conversionRate",
   p.amount::numeric(18,2)::text as amount,p.amount_usd::numeric(18,2)::text as "amountUsd",p.method,p.received_at as "receivedAt",p.actor,p.is_demo as "isDemo",
-  exists(select 1 from payment_reversals r where r.payment_id=p.id) as reversed from payments p`;
+  exists(select 1 from payment_reversals r where r.payment_id=p.id) as reversed from effective_payments p`;
 const snapshot = (client: ClientSummary): ClientSnapshot => ({
   name: client.name,
   phone: client.phone,
@@ -306,14 +313,14 @@ export class CommerceService implements OnModuleDestroy {
       await client.query(
         `select l.id,l.variant_id as "variantId",r.id as "configurationId",l.description_snapshot as description,l.presentation,l.quantity,l.price_basis as "priceBasis",
       l.reference_unit_usd::text as "referenceUnitUsd",l.agreed_unit_usd::text as "agreedUnitUsd",l.line_total_usd::text as "totalUsd",null::text as "costUsd",l.commercial_unit_label_snapshot as "commercialUnitLabel"
-      from sale_lines l join packing_rules r on r.variant_id=l.variant_id left join sale_additions e on e.id=l.addition_id where l.sale_id=$1 order by e.created_at nulls first,e.id,l.id`,
+      from effective_sale_lines l join packing_rules r on r.variant_id=l.variant_id left join sale_additions e on e.id=l.addition_id where l.sale_id=$1 and l.quantity>0 order by e.created_at nulls first,e.id,l.id`,
         [id],
       )
     ).rows as SaleLine[];
     const allocations = (
       await client.query(
         `select a.sale_line_id as "saleLineId",a.lot_id as "lotId",a.container_id as "containerId",a.movement_id as "movementId",a.quantity,null::text as "costUsd"
-      from sale_allocations a join sale_lines l on l.id=a.sale_line_id where l.sale_id=$1 order by a.created_at,a.id`,
+      from sale_allocations a join sale_lines l on l.id=a.sale_line_id where l.sale_id=$1 and not exists(select 1 from sale_stock_returns ret where ret.allocation_id=a.id) order by a.created_at,a.id`,
         [id],
       )
     ).rows as SaleAllocation[];
@@ -321,13 +328,13 @@ export class CommerceService implements OnModuleDestroy {
       line.allocations = allocations.filter((a) => a.saleLineId === line.id);
     const payments = (
       await client.query(
-        `${paymentSelect} join payment_applications a on a.payment_id=p.id where a.sale_id=$1 order by p.received_at,p.id`,
+        `${paymentSelect} join effective_payment_applications a on a.payment_id=p.id where a.sale_id=$1 order by p.received_at,p.id`,
         [id],
       )
     ).rows;
     const applications = (
       await client.query(
-        'select payment_id,amount_usd::numeric(18,2)::text as amount from payment_applications where sale_id=$1',
+        'select payment_id,amount_usd::numeric(18,2)::text as amount from effective_payment_applications where sale_id=$1',
         [id],
       )
     ).rows;
@@ -364,6 +371,12 @@ export class CommerceService implements OnModuleDestroy {
           [id],
         )
       ).rows.map((e) => ({ ...e, createdAt: new Date(e.createdAt).toISOString() })),
+      reductions: (
+        await client.query(
+          'select id,reason,reduction_usd::text as "reductionUsd",excess_usd::text as "excessUsd",resolution,created_at as "createdAt" from sale_reductions where sale_id=$1 order by expected_version',
+          [id],
+        )
+      ).rows.map((e) => ({ ...e, createdAt: new Date(e.createdAt).toISOString() })),
       cancellation,
       whatsappUrl:
         row.status === 'confirmed'
@@ -380,7 +393,7 @@ export class CommerceService implements OnModuleDestroy {
     if (!row) throw new NotFoundException('Este recibo no existe.');
     const info = (
       await client.query(
-        'select client_snapshot,bcv_rate_id,usdt_rate_id,usdt_reference_rate_id,conversion_rounding_usd::text,coalesce((select display_name from app_users u where u.id::text=p.actor),p.actor) as operator_name from payments p where id=$1',
+        'select client_snapshot,bcv_rate_id,usdt_rate_id,usdt_reference_rate_id,conversion_rounding_usd::text,coalesce((select display_name from app_users u where u.id::text=p.actor),p.actor) as operator_name from effective_payments p where id=$1',
         [id],
       )
     ).rows[0];
@@ -425,7 +438,7 @@ export class CommerceService implements OnModuleDestroy {
     }
     const applications = (
       await client.query(
-        `select a.sale_id as "saleId",s.number,a.amount_usd::numeric(18,2)::text as "amountUsd",a.balance_after_usd::text as "balanceAfterUsd" from payment_applications a join sales s on s.id=a.sale_id where a.payment_id=$1 order by s.number`,
+        `select a.sale_id as "saleId",s.number,a.amount_usd::numeric(18,2)::text as "amountUsd",a.balance_after_usd::text as "balanceAfterUsd" from effective_payment_applications a join sales s on s.id=a.sale_id where a.payment_id=$1 order by s.number`,
         [id],
       )
     ).rows;
@@ -446,6 +459,12 @@ export class CommerceService implements OnModuleDestroy {
       usdtReferenceRate,
       conversionRoundingUsd: info.conversion_rounding_usd,
       applications,
+      corrections: (
+        await client.query(
+          'select id,kind,reason,amount::text,amount_usd::text as "amountUsd",credit_delta_usd::text as "creditDeltaUsd",created_at as "createdAt" from payment_corrections where payment_id=$1 order by expected_version',
+          [id],
+        )
+      ).rows.map((e) => ({ ...e, createdAt: new Date(e.createdAt).toISOString() })),
       reversal,
     };
   }
@@ -808,10 +827,6 @@ export class CommerceService implements OnModuleDestroy {
         throw new ConflictException(
           'La venta cambió en otro dispositivo. Vuelve a abrirla antes de agregar productos.',
         );
-      if (before.condition === 'credit' && new Decimal(before.paidUsd).gt(0))
-        throw new ConflictException(
-          'Las ventas a crédito con abonos se conservan sin cambios. Registra los productos extra en una venta nueva.',
-        );
       if (
         before.lines.length + data.lines.length > 50 ||
         [...before.lines, ...data.lines].reduce((n, l) => n + l.quantity, 0) > 1000
@@ -903,18 +918,34 @@ export class CommerceService implements OnModuleDestroy {
           [filter.from, filter.to],
         )
       ).rows;
+      const merchandise = (
+        await client.query(
+          `select s.seller,l.variant_id as "variantId",l.description_snapshot as description,
+          l.presentation,l.commercial_unit_label_snapshot as "commercialUnitLabel",
+          sum(l.quantity)::integer as quantity,sum(l.line_total_usd)::numeric(18,2)::text as "totalUsd"
+          from sales s join effective_sale_lines l on l.sale_id=s.id
+          where l.quantity>0 and s.sold_at >= ($1::date::timestamp at time zone 'America/Caracas')
+          and s.sold_at < (($2::date+1)::timestamp at time zone 'America/Caracas')
+          and not exists(select 1 from sale_cancellations c where c.sale_id=s.id)
+          group by s.seller,l.variant_id,l.description_snapshot,l.presentation,l.commercial_unit_label_snapshot
+          order by l.description_snapshot,l.presentation,l.commercial_unit_label_snapshot,l.variant_id`,
+          [filter.from, filter.to],
+        )
+      ).rows;
       return {
         ...filter,
-        rows: (['carlos', 'randy', null] as const).map(
-          (seller) =>
-            rows.find((r) => r.seller === seller) ?? {
-              seller,
-              count: 0,
-              totalUsd: '0.00',
-              paidUsd: '0.00',
-              balanceUsd: '0.00',
-            },
-        ),
+        rows: (['carlos', 'randy', null] as const).map((seller) => ({
+          ...(rows.find((r) => r.seller === seller) ?? {
+            seller,
+            count: 0,
+            totalUsd: '0.00',
+            paidUsd: '0.00',
+            balanceUsd: '0.00',
+          }),
+          merchandise: merchandise
+            .filter((item) => item.seller === seller)
+            .map(({ seller: _seller, ...item }) => item),
+        })),
       };
     });
   }
@@ -1001,6 +1032,17 @@ export class CommerceService implements OnModuleDestroy {
         throw new ConflictException(
           'El abono supera el saldo actual de un comprobante o este fue anulado. Actualiza el reparto.',
         );
+    }
+    if (data.method === 'client_credit') {
+      const available =
+        (
+          await client.query(
+            'select credit_usd::text from client_credit_balances where client_id=$1',
+            [customer.id],
+          )
+        ).rows[0]?.credit_usd ?? '0';
+      if (new Decimal(conversion.amountUsd).gt(available))
+        throw new ConflictException('El saldo a favor no alcanza. Revisa el monto disponible.');
     }
     const id = randomUUID();
     const persisted = await client.query<{ usdt_reference_rate_id: string | null }>(
@@ -1108,6 +1150,235 @@ export class CommerceService implements OnModuleDestroy {
       throw new BadRequestException((error as Error).message);
     }
   }
+  private async recordPaymentCorrection(
+    client: PoolClient,
+    before: PaymentDetail,
+    values: {
+      amount: string;
+      applications: { saleId: string; amountUsd: string }[];
+      reason: string;
+    },
+    kind: 'entry' | 'refund' | 'credit',
+    reductionId: string | null,
+    actor: string,
+  ) {
+    if (before.reversed) throw new ConflictException('Este abono ya fue revertido.');
+    const expected = new Set(before.applications.map((a) => a.saleId));
+    if (
+      values.applications.length !== expected.size ||
+      values.applications.some((a) => !expected.has(a.saleId))
+    )
+      throw new BadRequestException('Conserva los comprobantes originales del abono.');
+    const amountUsd = values.applications.reduce((sum, a) => sum.add(a.amountUsd), new Decimal(0));
+    const rate = before.bcvRate?.rate ?? before.usdtRate?.rate ?? null;
+    if (
+      rate
+        ? !new Decimal(values.amount).div(rate).toDecimalPlaces(2).eq(amountUsd) &&
+          correctedPaymentAmount(amountUsd.toFixed(2), rate) !== values.amount
+        : !amountUsd.eq(values.amount)
+    )
+      throw new BadRequestException(
+        'El reparto debe coincidir con el importe usando la tasa original del abono.',
+      );
+    const balances = (
+      await client.query(
+        'select sale_id,balance_usd::text from receivables where sale_id=any($1::uuid[])',
+        [...[values.applications.map((a) => a.saleId)]],
+      )
+    ).rows;
+    const applications = values.applications.map((a) => {
+      const sale = balances.find((s) => s.sale_id === a.saleId);
+      const old = before.applications.find((s) => s.saleId === a.saleId)!;
+      if (!sale) {
+        if (new Decimal(a.amountUsd).eq(0) && new Decimal(old.amountUsd).eq(0))
+          return { ...a, balanceAfterUsd: '0.00' };
+        throw new ConflictException('Uno de los comprobantes ya está anulado.');
+      }
+      const balance = new Decimal(sale.balance_usd).add(old.amountUsd).sub(a.amountUsd);
+      if (kind === 'entry' && balance.lt(0))
+        throw new ConflictException('El importe corregido supera el saldo de la venta.');
+      return { ...a, balanceAfterUsd: Decimal.max(balance, 0).toFixed(2) };
+    });
+    const difference = new Decimal(before.amountUsd).sub(amountUsd);
+    const creditDelta =
+      kind === 'entry'
+        ? new Decimal(0)
+        : before.method === 'client_credit'
+          ? kind === 'refund'
+            ? difference.negated()
+            : new Decimal(0)
+          : kind === 'credit'
+            ? difference
+            : new Decimal(0);
+    await client.query(
+      `insert into payment_corrections(payment_id,expected_version,amount,amount_usd,applications,kind,sale_reduction_id,credit_delta_usd,reason,actor)
+      values($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10)`,
+      [
+        before.id,
+        before.version ?? 0,
+        values.amount,
+        amountUsd.toFixed(2),
+        JSON.stringify(applications),
+        kind,
+        reductionId,
+        creditDelta.toFixed(2),
+        values.reason,
+        actor,
+      ],
+    );
+    const credit = (
+      await client.query('select credit_usd::text from client_credit_balances where client_id=$1', [
+        before.clientId,
+      ])
+    ).rows[0];
+    if (new Decimal(credit.credit_usd).lt(0))
+      throw new ConflictException('El saldo a favor disponible no alcanza para esta corrección.');
+  }
+  async correctPayment(
+    id: string,
+    body: unknown,
+    key: string | undefined,
+    actor: string,
+  ): Promise<PaymentDetail> {
+    z.uuid().parse(id);
+    const data = paymentCorrectionSchema.parse(body);
+    return this.inventory.runCommand(`payment-correct:${id}`, data, key, actor, async (client) => {
+      const before = await this.paymentDetail(client, id);
+      if (
+        (data.paymentId && data.paymentId !== id) ||
+        (data.clientId && data.clientId !== before.clientId)
+      )
+        throw new BadRequestException('La corrección corresponde a otro abono o cliente.');
+      if ((before.version ?? 0) !== data.expectedVersion)
+        throw new ConflictException('El abono cambió. Ábrelo de nuevo para revisar el importe.');
+      await this.recordPaymentCorrection(client, before, data, 'entry', null, actor);
+      const after = await this.paymentDetail(client, id);
+      await this.audit(client, 'payment', id, 'correct-entry', before, after, actor, key!);
+      return after;
+    });
+  }
+  async reduceSale(
+    id: string,
+    body: unknown,
+    key: string | undefined,
+    actor: string,
+  ): Promise<SaleDetail> {
+    z.uuid().parse(id);
+    const data = saleReductionSchema.parse(body);
+    return this.inventory.runCommand(
+      `sale-reduce:${id}`,
+      data,
+      key,
+      actor,
+      async (client, hash) => {
+        const before = await this.saleDetail(client, id);
+        if (
+          (data.saleId && data.saleId !== id) ||
+          (data.clientId && data.clientId !== before.clientId)
+        )
+          throw new BadRequestException('La corrección corresponde a otra venta o cliente.');
+        if (before.status !== 'confirmed' || (before.version ?? 0) !== data.expectedVersion)
+          throw new ConflictException(
+            'La venta cambió. Ábrela de nuevo antes de quitar productos.',
+          );
+        let plan: ReturnType<typeof planSaleReduction>;
+        try {
+          plan = planSaleReduction(before.lines, data.lines, before.paidUsd);
+        } catch (error) {
+          throw new BadRequestException((error as Error).message);
+        }
+        if (
+          new Decimal(plan.excessPaidUsd).gt(0)
+            ? data.resolution === 'none'
+            : data.resolution !== 'none'
+        )
+          throw new BadRequestException(
+            'Revisa la diferencia y elige si la devuelves o la dejas a favor.',
+          );
+        const reductionId = randomUUID();
+        await client.query(
+          `insert into sale_reductions(id,sale_id,expected_version,reduction_usd,excess_usd,resolution,reason,actor) values($1,$2,$3,$4,$5,$6,$7,$8)`,
+          [
+            reductionId,
+            id,
+            data.expectedVersion,
+            plan.reductionUsd,
+            plan.excessPaidUsd,
+            data.resolution,
+            data.reason,
+            actor,
+          ],
+        );
+        const allocations: string[] = [];
+        for (const change of plan.changes) {
+          const lineId = randomUUID();
+          await client.query(
+            'insert into sale_reduction_lines(id,reduction_id,sale_line_id,quantity,reduction_usd) values($1,$2,$3,$4,$5)',
+            [lineId, reductionId, change.lineId, change.quantity, change.reductionUsd],
+          );
+          const selected = (
+            await client.query(
+              `select a.id from sale_allocations a where a.sale_line_id=$1 and not exists(select 1 from sale_stock_returns r where r.allocation_id=a.id) order by a.created_at desc,a.id desc limit $2`,
+              [change.lineId, change.quantity],
+            )
+          ).rows;
+          if (selected.length !== change.quantity)
+            throw new ConflictException(
+              'Las unidades de esta venta ya cambiaron. Actualiza el comprobante.',
+            );
+          for (const a of selected) {
+            allocations.push(a.id);
+            await client.query(
+              'insert into sale_reduction_allocations(allocation_id,reduction_line_id) values($1,$2)',
+              [a.id, lineId],
+            );
+          }
+        }
+        await this.inventory.returnSaleStock(client, id, allocations, actor, key!, hash);
+        let excess = new Decimal(plan.excessPaidUsd);
+        for (const row of [...before.payments]
+          .filter((p) => !p.reversed && new Decimal(p.appliedUsd).gt(0))
+          .reverse()) {
+          if (excess.eq(0)) break;
+          const payment = await this.paymentDetail(client, row.id);
+          const applied = payment.applications.find((a) => a.saleId === id)!;
+          const returned = Decimal.min(excess, applied.amountUsd);
+          const remaining = new Decimal(payment.amountUsd).sub(returned).toFixed(2);
+          await this.recordPaymentCorrection(
+            client,
+            payment,
+            {
+              amount: correctedPaymentAmount(
+                remaining,
+                payment.bcvRate?.rate ?? payment.usdtRate?.rate ?? null,
+              ),
+              reason: data.reason,
+              applications: payment.applications.map((a) => ({
+                saleId: a.saleId,
+                amountUsd:
+                  a.saleId === id ? new Decimal(a.amountUsd).sub(returned).toFixed(2) : a.amountUsd,
+              })),
+            },
+            data.resolution as 'refund' | 'credit',
+            reductionId,
+            actor,
+          );
+          excess = excess.sub(returned);
+        }
+        if (!excess.eq(0))
+          throw new ConflictException('Los abonos cambiaron. Revisa la venta antes de confirmar.');
+        if (plan.removesWholeSale)
+          await client.query(
+            'insert into sale_cancellations(sale_id,reason,actor) values($1,$2,$3)',
+            [id, data.reason, actor],
+          );
+        const after = await this.saleDetail(client, id);
+        await this.audit(client, 'sale', id, 'reduce', before, after, actor, key!);
+        return after;
+      },
+    );
+  }
+
   async changeDates(
     id: string,
     body: unknown,

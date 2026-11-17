@@ -1,0 +1,68 @@
+{
+  "version": "V4.18",
+  "status": "local_verified_staging_pending",
+  "productionCommit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
+  "productionApproved": false,
+  "productionChanged": false,
+  "migration": {
+    "tag": "0019_corrections_credit",
+    "from": 19,
+    "to": 20,
+    "historicalSqlUnchanged": true,
+    "productionExecuted": false
+  },
+  "local": {
+    "typecheck": true,
+    "build": true,
+    "unitTestsPassed": 475,
+    "fullE2e": {
+      "passed": 201,
+      "failed": 1,
+      "runId": "9ac695b1a9633da817591721",
+      "failure": "Local connection timeout during concurrent catalog fixture creation."
+    },
+    "followupE2e": {
+      "passed": 35,
+      "failed": 0,
+      "runId": "0cffc6c1d1d14d7df1039729",
+      "includesOriginalFailureUnchanged": true
+    },
+    "migrationFreshAndUpgradePassed": true,
+    "migrationOriginalRowsAndColumnsPreserved": true,
+    "schemaDrift": false,
+    "operatorGuardTestsPassed": 10,
+    "secretScanFindings": [],
+    "productionIsolatedPassed": 16,
+    "productionQaRunId": "18968dca0188780896616755",
+    "productionQaDatabaseCleaned": true
+  },
+  "uiReview": {
+    "disposition": "ship",
+    "viewports": [
+      390,
+      800,
+      1440
+    ],
+    "fixesVerified": [
+      "Spanish validation errors",
+      "exterior panel padding"
+    ],
+    "designDocumentation": "No changes",
+    "physicalDeviceVerified": false
+  },
+  "limitations": [
+    "Credit plus another payment method uses separate applications to a pending sale.",
+    "Payment correction preserves original method, currency, quote and time.",
+    "Refund records money returned; it does not execute a bank transfer.",
+    "Physical Android and printer verification remains with owners."
+  ],
+  "productionScope": {
+    "pauseOwnWebApiRatesPush": true,
+    "encryptedBackupComputerAndSameVps": true,
+    "isolatedRestore": true,
+    "migration0019": true,
+    "preserveAllOriginalRows": true,
+    "dnsOrCaddyChanges": false,
+    "otherProjectsChanged": false
+  }
+}

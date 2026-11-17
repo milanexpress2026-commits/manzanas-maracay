@@ -3,6 +3,7 @@ export * from './schema.auth';
 export * from './schema.commerce';
 export * from './schema.push';
 export * from './schema.environment';
+export * from './schema.corrections';
 import {
   pgTable,
   uuid,
@@ -796,7 +797,7 @@ export const receivables = pgView('receivables', {
   'USD'::text AS currency,t.total_usd,coalesce(p.paid,0)::numeric(18,2) AS paid_usd,(t.total_usd-coalesce(p.paid,0))::numeric(18,2) AS balance_usd
 FROM sales s JOIN sale_totals t ON t.sale_id=s.id
 LEFT JOIN LATERAL(SELECT id,due_date FROM sale_date_events WHERE sale_id=s.id ORDER BY event_order DESC LIMIT 1)d ON true
-LEFT JOIN LATERAL(SELECT sum(a.amount_usd) AS paid FROM payment_applications a WHERE a.sale_id=s.id
+LEFT JOIN LATERAL(SELECT sum(a.amount_usd) AS paid FROM effective_payment_applications a WHERE a.sale_id=s.id
   AND NOT EXISTS(SELECT 1 FROM payment_reversals r WHERE r.payment_id=a.payment_id))p ON true
 WHERE s.status='confirmed' AND NOT EXISTS(SELECT 1 FROM sale_cancellations c WHERE c.sale_id=s.id)`,
 );

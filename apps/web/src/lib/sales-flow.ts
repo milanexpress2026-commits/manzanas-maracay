@@ -4,6 +4,13 @@ import { effectiveSalePresentations } from '@mm/domain';
 import { caracasInstant, normalizedMoney } from './commercial-ui';
 
 export const paymentChoices = [
+  {
+    id: 'client_credit',
+    label: 'Saldo a favor del cliente',
+    currency: 'USD',
+    method: 'client_credit',
+    basis: null,
+  },
   { id: 'usd_cash', label: 'Efectivo USD', currency: 'USD', method: 'usd_cash', basis: null },
   {
     id: 'ves_bcv',

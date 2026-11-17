@@ -1,0 +1,120 @@
+.actions,
+.orderHistory {
+  padding: 20px;
+}
+.actions h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+.dialog {
+  width: min(680px, calc(100vw - 24px));
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+.form {
+  display: grid;
+  gap: 20px;
+}
+.lines {
+  display: grid;
+  gap: 16px;
+}
+.line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  align-items: end;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #d9e2dc;
+}
+.line small {
+  display: block;
+  margin-top: 6px;
+  color: #4a6054;
+}
+.quantityLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.result {
+  padding: 18px;
+  background: #edf5ee;
+  border-radius: 12px;
+  color: #123c2c;
+}
+.result dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.result dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.result dd {
+  margin: 0;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.resolution {
+  border: 0;
+  padding: 0;
+  margin: 20px 0 0;
+  display: grid;
+  gap: 14px;
+}
+.resolution legend {
+  margin-bottom: 14px;
+  font-weight: 750;
+}
+.resolution label,
+.check {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+}
+.resolution input,
+.check input {
+  accent-color: #123c2c;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.resolution p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pending {
+  padding: 16px;
+  margin: 12px 0;
+  background: #fff4da;
+  color: #654600;
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.history summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.history ul {
+  padding: 0;
+  margin: 16px 0 0;
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+.history li {
+  display: grid;
+  gap: 6px;
+}
+.history small {
+  color: #4a6054;
+}

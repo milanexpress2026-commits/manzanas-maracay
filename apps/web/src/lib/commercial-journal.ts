@@ -1,9 +1,16 @@
 import { z } from 'zod';
 import Decimal from 'decimal.js';
-import { manualSaleSchema, paymentSchema, saleAdditionCommandSchema } from '@mm/domain';
+import {
+  manualSaleSchema,
+  paymentSchema,
+  saleAdditionCommandSchema,
+  saleReductionCommandSchema,
+  paymentCorrectionCommandSchema,
+} from '@mm/domain';
 import { receiptFingerprint, type StorageAccess } from './receipt-storage';
 
-export type CommercialCommandKind = 'sale' | 'payment' | 'sale-addition';
+export type CommercialCommandKind =
+  'sale' | 'payment' | 'sale-addition' | 'sale-reduction' | 'payment-correction';
 export const COMMERCIAL_JOURNAL_PREFIX = 'mm.commerce.pending.v1:';
 export const COMMERCIAL_JOURNAL_EVENT = 'mm-commercial-journal-changed';
 const money = z.string().regex(/^\d{1,16}\.\d{2}$/);
@@ -13,8 +20,14 @@ const recordSchema = z
   .object({
     version: z.literal(1),
     scope: z.string().regex(/^(local|test|staging|production):[a-f0-9-]{36}$/i),
-    kind: z.enum(['sale', 'payment', 'sale-addition']),
-    payloadVersion: z.enum(['sale-manual-v2', 'payment-v1', 'sale-addition-v1']),
+    kind: z.enum(['sale', 'payment', 'sale-addition', 'sale-reduction', 'payment-correction']),
+    payloadVersion: z.enum([
+      'sale-manual-v2',
+      'payment-v1',
+      'sale-addition-v1',
+      'sale-reduction-v1',
+      'payment-correction-v1',
+    ]),
     key: z.uuid(),
     body: z.string().min(2).max(65536),
     hash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -45,6 +58,13 @@ export function commercialCommandBody(record: PendingCommercialCommand) {
     manualSaleSchema.parse(body);
   } else if (record.kind === 'sale-addition' && record.payloadVersion === 'sale-addition-v1') {
     saleAdditionCommandSchema.parse(body);
+  } else if (record.kind === 'sale-reduction' && record.payloadVersion === 'sale-reduction-v1') {
+    saleReductionCommandSchema.parse(body);
+  } else if (
+    record.kind === 'payment-correction' &&
+    record.payloadVersion === 'payment-correction-v1'
+  ) {
+    paymentCorrectionCommandSchema.parse(body);
   } else if (record.kind === 'payment' && record.payloadVersion === 'payment-v1') {
     paymentSchema.parse(body);
   } else throw new CommercialJournalError('La versión de la operación pendiente no es compatible.');
@@ -52,7 +72,9 @@ export function commercialCommandBody(record: PendingCommercialCommand) {
   return body as
     | ReturnType<typeof manualSaleSchema.parse>
     | ReturnType<typeof paymentSchema.parse>
-    | ReturnType<typeof saleAdditionCommandSchema.parse>;
+    | ReturnType<typeof saleAdditionCommandSchema.parse>
+    | ReturnType<typeof saleReductionCommandSchema.parse>
+    | ReturnType<typeof paymentCorrectionCommandSchema.parse>;
 }
 
 /** Compare the validated review, not object insertion order or optional defaults.
@@ -62,9 +84,13 @@ export function commercialReviewMatches(record: PendingCommercialCommand, review
     const schema =
       record.kind === 'sale'
         ? manualSaleSchema
-        : record.kind === 'sale-addition'
-          ? saleAdditionCommandSchema
-          : paymentSchema;
+        : record.kind === 'sale-reduction'
+          ? saleReductionCommandSchema
+          : record.kind === 'payment-correction'
+            ? paymentCorrectionCommandSchema
+            : record.kind === 'sale-addition'
+              ? saleAdditionCommandSchema
+              : paymentSchema;
     return (
       JSON.stringify(schema.parse(review)) ===
       JSON.stringify(schema.parse(commercialCommandBody(record)))
@@ -176,6 +202,37 @@ export function validCommercialConfirmation(record: PendingCommercialCommand, va
         response.lines.length === sale.lines.length
       );
     }
+    if (record.kind === 'sale-reduction') {
+      const reduction = saleReductionCommandSchema.parse(body);
+      return (
+        response.id === reduction.saleId &&
+        response.version === reduction.expectedVersion + 1 &&
+        Array.isArray(response.reductions) &&
+        response.reductions.some(
+          (e: { reason: string; resolution: string }) =>
+            e.reason === reduction.reason && e.resolution === reduction.resolution,
+        ) &&
+        (!record.summary || response.totalUsd === record.summary.totalUsd)
+      );
+    }
+    if (record.kind === 'payment-correction') {
+      const correction = paymentCorrectionCommandSchema.parse(body);
+      const applications = z
+        .array(z.object({ saleId: z.uuid(), amountUsd: z.string() }))
+        .parse(response.applications);
+      return (
+        response.id === correction.paymentId &&
+        response.version === correction.expectedVersion + 1 &&
+        typeof response.amount === 'string' &&
+        new Decimal(response.amount).eq(correction.amount) &&
+        applications.length === correction.applications.length &&
+        correction.applications.every((a) =>
+          applications.some(
+            (b) => a.saleId === b.saleId && new Decimal(a.amountUsd).eq(b.amountUsd),
+          ),
+        )
+      );
+    }
     if (record.kind === 'sale-addition') {
       const addition = saleAdditionCommandSchema.parse(body);
       const total = addition.lines.reduce(
@@ -189,7 +246,9 @@ export function validCommercialConfirmation(record: PendingCommercialCommand, va
         response.id === addition.saleId &&
         response.version === addition.expectedVersion + 1 &&
         Array.isArray(response.additions) &&
-        response.additions.length === addition.expectedVersion + 1 &&
+        response.additions.length +
+          (Array.isArray(response.reductions) ? response.reductions.length : 0) ===
+          addition.expectedVersion + 1 &&
         response.additions.some((item: { totalUsd: string }) =>
           new Decimal(item.totalUsd).eq(total),
         )
@@ -260,9 +319,13 @@ export async function sendCommercialCommand<T>(
     } else {
       (kind === 'sale'
         ? manualSaleSchema
-        : kind === 'sale-addition'
-          ? saleAdditionCommandSchema
-          : paymentSchema
+        : kind === 'sale-reduction'
+          ? saleReductionCommandSchema
+          : kind === 'payment-correction'
+            ? paymentCorrectionCommandSchema
+            : kind === 'sale-addition'
+              ? saleAdditionCommandSchema
+              : paymentSchema
       ).parse(body);
       const json = JSON.stringify(body);
       if (new TextEncoder().encode(json).length > 65536)
@@ -277,9 +340,13 @@ export async function sendCommercialCommand<T>(
         payloadVersion:
           kind === 'sale'
             ? 'sale-manual-v2'
-            : kind === 'sale-addition'
-              ? 'sale-addition-v1'
-              : 'payment-v1',
+            : kind === 'sale-reduction'
+              ? 'sale-reduction-v1'
+              : kind === 'payment-correction'
+                ? 'payment-correction-v1'
+                : kind === 'sale-addition'
+                  ? 'sale-addition-v1'
+                  : 'payment-v1',
         key: crypto.randomUUID(),
         body: json,
         hash: await receiptFingerprint(json),
@@ -296,9 +363,13 @@ export async function sendCommercialCommand<T>(
       response = await deps.send(
         kind === 'sale'
           ? '/api/sales'
-          : kind === 'sale-addition'
-            ? `/api/sales/${saleAdditionCommandSchema.parse(commercialCommandBody(record)).saleId}/add-products`
-            : '/api/payments',
+          : kind === 'sale-reduction'
+            ? `/api/sales/${saleReductionCommandSchema.parse(commercialCommandBody(record)).saleId}/reduce`
+            : kind === 'payment-correction'
+              ? `/api/payments/${paymentCorrectionCommandSchema.parse(commercialCommandBody(record)).paymentId}/correct`
+              : kind === 'sale-addition'
+                ? `/api/sales/${saleAdditionCommandSchema.parse(commercialCommandBody(record)).saleId}/add-products`
+                : '/api/payments',
         record.key,
         record.body,
       );

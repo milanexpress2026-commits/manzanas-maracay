@@ -3,6 +3,8 @@ import Decimal from 'decimal.js';
 import { presentationSchema, type Presentation } from './commerce';
 export * from './inventory';
 export * from './commerce';
+export * from './commerce-corrections';
+export * from './sale-reduction';
 export * from './sale-availability';
 export * from './sale-planner';
 export * from './auth';

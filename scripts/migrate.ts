@@ -50,6 +50,8 @@ export async function migrateDatabase(url: string) {
       grant select,insert on price_lists,sales,sale_lines,sale_allocations,sale_date_events,sale_cancellations,payments,payment_applications,payment_reversals to mm_app;
       grant select on receivables,sale_totals to mm_app;
       grant select,insert on sale_additions,sale_stock_returns to mm_app;
+      grant select,insert on sale_reductions,sale_reduction_lines,sale_reduction_allocations,payment_corrections to mm_app;
+      grant select on effective_payments,effective_payment_applications,effective_sale_lines,client_credit_balances to mm_app;
       grant select,insert,update on push_devices,push_notices to mm_app;
       grant usage,select on sequence mm_sale_number_seq,mm_payment_number_seq,sale_date_events_event_order_seq to mm_app;
       grant usage,select on sequence mm_receipt_number_seq to mm_app;
@@ -82,6 +84,7 @@ export async function migrateDatabase(url: string) {
 }
 if (process.argv[1]?.endsWith('migrate.ts'))
   migrateDatabase(assertDatabase(process.env.MIGRATION_DATABASE_URL)).catch((e) => {
-    console.error(e.message);
+    // The driver wraps SQL failures; report the cause without dumping whole queries.
+    console.error(e.cause?.message ?? e.message);
     process.exitCode = 1;
   });

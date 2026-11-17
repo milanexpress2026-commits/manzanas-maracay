@@ -88,6 +88,22 @@ export class CommerceController {
   @Get('sales/:id') sale(@Param('id') id: string) {
     return this.commerce.sale(id);
   }
+  @Post('sales/:id/reduce') reduce(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.commerce.reduceSale(id, body, key, request.user.id);
+  }
+  @Post('payments/:id/correct') correct(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.commerce.correctPayment(id, body, key, request.user.id);
+  }
   @Post('sales/:id/dates') dates(
     @Param('id') id: string,
     @Body() body: unknown,

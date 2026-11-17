@@ -89,6 +89,73 @@ const response = (status: number, data: unknown) => ({
   status,
   json: async () => data,
 });
+
+it.each(['sale-reduction', 'payment-correction'] as const)(
+  'recupera %s sin cambiar clave, destino ni importe',
+  async (kind) => {
+    const h = harness();
+    const body =
+      kind === 'sale-reduction'
+        ? {
+            saleId,
+            clientId,
+            expectedVersion: 2,
+            lines: [{ lineId: actor, quantity: 1 }],
+            resolution: 'credit',
+            reason: 'El cliente cambia el pedido',
+            stockReturned: true,
+          }
+        : {
+            paymentId: paymentResult.id,
+            clientId,
+            expectedVersion: 2,
+            amount: '20.00',
+            applications: [{ saleId, amountUsd: '20.00' }],
+            reason: 'Importe mal escrito al cobrar',
+          };
+    const result =
+      kind === 'sale-reduction'
+        ? {
+            ...saleResult,
+            version: 3,
+            totalUsd: '20.00',
+            reductions: [{ resolution: 'credit', reason: body.reason }],
+          }
+        : {
+            ...paymentResult,
+            version: 3,
+            amount: '20.00',
+            applications: [{ saleId, amountUsd: '20.00' }],
+          };
+    h.send.mockRejectedValueOnce(new Error('respuesta perdida'));
+    await expect(sendCommercialCommand(h.deps, scope, kind, body)).rejects.toThrow('No llegó');
+    const pending = (await readCommercialPending(h.storage, scope, kind))!;
+    h.send.mockResolvedValueOnce(response(201, { ...result, version: 4 }));
+    await expect(sendCommercialCommand(h.deps, scope, kind, body, null, pending)).rejects.toThrow(
+      'esperado',
+    );
+    h.send.mockResolvedValueOnce(response(201, result));
+    expect(await sendCommercialCommand(h.deps, scope, kind, body, null, pending)).toEqual(result);
+    expect(new Set(h.send.mock.calls.map((c) => c[1])).size).toBe(1);
+    expect(await readCommercialPending(h.storage, scope, kind)).toBeNull();
+  },
+);
+
+it('recupera ampliación después de una reducción con la versión conjunta de eventos', async () => {
+  const h = harness();
+  const body = { saleId, clientId, expectedVersion: 1, lines: sale.lines };
+  h.send.mockResolvedValueOnce(
+    response(201, {
+      ...saleResult,
+      version: 2,
+      additions: [{ totalUsd: '80.00' }],
+      reductions: [{ id: actor }],
+    }),
+  );
+  await expect(sendCommercialCommand(h.deps, scope, 'sale-addition', body)).resolves.toMatchObject({
+    version: 2,
+  });
+});
 function harness() {
   const values = new Map<string, string>();
   const storage = {

@@ -43,6 +43,7 @@ afterEach(() => {
 describe('cuatro opciones de cobro conservan moneda y acuerdo', () => {
   it('ambas opciones de bolívares usan VES y el método histórico, sin inventar otra moneda', () => {
     expect(paymentChoices.map(({ id, currency, method }) => ({ id, currency, method }))).toEqual([
+      { id: 'client_credit', currency: 'USD', method: 'client_credit' },
       { id: 'usd_cash', currency: 'USD', method: 'usd_cash' },
       { id: 'ves_bcv', currency: 'VES', method: 'bolivares' },
       { id: 'usdt_transfer', currency: 'USDT', method: 'usdt_transfer' },
