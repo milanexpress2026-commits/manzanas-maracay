@@ -32,8 +32,8 @@ for (const width of [390, 800, 1440])
       .click();
     await expect(page).toHaveURL(/\/ventas\/[a-f0-9-]+\?guardada=1$/);
     const id = new URL(page.url()).pathname.split('/').at(-1)!;
-    await expect(page.getByRole('button', { name: 'Anular venta', exact: true })).toBeDisabled();
-    await page.getByRole('link', { name: 'Agregar productos a esta venta', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Anular venta', exact: true })).toBeEnabled();
+    await page.getByRole('link', { name: 'Agregar productos', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: 'Agregar productos', exact: true }),
     ).toBeVisible();
@@ -89,8 +89,10 @@ for (const width of [390, 800, 1440])
     await page.screenshot({ path: `../../work/v417-ui/detail-${width}.png`, fullPage: true });
     await page.goto('/ventas');
     await page.getByRole('link', { name: 'Resumen por vendedor', exact: true }).click();
-    await expect(page.getByRole('table')).toContainText('Randy');
-    await expect(page.getByRole('table')).toContainText('Sin vendedor asignado');
+    await expect(page.getByRole('table', { name: 'Importes por vendedor' })).toContainText('Randy');
+    await expect(page.getByRole('table', { name: 'Importes por vendedor' })).toContainText(
+      'Sin vendedor asignado',
+    );
     await noHorizontalOverflow(page);
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
     await page.screenshot({ path: `../../work/v417-ui/summary-${width}.png`, fullPage: true });
@@ -115,14 +117,14 @@ test('anular desde detalle muestra impacto, restaura stock y conserva nota anula
   });
   await page.goto('/ventas/' + sale.id);
   await page.getByRole('button', { name: 'Anular venta', exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText('mercancía permanece en el local');
+  await expect(page.getByRole('dialog')).toContainText('mercancía quedó en el local');
   for (const width of [390, 800]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.screenshot({ path: `../../work/v417-ui/cancel-${width}.png` });
   }
-  await page.getByLabel('Motivo de la corrección').fill('El cliente canceló el pedido');
+  await page.getByLabel('La mercancía quedó en el local o fue devuelta.').check();
   await page.getByRole('button', { name: 'Confirmar anulación', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByText('Anulada', { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Agregar productos a esta venta' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Agregar productos', exact: true })).toHaveCount(0);
 });

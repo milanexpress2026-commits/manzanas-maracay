@@ -194,8 +194,8 @@ async function main() {
   assert.equal(phase4Journal.entries.length, 13);
   assert.equal(
     currentJournal.entries.length,
-    19,
-    'La prueba incluye V4.17 y la migración 0018 de vendedores y ampliaciones.',
+    20,
+    'La prueba incluye V4.18 y la migración 0019 de correcciones y saldo a favor.',
   );
   const phase4Migrations = path.join(scratch, 'phase4-13-migrations');
   await fs.mkdir(path.join(phase4Migrations, 'meta'), { recursive: true });
@@ -548,7 +548,27 @@ async function main() {
     } finally {
       await v416Pool.end();
     }
-    await migrateDatabase(upgradeUrl);
+    const v417Migrations = path.join(scratch, 'v417-19-migrations');
+    await fs.mkdir(path.join(v417Migrations, 'meta'), { recursive: true });
+    const v417Journal = {
+      ...currentJournal,
+      entries: currentJournal.entries.filter((entry) => entry.idx <= 18),
+    };
+    await fs.writeFile(
+      path.join(v417Migrations, 'meta/_journal.json'),
+      JSON.stringify(v417Journal),
+    );
+    for (const entry of v417Journal.entries)
+      await fs.copyFile(
+        path.join(currentMigrations, entry.tag + '.sql'),
+        path.join(v417Migrations, entry.tag + '.sql'),
+      );
+    const v417Pool = new Pool({ connectionString: upgradeUrl, max: 1 });
+    try {
+      await migrate(drizzle(v417Pool), { migrationsFolder: v417Migrations });
+    } finally {
+      await v417Pool.end();
+    }
     const updated = new Client({ connectionString: upgradeUrl });
     await updated.connect();
     try {
@@ -580,6 +600,38 @@ async function main() {
         preservedTables: tables.length,
         historicalSellerUnassigned: true,
         historyPreserved: true,
+      };
+      const v418Before = await snapshot(updated);
+      await migrateDatabase(upgradeUrl);
+      const v418After = await snapshot(updated, v418Before.columns);
+      assert.deepEqual(
+        v418After.rows,
+        v418Before.rows,
+        '0019 debe conservar todos los datos históricos.',
+      );
+      assert.deepEqual(v418After.hashes.slice(0, 19), v418Before.hashes);
+      assert.equal(v418After.hashes.length, 20);
+      for (const table of [
+        'sale_reductions',
+        'sale_reduction_lines',
+        'sale_reduction_allocations',
+        'payment_corrections',
+      ])
+        assert.equal((await updated.query(`select count(*)::int n from ${table}`)).rows[0].n, 0);
+      assert.equal(
+        (
+          await updated.query(
+            'select count(*)::int n from client_credit_balances where credit_usd<>0',
+          )
+        ).rows[0].n,
+        0,
+      );
+      report.v418Upgrade = {
+        fromMigrationCount: 19,
+        toMigrationCount: 20,
+        preservedTables: tables.length,
+        historyPreserved: true,
+        noSyntheticCredits: true,
       };
       const v45After = await snapshot(updated, v42Before!.columns);
       assert.deepEqual(

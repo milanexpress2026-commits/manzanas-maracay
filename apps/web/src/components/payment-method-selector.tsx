@@ -19,6 +19,7 @@ export function PaymentMethodSelector({
   quotes,
   mixed = false,
   label = 'Método de cobro',
+  creditUsd = '0.00',
 }: {
   id: string;
   value: PaymentChoice;
@@ -27,11 +28,17 @@ export function PaymentMethodSelector({
   quotes: { bcv: boolean; usdt: boolean };
   mixed?: boolean;
   label?: string;
+  creditUsd?: string;
 }) {
-  const options = paymentChoices.map((option) => ({
-    ...option,
-    reason: paymentChoiceUnavailable(option.id, basis, quotes, mixed),
-  }));
+  const options = paymentChoices
+    .filter(
+      (option) =>
+        option.id !== 'client_credit' || Number(creditUsd) > 0 || value === 'client_credit',
+    )
+    .map((option) => ({
+      ...option,
+      reason: paymentChoiceUnavailable(option.id, basis, quotes, mixed),
+    }));
   const selected = paymentChoiceDetails(value);
   const issue = options.find((option) => option.id === value)?.reason;
   return (
@@ -55,11 +62,13 @@ export function PaymentMethodSelector({
         ))}
       </NativeSelect>
       <FieldDescription id={id + '-help'}>
-        {selected.currency === 'VES'
-          ? 'Recibes bolívares. La cotización corresponde al acuerdo original.'
-          : selected.currency === 'USDT'
-            ? 'Recibes USDT; se aplica 1:1 a la deuda en USD.'
-            : 'Recibes dólares en efectivo.'}
+        {selected.id === 'client_credit'
+          ? 'Disponible a favor: USD ' + creditUsd + '. Se descuenta del crédito del cliente.'
+          : selected.currency === 'VES'
+            ? 'Recibes bolívares. La cotización corresponde al acuerdo original.'
+            : selected.currency === 'USDT'
+              ? 'Recibes USDT; se aplica 1:1 a la deuda en USD.'
+              : 'Recibes dólares en efectivo.'}
       </FieldDescription>
       {issue ? (
         <p role="alert" className={styles.methodIssue}>

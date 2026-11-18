@@ -1,4 +1,5 @@
 'use client';
+import { SaleCorrectionActions } from './sale-corrections';
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import Decimal from 'decimal.js';
@@ -105,54 +106,7 @@ export function SaleDetailScreen({
               </SavedNotice>
             ) : null}
             <SaleDocumentActions id={id} cancelled={sale.status === 'cancelled'} />
-            {sale.status === 'confirmed' ? (
-              <section
-                className={'operations-panel ' + partnerStyles.actions}
-                aria-label="Cambiar pedido"
-              >
-                <div className="inline-actions">
-                  {(
-                    sale.condition === 'credit'
-                      ? new Decimal(sale.paidUsd).eq(0)
-                      : new Decimal(sale.balanceUsd).eq(0)
-                  ) ? (
-                    <Button asChild variant="outline">
-                      <Link prefetch={false} href={'/ventas/' + id + '/editar'}>
-                        Agregar productos a esta venta
-                      </Link>
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="outline"
-                    disabled={new Decimal(sale.paidUsd).gt(0)}
-                    onClick={() =>
-                      setCorrection({
-                        url: '/api/sales/' + id + '/cancel',
-                        title: 'Anular venta',
-                        text: 'Confirma que esta mercancía permanece en el local o ya fue devuelta. Se quitará la deuda y volverá al inventario. La nota quedará marcada como anulada.',
-                      })
-                    }
-                  >
-                    Anular venta
-                  </Button>
-                </div>
-                {sale.condition === 'credit' && new Decimal(sale.paidUsd).gt(0) ? (
-                  <p className="commercial-help">
-                    Esta venta a crédito ya tiene abonos y se conserva sin cambios.{' '}
-                    <Link href={'/ventas/nueva?cliente=' + sale.clientId}>
-                      Registrar productos en otra venta
-                    </Link>
-                    .
-                  </p>
-                ) : null}
-                {new Decimal(sale.paidUsd).gt(0) ? (
-                  <p className="commercial-help">
-                    Tiene cobros registrados. Para anularla, primero hay que resolver esos cobros;
-                    la aplicación no devuelve dinero automáticamente.
-                  </p>
-                ) : null}
-              </section>
-            ) : null}
+            <SaleCorrectionActions session={session} sale={sale} onSaved={detail.reload} />
             {notice ? <SavedNotice>{notice}</SavedNotice> : null}
             {sale.additions?.length ? (
               <details className={'operations-panel ' + partnerStyles.history}>

@@ -1,3 +1,4 @@
+import type { CorrectionHistory, ReductionHistory } from './commerce-corrections';
 import { z } from 'zod';
 import Decimal from 'decimal.js';
 
@@ -12,6 +13,7 @@ export type SettlementBasis = 'divisa' | 'bcv' | 'legacy_bcv';
 export type PaymentCurrency = 'USD' | 'USDT' | 'VES';
 export const paymentMethodOptions = [
   { id: 'usd_cash', label: 'Efectivo USD', currency: 'USD' },
+  { id: 'client_credit', label: 'Saldo a favor', currency: 'USD' },
   { id: 'usdt_transfer', label: 'Transferencia USDT', currency: 'USDT' },
   { id: 'bolivares', label: 'Bolívares', currency: 'VES' },
 ] as const;
@@ -340,6 +342,14 @@ export type SellerReport = {
     totalUsd: string;
     paidUsd: string;
     balanceUsd: string;
+    merchandise: {
+      variantId: string;
+      description: string;
+      presentation: Presentation;
+      commercialUnitLabel: string | null;
+      quantity: number;
+      totalUsd: string;
+    }[];
   }[];
 };
 
@@ -453,6 +463,7 @@ export function collectionWhatsApp(
   return `https://wa.me/${normalized.slice(1)}?text=${encodeURIComponent(message)}`;
 }
 export type ClientSummary = {
+  creditUsd?: string;
   id: string;
   name: string;
   phone: string | null;
@@ -519,6 +530,8 @@ export type SaleSummary = {
   dueStatus: ReturnType<typeof receivableStatus>;
 };
 export type PaymentSummary = {
+  version?: number;
+  conversionRate?: string | null;
   id: string;
   number: string;
   clientId: string;
@@ -539,6 +552,7 @@ export type PaymentApplication = {
   balanceAfterUsd: string;
 };
 export type PaymentDetail = PaymentSummary & {
+  corrections?: CorrectionHistory[];
   operatorName?: string;
   client: ClientSnapshot;
   bcvRate: {
@@ -568,6 +582,7 @@ export type PaymentDetail = PaymentSummary & {
   reversal: { reason: string; actor: string; createdAt: string } | null;
 };
 export type SaleDetail = SaleSummary & {
+  reductions?: ReductionHistory[];
   additions?: { id: string; totalUsd: string; createdAt: string }[];
   client: ClientSnapshot;
   notes: string;

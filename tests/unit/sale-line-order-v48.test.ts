@@ -115,7 +115,7 @@ describe('orden durable de líneas comerciales, independiente de UUID aleatorio 
           costUsd: null,
         });
       } else if (sql.includes("nextval('mm_sale_number_seq')")) rows = [{ number: 'V-00000001' }];
-      else if (sql.includes('from sale_lines l join packing_rules')) {
+      else if (sql.includes('from effective_sale_lines l join packing_rules')) {
         expect(sql).toContain('order by e.created_at nulls first,e.id,l.id');
         rows = savedLines
           .map((line) => ({ ...line }))
@@ -124,8 +124,9 @@ describe('orden durable de líneas comerciales, independiente de UUID aleatorio 
       else if (sql.includes('from sales s join sale_totals')) rows = savedSale ? [savedSale] : [];
       else if (!(
         sql.includes('from lots where') ||
-        sql.includes('from payments p') ||
-        sql.includes('from payment_applications') ||
+        sql.includes('from effective_payments p') ||
+        sql.includes('from effective_payment_applications') ||
+        sql.includes('from sale_reductions') ||
         sql.includes('from sale_date_events') ||
         sql.includes('from sale_additions') ||
         sql.includes('from sale_cancellations') ||

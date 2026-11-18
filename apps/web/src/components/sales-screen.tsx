@@ -1165,6 +1165,7 @@ export function NewSaleScreen({
                 {condition === 'cash' || addPayment ? (
                   <PaymentMethodSelector
                     id="sale-method"
+                    creditUsd={activeClients.find((c) => c.id === clientId)?.creditUsd}
                     value={paymentChoice}
                     basis={settlement}
                     quotes={quotes}

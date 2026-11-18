@@ -247,6 +247,13 @@ export function ClientAccountScreen({ session, id }: { session: AppSession; id: 
                 <span>Saldo del cliente</span>
                 <strong>{displayMoney(account.data.client.balanceUsd)}</strong>
                 <small>Cada pago conserva su aplicación por comprobante</small>
+                {new Decimal(account.data.client.creditUsd ?? '0').gt(0) ? (
+                  <p>
+                    <strong>A favor: {displayMoney(account.data.client.creditUsd!)}</strong>
+                    <br />
+                    Disponible al cobrar otra venta de este cliente.
+                  </p>
+                ) : null}
               </article>
               <article>
                 <ContactRound aria-hidden="true" />

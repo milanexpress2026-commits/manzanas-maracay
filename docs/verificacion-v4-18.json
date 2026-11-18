@@ -1,0 +1,117 @@
+{
+  "version": "V4.18",
+  "status": "published_verified",
+  "productionCommit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+  "productionApproved": true,
+  "productionChanged": true,
+  "migration": {
+    "tag": "0019_corrections_credit",
+    "from": 19,
+    "to": 20,
+    "historicalSqlUnchanged": true,
+    "productionExecuted": true
+  },
+  "local": {
+    "typecheck": true,
+    "build": true,
+    "unitTestsPassed": 475,
+    "fullE2e": {
+      "passed": 201,
+      "failed": 1,
+      "runId": "9ac695b1a9633da817591721",
+      "failure": "Local connection timeout during concurrent catalog fixture creation."
+    },
+    "followupE2e": {
+      "passed": 35,
+      "failed": 0,
+      "runId": "0cffc6c1d1d14d7df1039729",
+      "includesOriginalFailureUnchanged": true
+    },
+    "migrationFreshAndUpgradePassed": true,
+    "migrationOriginalRowsAndColumnsPreserved": true,
+    "schemaDrift": false,
+    "operatorGuardTestsPassed": 10,
+    "secretScanFindings": [],
+    "productionIsolatedPassed": 16,
+    "productionQaRunId": "18968dca0188780896616755",
+    "productionQaDatabaseCleaned": true,
+    "peerPolicyTestsPassed": 26,
+    "stagingRecoveryGuardTestsPassed": 7
+  },
+  "uiReview": {
+    "disposition": "ship",
+    "viewports": [
+      390,
+      800,
+      1440
+    ],
+    "fixesVerified": [
+      "Spanish validation errors",
+      "exterior panel padding"
+    ],
+    "designDocumentation": "No changes",
+    "physicalDeviceVerified": false
+  },
+  "limitations": [
+    "Credit plus another payment method uses separate applications to a pending sale.",
+    "Payment correction preserves original method, currency, quote and time.",
+    "Refund records money returned; it does not execute a bank transfer.",
+    "Physical Android and printer verification remains with owners."
+  ],
+  "productionScope": {
+    "pauseOwnWebApiRatesPush": true,
+    "encryptedBackupComputerAndSameVps": true,
+    "isolatedRestore": true,
+    "migration0019": true,
+    "preserveAllOriginalRows": true,
+    "dnsOrCaddyChanges": false,
+    "otherProjectsChanged": false
+  },
+  "candidateCommit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/19",
+  "archiveSha256": "4391198656c30a7fc68ba996858f4bc25dca0efc2cd92d051104762c9a1a8969",
+  "staging": {
+    "commit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+    "healthy": true,
+    "migrationCount": 20,
+    "originalRowsAndColumnsPreserved": true,
+    "backupAndPostMigrationRestoreVerified": true,
+    "collectorResumed": true,
+    "authenticatedChecksPassed": 19,
+    "checkedAt": "2026-11-17T20:29:17.158218+00:00",
+    "productionAndPeersConfigurationUnchanged": true,
+    "heldRecoveryVerified": true
+  },
+  "incidents": [
+    "Full E2E local connection timeout followed by35/35 final directed tests including unchanged original case.",
+    "Initial upload and read-only recheck observed a known peer moving from restarting to running with equal RestartCount; preserved raw failure snapshots. Same identity/configuration, subsequent count increment confirmed. Bounded transition guard fixed;8 focused and18 prior checks passed. New verification and build passed; no peer commands changed it.",
+    "Staging paused after migration when the scheduled production rate-refresh container appeared. Original failure retained. Exact held-candidate recovery verified all data/backups/peers and resumed the same containers without repeated DDL;7 recovery guard tests passed.",
+    "First prepublication restore lost SSH exit confirmation; server result was successful and temporary resources absent. Original failure retained; fresh encrypted backup/restore passed after enabling transport keepalive.",
+    "The first activation preflight rejected backup evidence older than one hour before any writer pause. A fresh backup was chained immediately into the approved activation; no gate was weakened."
+  ],
+  "approvalReference": "call_NmhYlep4FglLcFYfHHLTWWju",
+  "production": {
+    "commit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+    "healthy": true,
+    "migrationCount": 20,
+    "allOriginalRowsAndColumnsPreserved": true,
+    "accessAndRegisteredTabletPreserved": true,
+    "collectorResumed": true,
+    "httpsChecksPassed": 21,
+    "businessWritesDuringLiveChecks": false,
+    "ui800Verified": true,
+    "sellerMerchandiseVerified": true,
+    "existingSaleUnchanged": true,
+    "documentsCartaA4Verified": true,
+    "dnsCaddyOrPeerProjectsChanged": false,
+    "postBackupRestoredAt": "2026-11-18T01:03:04.443854+00:00"
+  },
+  "postpublicationBackup": {
+    "commit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true,
+    "checkedAt": "2026-11-18T01:03:04.443854+00:00"
+  }
+}

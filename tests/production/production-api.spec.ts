@@ -21,6 +21,88 @@ const origin = 'https://localhost:3143';
 const headers = (key = randomUUID()) => ({ Origin: origin, 'Idempotency-Key': key });
 test.describe.configure({ mode: 'serial' });
 
+test('V4.18 rol real: devolución, corrección y saldo a favor conservan RLS y documentos', async ({
+  request,
+}) => {
+  const rule = await configuration(request),
+    client = await customer(request);
+  await receipt(request, rule, 4, '25');
+  const input = {
+    schemaVersion: 2,
+    dateMode: 'automatic',
+    seller: 'carlos',
+    clientId: client.id,
+    condition: 'cash',
+    settlementBasis: 'divisa',
+    soldAt: new Date().toISOString(),
+    lines: [{ configurationId: rule.id, presentation: 'box', quantity: 2, agreedUnitUsd: '40' }],
+    initialPayment: {
+      currency: 'USD',
+      amount: '80',
+      method: 'usd_cash',
+      receivedAt: new Date().toISOString(),
+    },
+  };
+  const sale = await post<SaleDetail>(request, '/api/sales', input);
+  const changed = await post<SaleDetail>(request, `/api/sales/${sale.id}/reduce`, {
+    expectedVersion: 0,
+    lines: [{ lineId: sale.lines[0]!.id, quantity: 1 }],
+    resolution: 'credit',
+    reason: 'QA aislada: cliente retira un producto',
+    stockReturned: true,
+  });
+  expect(changed).toMatchObject({
+    isDemo: false,
+    totalUsd: '40.00',
+    paidUsd: '40.00',
+    balanceUsd: '0.00',
+  });
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Caracas' }).format(new Date());
+  const report = await (
+    await request.get(`/api/sales/sellers/summary?from=${day}&to=${day}`)
+  ).json();
+  expect(
+    report.rows
+      .find((r: { seller: string }) => r.seller === 'carlos')
+      .merchandise.filter((r: { variantId: string }) => r.variantId === rule.variantId),
+  ).toMatchObject([{ quantity: 1, totalUsd: '40.00', presentation: 'box' }]);
+  const next = await post<SaleDetail>(request, '/api/sales', {
+    ...input,
+    lines: [{ configurationId: rule.id, presentation: 'box', quantity: 1, agreedUnitUsd: '40' }],
+    initialPayment: { ...input.initialPayment, amount: '40', method: 'client_credit' },
+  });
+  expect(next).toMatchObject({ totalUsd: '40.00', paidUsd: '40.00' });
+  const corrected = await post<PaymentDetail>(
+    request,
+    `/api/payments/${next.payments[0]!.id}/correct`,
+    {
+      expectedVersion: 0,
+      amount: '30',
+      applications: [{ saleId: next.id, amountUsd: '30' }],
+      reason: 'QA aislada: corrige diez dólares',
+    },
+  );
+  expect(corrected.amountUsd).toBe('30.00');
+  expect((await (await request.get('/api/clients/' + client.id)).json()).client.creditUsd).toBe(
+    '10.00',
+  );
+  await database('application', async (db) => {
+    expect(
+      (
+        await db.query('select credit_usd::text from client_credit_balances where client_id=$1', [
+          client.id,
+        ])
+      ).rows[0].credit_usd,
+    ).toBe('10.00');
+    await expect(
+      db.query('delete from payment_corrections where payment_id=$1', [next.payments[0]!.id]),
+    ).rejects.toMatchObject({ code: '42501' });
+  });
+  const note = await request.get(`/api/sales/${sale.id}/delivery-note?size=letter`);
+  expect(note.status()).toBe(200);
+  expect((await note.body()).subarray(0, 4).toString()).toBe('%PDF');
+});
+
 test('V4.12 producción aislada: media de caja con cinco blísteres sin habilitación antigua ni conteo', async ({
   request,
 }) => {

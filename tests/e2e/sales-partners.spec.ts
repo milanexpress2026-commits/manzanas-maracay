@@ -87,7 +87,7 @@ test('ampliar contado conserva folio, vendedor y pago; cobra solo extra y recupe
   expect((await request.get(`/api/sales/${sale.id}/delivery-note`)).ok()).toBe(true);
 });
 
-test('crédito sin abono se amplía; con abono rechaza todo sin consumir stock', async ({
+test('crédito se amplía antes y después de un abono, conservando lo cobrado', async ({
   request,
 }) => {
   const rule = await commercialProduct(request),
@@ -125,18 +125,18 @@ test('crédito sin abono se amplía; con abono rechaza todo sin consumir stock',
         data: { ...input, expectedVersion: 1 },
       })
     ).status(),
-  ).toBe(409);
+  ).toBe(201);
   const current: SaleDetail = await (await request.get(`/api/sales/${sale.id}`)).json();
   expect(current).toMatchObject({
-    totalUsd: '85.00',
+    totalUsd: '130.00',
     paidUsd: '10.00',
-    balanceUsd: '75.00',
-    version: 1,
+    balanceUsd: '120.00',
+    version: 2,
   });
   const lot: LotDetail = await (
     await request.get(`/api/inventory/lots/${receipt.lots[0].id}`)
   ).json();
-  expect(lot.lot.closedBoxes).toBe(2);
+  expect(lot.lot.closedBoxes).toBe(1);
 });
 
 test('anular una venta anterior devuelve solo sus cajas y conserva la venta posterior', async ({

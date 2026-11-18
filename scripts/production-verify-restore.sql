@@ -91,6 +91,17 @@ BEGIN
       RAISE EXCEPTION 'Restored application cannot read effective sale totals'; END IF;
   END IF;
   -- V3/V4 rate schema is optional for restoration of older phase-4 backups.
+  IF to_regclass('public.sale_reductions') IS NOT NULL THEN
+    FOREACH required_table IN ARRAY ARRAY['sale_reductions','sale_reduction_lines','sale_reduction_allocations','payment_corrections'] LOOP
+      IF NOT has_table_privilege('mm_prod_app','public.'||required_table,'SELECT,INSERT')
+        OR has_table_privilege('mm_prod_app','public.'||required_table,'UPDATE,DELETE,TRUNCATE,TRIGGER') THEN
+        RAISE EXCEPTION 'Restored corrections must be append-only'; END IF;
+    END LOOP;
+    FOREACH required_table IN ARRAY ARRAY['effective_payments','effective_payment_applications','effective_sale_lines','client_credit_balances'] LOOP
+      IF NOT has_table_privilege('mm_prod_app','public.'||required_table,'SELECT') THEN
+        RAISE EXCEPTION 'Restored application cannot read current corrections'; END IF;
+    END LOOP;
+  END IF;
   usdt_table:=to_regclass('public.usdt_rates');
   IF usdt_table IS NOT NULL THEN
     IF NOT has_table_privilege('mm_prod_app',usdt_table,'SELECT')
@@ -201,6 +212,15 @@ BEGIN
   ) THEN RAISE EXCEPTION 'Cost projection differs from its ledger'; END IF;
   FOR item IN SELECT id FROM sales LOOP PERFORM validate_commercial_sale(item.id); END LOOP;
   FOR item IN SELECT id FROM payments LOOP PERFORM validate_commercial_payment(item.id); END LOOP;
+  IF to_regclass('public.payment_corrections') IS NOT NULL THEN
+    IF EXISTS(SELECT 1 FROM client_credit_balances WHERE credit_usd<0)
+      OR EXISTS(SELECT 1 FROM effective_sale_lines WHERE quantity<0)
+      OR EXISTS(SELECT 1 FROM effective_payments p LEFT JOIN LATERAL
+        (SELECT sum(amount_usd) amount,bool_or(amount_usd IS NULL OR amount_usd<0) invalid FROM effective_payment_applications WHERE payment_id=p.id)a ON true
+        WHERE a.amount IS DISTINCT FROM p.amount_usd OR a.invalid) THEN
+      RAISE EXCEPTION 'Restored corrections do not reconcile current payments, merchandise or credit';
+    END IF;
+  END IF;
 END $$;
 -- Exercise restored permissions under the real application role. The expected
 -- counts are captured with bootstrap visibility, so an accidental RLS filter
@@ -231,6 +251,13 @@ BEGIN
     END LOOP;
   END IF;
   PERFORM set_config('mm.restore_expected_counts', expected::text, true);
+  IF to_regclass('public.sale_reductions') IS NOT NULL THEN
+    FOREACH relation_name IN ARRAY ARRAY['sale_reductions','sale_reduction_lines','sale_reduction_allocations','payment_corrections','effective_payments','effective_payment_applications','effective_sale_lines','client_credit_balances'] LOOP
+      EXECUTE format('SELECT count(*) FROM public.%I',relation_name) INTO actual_count;
+      expected:=expected||jsonb_build_object(relation_name,actual_count);
+    END LOOP;
+    PERFORM set_config('mm.restore_expected_counts', expected::text, true);
+  END IF;
 END $$;
 SET LOCAL ROLE mm_prod_app;
 DO $$

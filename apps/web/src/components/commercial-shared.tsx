@@ -743,6 +743,7 @@ export function PaymentDialog({
                     <div className="commercial-form-grid">
                       <PaymentMethodSelector
                         id="payment-method"
+                        creditUsd={account.data?.client.creditUsd}
                         value={paymentChoice}
                         basis={settlement}
                         quotes={quotes}
@@ -756,7 +757,10 @@ export function PaymentDialog({
                       />
                       <Field>
                         <FieldLabel htmlFor="payment-amount">
-                          Monto recibido · {currency}
+                          {paymentChoice === 'client_credit'
+                            ? 'Saldo a favor a usar'
+                            : 'Monto recibido'}{' '}
+                          · {currency}
                         </FieldLabel>
                         <Input
                           id="payment-amount"

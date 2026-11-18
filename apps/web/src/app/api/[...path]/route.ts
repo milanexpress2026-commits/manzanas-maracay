@@ -41,8 +41,8 @@ function allowedRoute(method: string, endpoint: string) {
         `^inventory/lots/${UUID}/(open-box|split-halves|withdraw-blisters|open-blister|prepare-half|adjust)$`,
       ).test(endpoint) ||
       new RegExp(`^inventory/movements/${UUID}/reverse$`).test(endpoint) ||
-      new RegExp(`^sales/${UUID}/(dates|cancel|add-products)$`).test(endpoint) ||
-      new RegExp(`^payments/${UUID}/reverse$`).test(endpoint)
+      new RegExp(`^sales/${UUID}/(dates|cancel|add-products|reduce)$`).test(endpoint) ||
+      new RegExp(`^payments/${UUID}/(reverse|correct)$`).test(endpoint)
     );
   return (
     method === 'PATCH' &&

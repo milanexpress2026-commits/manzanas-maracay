@@ -194,8 +194,25 @@ export async function composePaymentPdf(payment: PaymentDetail, options: PdfOpti
   pdf.paragraph(`Operador: ${payment.operatorName ?? payment.actor}`, { size: 9 });
   if (payment.reversal?.reason)
     pdf.paragraph(`Motivo de reversión: ${payment.reversal.reason}`, { size: 9 });
-  pdf.section('Monto recibido');
+  pdf.section(
+    payment.method === 'client_credit'
+      ? 'Saldo a favor aplicado'
+      : payment.corrections?.length
+        ? 'Importe vigente del abono'
+        : 'Monto recibido',
+  );
   pdf.paragraph(`${payment.currency} ${amount(payment.amount)}`, { bold: true, size: 16, gap: 8 });
+  if (payment.corrections?.length) {
+    pdf.paragraph('Este recibo incorpora correcciones. El registro original se conserva.', {
+      size: 9,
+      muted: true,
+    });
+    for (const correction of payment.corrections)
+      pdf.paragraph(
+        `${date(correction.createdAt)} - ${correction.kind === 'refund' ? 'Devolución registrada' : correction.kind === 'credit' ? 'Diferencia a favor del cliente' : 'Importe corregido'}: abono vigente ${payment.currency} ${amount(correction.amount)}.`,
+        { size: 9 },
+      );
+  }
   if (payment.bcvRate) {
     pdf.paragraph(`BCV histórico: ${payment.bcvRate.rate} VES por USD`, { size: 9 });
     pdf.paragraph(`Fuente oficial: ${payment.bcvRate.sourceUrl}`, { size: 9 });
@@ -231,12 +248,18 @@ export async function composePaymentPdf(payment: PaymentDetail, options: PdfOpti
     );
   const final = pdf.totalsBlock(
     [{ label: 'Equivalente aplicado', value: `USD ${amount(payment.amountUsd)}`, emphasis: true }],
-    'Los saldos de esta tabla son los posteriores a ESTE abono; no son saldos actuales. Los movimientos siguientes se consultan en el estado de cuenta.',
+    payment.corrections?.length
+      ? 'Los saldos de esta tabla corresponden a la última corrección de este abono. Los movimientos siguientes se consultan en el estado de cuenta.'
+      : 'Los saldos de esta tabla son los posteriores a ESTE abono; no son saldos actuales. Los movimientos siguientes se consultan en el estado de cuenta.',
     false,
   );
   pdf.table({
     title: 'Aplicación por comprobante',
-    headers: ['Comprobante', 'Aplicado USD', 'Saldo al registrar USD'],
+    headers: [
+      'Comprobante',
+      'Aplicado USD',
+      payment.corrections?.length ? 'Saldo al corregir USD' : 'Saldo al registrar USD',
+    ],
     widths: [pdf.contentWidth - 240, 110, 130],
     rightAligned: [1, 2],
     rows: payment.applications.map((entry) => ({

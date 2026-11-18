@@ -433,7 +433,7 @@ export class InventoryService implements OnModuleDestroy {
           );
         if (
           ['sale', 'payment', 'receipt', 'simple-receipt', 'quick-receipt'].includes(kind) ||
-          /^(sale-add|sale-dates|sale-cancel|payment-reverse|open-box|withdraw-blisters|open-blister|prepare-half|split-halves|adjust|reverse):/.test(
+          /^(sale-add|sale-reduce|sale-dates|sale-cancel|payment-correct|payment-reverse|open-box|withdraw-blisters|open-blister|prepare-half|split-halves|adjust|reverse):/.test(
             kind,
           )
         ) {
@@ -1545,17 +1545,34 @@ export class InventoryService implements OnModuleDestroy {
       )
     ).rows;
     if (
+      !(
+        await client.query(
+          'select 1 from sale_stock_returns r join sale_allocations a on a.id=r.allocation_id join sale_lines l on l.id=a.sale_line_id where l.sale_id=$1 limit 1',
+          [saleId],
+        )
+      ).rowCount &&
       movements.length === movementIds.length &&
       new Set(movements.map((m) => m.lot_id)).size === movements.length &&
       movements.every((m) => m.lot_version_after === m.inventory_version)
     )
       return this.reverseSale(client, movementIds, actor, key, hash);
+    return this.returnSaleStock(client, saleId, null, actor, key, hash);
+  }
+  async returnSaleStock(
+    client: PoolClient,
+    saleId: string,
+    allocationIds: string[] | null,
+    actor: string,
+    key: string,
+    hash: string,
+  ) {
     const allocations = (
       await client.query(
         `select a.*,l.presentation,m.before_state,c.warehouse_id
       from sale_allocations a join sale_lines l on l.id=a.sale_line_id join inventory_movements m on m.id=a.movement_id
-      join containers c on c.id=a.container_id where l.sale_id=$1 order by a.lot_id,a.id`,
-        [saleId],
+      join containers c on c.id=a.container_id where l.sale_id=$1 and ($2::uuid[] is null or a.id=any($2::uuid[]))
+      and not exists(select 1 from sale_stock_returns r where r.allocation_id=a.id) order by a.lot_id,a.id`,
+        [saleId, allocationIds],
       )
     ).rows;
     for (const lotId of [...new Set<string>(allocations.map((a) => a.lot_id))].sort()) {
@@ -1591,7 +1608,7 @@ export class InventoryService implements OnModuleDestroy {
         before,
         state,
         'sale_return',
-        'Mercancía de pedido anulado',
+        'Mercancía devuelta de venta',
         actor,
         key,
         hash,
