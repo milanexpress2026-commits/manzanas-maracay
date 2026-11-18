@@ -1,6 +1,6 @@
 # V4.18 — Correcciones de cobros y mercancía por vendedor
 
-Estado: preparada y verificada en staging, candidato `de8bb83651b39c62ff8fcf149ca67249b4659a48`, PR #19. Producción sigue en V4.17 (`d25879918810f9e0a9257aefcf7eb7dcdeac3b94`). No se cambiaron operaciones reales. Publicar requiere autorización operativa sobre el candidato exacto.
+Estado: publicada y verificada en producción y staging, versión `de8bb83651b39c62ff8fcf149ca67249b4659a48`, PR #19. Autorización específica recibida y aplicada; migración0019 completada conservando todos los datos anteriores.
 
 ## Uso diario
 
@@ -35,16 +35,24 @@ Los céntimos se calculan desde la cantidad restante, evitando diferencias acumu
 
 Se conservan las incidencias iniciales: sintaxis CASE, proxy compilado anterior, directiva de componente cliente, expectativas antiguas de pruebas, verificador que esperaba19 migraciones y una parada de PostgreSQL que agotó la espera. Sus seguimientos pasaron; PID propio ausente y base anterior intacta.
 
-## Publicación y recuperación
+## Procedimiento de publicación y recuperación
 
-Verificar primero el candidato en staging. La autorización final incluye subir/compilar producción, pausa breve de aplicación/tasas/recordatorios, respaldo cifrado nuevo en esta computadora y mismo VPS, restauración aislada y migración0019. Conservar ventas, inventario, clientes, acceso y tablet; sin DNS/Caddy ni otros proyectos.
+El candidato se verificó primero en staging. La autorización final `call_NmhYlep4FglLcFYfHHLTWWju` se recibió y aplicó: subida/compilación de producción, pausa breve de aplicación/tasas/recordatorios, respaldo cifrado nuevo en esta computadora y mismo VPS, restauración aislada y migración 0019. Se conservaron ventas, inventario, clientes, acceso y tablet; sin cambios de DNS/Caddy ni otros proyectos.
 
-No hay rollback automático sobre datos posteriores. Ante fallo, mantener escritores propios pausados, conservar evidencia y evaluar recuperación. No eliminar bases ni restaurar encima de operaciones nuevas. Después comprobar acceso, notas y respaldo posterior.
+No hay rollback automático sobre datos posteriores. Ante un fallo futuro, conservar evidencia y evaluar recuperación sin eliminar bases ni restaurar encima de operaciones nuevas. Esta publicación terminó saludable y sus comprobaciones de acceso, notas y respaldo posterior se completaron; no repetir la activación.
 
 ## Cierre de staging
 
-Candidato exacto compilado y saludable;20 migraciones, filas y columnas anteriores conservadas, respaldo previo y posterior a la migración restaurados y19 comprobaciones autenticadas aprobadas. Recolector propio reanudado. Producción y configuración de otros proyectos intactas. El paquete idéntico de producción está preparado localmente; aún no subido ni autorizado.
+Candidato exacto compilado y saludable; 20 migraciones, filas y columnas anteriores conservadas, respaldo previo y posterior a la migración restaurados y 19 comprobaciones autenticadas aprobadas. Recolector propio reanudado. En esa etapa no se intervino producción ni la configuración de otros proyectos. El paquete idéntico se publicó posteriormente con la autorización indicada arriba.
 
 Se conservan dos verificaciones fallidas por el estado intermedio del reinicio automático de un peer conocido. Su identidad/configuración permanecieron iguales y la observación posterior confirmó el incremento del contador. Se corrigió únicamente esa transición acotada del verificador, con8 pruebas nuevas y18 anteriores aprobadas. Una verificación nueva y la compilación pasaron; no se modificó el servicio ajeno.
 
 La verificación posterior coincidió con un contenedor temporal del recolector programado de producción y mantuvo staging pausado. Se conservó la incidencia y se recuperó el mismo candidato tras comprobar nuevamente datos, respaldos y pares. No se repitió la migración ni se intervino el recolector de producción;7 controles de recuperación aprobados.
+
+## Publicación completada
+
+Producción saludable con 20 migraciones. Ventas, cobros, mercancía, clientes, acceso y tablet conservados; tareas propias reanudadas. Pasaron 21 controles HTTPS, lectura de pantallas a 800 px simulando Android instalado, presencia de las acciones de corrección y navegación del resumen de mercancía, y notas reales Carta/A4 con identidad/dirección/BCV/firmas. Ambas notas se renderizaron y revisaron visualmente, legibles y sin cortes. Comprobaciones de lectura: no se registraron ventas sintéticas ni se corrigieron operaciones reales. El verificador autenticado pasó también 5 pruebas de sus controles previos.
+
+El respaldo posterior cifrado en computadora y mismo VPS se restauró correctamente a `2026-11-18T01:03:04.443854+00:00`. Cerrar completamente y abrir de nuevo la aplicación carga la interfaz publicada; no requiere reinstalar. La comprobación física de tablet/impresora corresponde a los dueños. No repetir publicación, migración ni vaciados.
+
+Se conservaron las incidencias previas: confirmación SSH perdida después de una restauración que sí terminó, y evidencia de respaldo vencida que rechazó la primera activación antes de pausar escritores. Se renovó el respaldo y se mantuvieron los controles originales.

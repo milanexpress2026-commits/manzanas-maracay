@@ -1,15 +1,15 @@
 {
   "version": "V4.18",
-  "status": "staging_verified_awaiting_production_approval",
-  "productionCommit": "d25879918810f9e0a9257aefcf7eb7dcdeac3b94",
-  "productionApproved": false,
-  "productionChanged": false,
+  "status": "published_verified",
+  "productionCommit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+  "productionApproved": true,
+  "productionChanged": true,
   "migration": {
     "tag": "0019_corrections_credit",
     "from": 19,
     "to": 20,
     "historicalSqlUnchanged": true,
-    "productionExecuted": false
+    "productionExecuted": true
   },
   "local": {
     "typecheck": true,
@@ -85,6 +85,33 @@
   "incidents": [
     "Full E2E local connection timeout followed by35/35 final directed tests including unchanged original case.",
     "Initial upload and read-only recheck observed a known peer moving from restarting to running with equal RestartCount; preserved raw failure snapshots. Same identity/configuration, subsequent count increment confirmed. Bounded transition guard fixed;8 focused and18 prior checks passed. New verification and build passed; no peer commands changed it.",
-    "Staging paused after migration when the scheduled production rate-refresh container appeared. Original failure retained. Exact held-candidate recovery verified all data/backups/peers and resumed the same containers without repeated DDL;7 recovery guard tests passed."
-  ]
+    "Staging paused after migration when the scheduled production rate-refresh container appeared. Original failure retained. Exact held-candidate recovery verified all data/backups/peers and resumed the same containers without repeated DDL;7 recovery guard tests passed.",
+    "First prepublication restore lost SSH exit confirmation; server result was successful and temporary resources absent. Original failure retained; fresh encrypted backup/restore passed after enabling transport keepalive.",
+    "The first activation preflight rejected backup evidence older than one hour before any writer pause. A fresh backup was chained immediately into the approved activation; no gate was weakened."
+  ],
+  "approvalReference": "call_NmhYlep4FglLcFYfHHLTWWju",
+  "production": {
+    "commit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+    "healthy": true,
+    "migrationCount": 20,
+    "allOriginalRowsAndColumnsPreserved": true,
+    "accessAndRegisteredTabletPreserved": true,
+    "collectorResumed": true,
+    "httpsChecksPassed": 21,
+    "businessWritesDuringLiveChecks": false,
+    "ui800Verified": true,
+    "sellerMerchandiseVerified": true,
+    "existingSaleUnchanged": true,
+    "documentsCartaA4Verified": true,
+    "dnsCaddyOrPeerProjectsChanged": false,
+    "postBackupRestoredAt": "2026-11-18T01:03:04.443854+00:00"
+  },
+  "postpublicationBackup": {
+    "commit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true,
+    "checkedAt": "2026-11-18T01:03:04.443854+00:00"
+  }
 }
