@@ -77,6 +77,9 @@ export class CommerceController {
   @Get('sales/sellers/summary') sellers(@Query() query: unknown) {
     return this.commerce.sellerReport(query);
   }
+  @Get('sales/statistics') statistics(@Query() query: unknown) {
+    return this.commerce.salesStatistics(query);
+  }
   @Post('sales/:id/add-products') addProducts(
     @Param('id') id: string,
     @Body() body: unknown,

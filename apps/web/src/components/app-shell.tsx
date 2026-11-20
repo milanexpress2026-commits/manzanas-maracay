@@ -19,6 +19,7 @@ import {
   ContactRound,
   House,
   LoaderCircle,
+  ChartNoAxesCombined,
 } from 'lucide-react';
 import type { SessionInfo } from '@mm/domain';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ const navigation = [
   { href: '/recepciones', label: 'Recepciones', icon: Truck },
   { href: '/proveedores', label: 'Proveedores', icon: Users },
   { href: '/ventas', label: 'Ventas', icon: ShoppingCart },
+  { href: '/estadisticas', label: 'Estadísticas', icon: ChartNoAxesCombined },
   { href: '/clientes', label: 'Clientes', icon: ContactRound },
   { href: '/cobranza', label: 'Cobranza', icon: HandCoins },
 ];

@@ -66,6 +66,18 @@ test('V4.18 rol real: devolución, corrección y saldo a favor conservan RLS y d
       .find((r: { seller: string }) => r.seller === 'carlos')
       .merchandise.filter((r: { variantId: string }) => r.variantId === rule.variantId),
   ).toMatchObject([{ quantity: 1, totalUsd: '40.00', presentation: 'box' }]);
+  const statistics = await request.get(
+    `/api/sales/statistics?from=${day}&to=${day}&seller=carlos&variantId=${rule.variantId}`,
+  );
+  expect(statistics.status()).toBe(200);
+  expect(statistics.headers()['cache-control']).toContain('no-store');
+  expect((await statistics.json()).totals).toEqual({
+    boxes: '1',
+    totalUsd: '40.00',
+    saleCount: 1,
+    clientCount: 1,
+    unknownLines: 0,
+  });
   const next = await post<SaleDetail>(request, '/api/sales', {
     ...input,
     lines: [{ configurationId: rule.id, presentation: 'box', quantity: 1, agreedUnitUsd: '40' }],

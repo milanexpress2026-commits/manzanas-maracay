@@ -1,0 +1,36 @@
+# V4.19 — Estadísticas en cajas por vendedor y cliente
+
+Estado: implementación y verificación local en curso. Producción continúa en V4.18; este documento no autoriza publicación ni migración de alojamiento.
+
+El propietario pidió una sección visible «Estadísticas» para ver qué mercancía vendieron Carlos y Randy, la variedad y el cliente. Aclaró que necesita un único total de cajas, por ejemplo 4,5, sin sumar manualmente cajas, medias y blísteres.
+
+## Operación
+
+- Acceso desde el menú y Ventas. Selector Todos/Carlos/Randy/Sin asignar, fechas Caracas, Hoy y Este mes.
+- Total neto de cajas, importe vendido, ventas y clientes. Las cajas completas valen 1; las medias, 0,5; cada blíster vale 1 dividido por los blísteres de su lote histórico. Suma cada asignación no devuelta, incluso cuando una línea mezcla empaques distintos.
+- Productos reúne las presentaciones en cajas por descripción/variedad/calibre. Clientes reúne sus compras. Ventas muestra producto, cajas, cliente, vendedor, fecha y enlace al comprobante. «Ver ventas» conserva fechas/vendedor y filtra ese producto o cliente.
+- Se excluyen anulaciones y se descuentan las cantidades devueltas. Las ampliaciones conservan el vendedor y fecha original. Las anteriores sin vendedor siguen sin atribuirse.
+- Es un resumen del estado actual de las ventas cuya fecha original cae en el período; no es un informe de movimientos ocurridos en las fechas ni de pagos cobrados durante ellas.
+- Equivalencias en PostgreSQL `numeric`, agregadas antes de unir importes. Resultado redondeado a 12 decimales para eliminar residuos de división; presentación hasta cuatro decimales y «≈» cuando corresponde. Dinero conserva céntimos. Una equivalencia incompleta se informa explícitamente, nunca como total completo.
+
+## Alcance técnico
+
+GET privado `/api/sales/statistics`, una consulta bajo transacción de lectura repetible. Se reutilizan vistas vigentes y lotes; no se modifica stock, ventas, cobros ni esquema. Respuestas paginadas de 25 grupos, con totales calculados sobre el período completo. Índices existentes de fecha/vendedor, líneas, asignaciones y retornos. El resumen financiero anterior sigue accesible para consultar cobros/saldos.
+
+No hay migración nueva: se conservan las veinte existentes. La preparación de publicación debe preservar todos los datos, acceso, tablet, DNS/Caddy y proyectos ajenos. Se requiere evidencia y autorización operativa sobre el candidato final antes de intervenir producción, conforme a la instrucción vigente del propietario.
+
+## Evidencia
+
+- Tipos iniciales aprobados.
+- 475 unitarias existentes aprobadas; el primer arranque de Vitest fue impedido por `spawn EPERM` del aislamiento Windows y se repitió con permisos para sus procesos locales.
+- Primera ejecución dirigida usó la compilación web anterior, por lo que la ruta nueva devolvió 404. Se conserva su evidencia; compilar y volver a probar antes de considerar los recorridos verificados.
+- Segunda ejecución dirigida: cuatro recorridos pasaron; cuatro fallaron por datos de prueba incompletos (proveedor ausente y nombre no incluido en la respuesta de creación). Se corrigieron exclusivamente esas preparaciones/asserts; no se debilitó el contrato de la aplicación.
+- Tercera ejecución dirigida: 8/8 aprobadas, con cajas/medias/blísteres, mezcla histórica de lotes, devoluciones, cancelaciones, clientes, paginación, medianoche Caracas, acceso privado y validación. Tres tamaños 390/800/1440 sin desbordamiento ni infracciones Axe. Base previa local intacta; proceso de QA detenido.
+- Tipos y compilación API/web aprobados. Detector visual sin hallazgos; revisión independiente SHIP y documentación terminada. Regresión completa en curso; staging y paquete de publicación pendientes.
+
+## Revisión documental de interfaz — 20/11/2026
+
+- Se contrastaron `PRODUCT.md`, `DESIGN.md` y el contrato `apps/web/.impeccable/surfaces/rc-components-sales-statistics-screen-tsx-461965c6.md` con la ruta privada, `sales-statistics-screen.tsx`, su CSS, los tokens globales y los controles compartidos. Es una extensión Operate: conserva Manrope, verde/rojo/crema, logo, navegación, controles y radios existentes; no introduce un sistema visual ni recursos gráficos nuevos.
+- La implementación cumple el contrato de lectura: un total de cajas equivalente, vendedor Todos/Carlos/Randy/Sin asignar, período Caracas, detalle por productos/clientes/ventas y filtro visible que puede quitarse. Carga, error, vacío y equivalencia parcial tienen mensajes explícitos. La comprobación numérica corresponde a las pruebas descritas arriba, no a esta revisión documental.
+- Se inspeccionaron las capturas locales de pruebas `apps/web/.impeccable/review/mobile.png` (390), `user-800.png` (800) y `desktop.png` (1440): datos DEMO identificados, Randy seleccionado, total dominante de 4,5 cajas y detalle legible; registros apilados en teléfono/tablet y tabla en escritorio. Se registra el dictamen recibido del finish reviewer: **SHIP, sin hallazgos materiales** en esos tamaños. Esta revisión no acredita publicación ni dispositivos físicos.
+- **Drift previo, fuera de esta extensión:** `PRODUCT.md` conserva referencias publicadas de fase 4/V4.5 y reglas antiguas de empaque; `DESIGN.md` mantiene descripciones históricas de costos/precios de fases anteriores. No se convirtieron esos antecedentes en requisitos nuevos ni se repararon. Se conservaron el canon, el brief, los metadatos y la fuente; la única escritura de este handoff es esta sección.

@@ -49,8 +49,8 @@ export function SalesScreen({
           </div>
           <div className="inline-actions">
             <Button asChild variant="outline">
-              <Link prefetch={false} href="/ventas/resumen">
-                Resumen por vendedor
+              <Link prefetch={false} href="/estadisticas">
+                Estadísticas
               </Link>
             </Button>
             <Button asChild>

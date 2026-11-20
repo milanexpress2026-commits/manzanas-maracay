@@ -20,6 +20,7 @@ function allowedRoute(method: string, endpoint: string) {
         'prices',
         'sales',
         'sales/sellers/summary',
+        'sales/statistics',
         'payments',
         'collections',
         'push/status',
