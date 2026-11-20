@@ -18,16 +18,27 @@ import {
   type CollectedRate,
 } from '../packages/domain/src/rate-sources';
 
-const INTERMEDIATE_SHA = '8c54c334b66ba4e426772af4a3f9136c19a1aec729fdb28c535c07a5a4ef22e0';
-const intermediate = fs.readFileSync(
-  path.join(__dirname, 'certs/sectigo-public-server-dv-r36.pem'),
-  'utf8',
-);
-if (
-  new X509Certificate(intermediate).fingerprint256.replaceAll(':', '').toLowerCase() !==
-  INTERMEDIATE_SHA
-)
-  throw new Error('Certificado público intermedio inesperado.');
+// BCV has served both DV and OV leaves with an incomplete/mismatched chain.
+// These are public intermediates, signed by roots already trusted by Node.
+const intermediates = [
+  [
+    'sectigo-public-server-dv-r36.pem',
+    '8c54c334b66ba4e426772af4a3f9136c19a1aec729fdb28c535c07a5a4ef22e0',
+  ],
+  [
+    'sectigo-public-server-ov-r36.pem',
+    '6542d176bed50f193c0ce297ae44ecd8a0a86bec2ede682769344059b4e78530',
+  ],
+].map(([file, fingerprint]) => {
+  const pem = fs.readFileSync(path.join(__dirname, 'certs', file!), 'utf8');
+  const certificate = new X509Certificate(pem);
+  if (
+    !certificate.ca ||
+    certificate.fingerprint256.replaceAll(':', '').toLowerCase() !== fingerprint
+  )
+    throw new Error('Certificado público intermedio inesperado.');
+  return pem;
+});
 
 export function fetchRateSource(url: string): Promise<string> {
   if (![BCV_SOURCE_URL, USDT_SOURCE_URL].includes(url)) throw new Error('Fuente no autorizada.');
@@ -35,10 +46,10 @@ export function fetchRateSource(url: string): Promise<string> {
     const req = https.get(
       url,
       {
-        // Supplement the missing intermediate only for BCV; retain standard roots,
+        // Supplement missing intermediates only for BCV; retain standard roots,
         // hostname verification, expiry checks and rejectUnauthorized=true.
         ...(url === BCV_SOURCE_URL
-          ? { ca: [...tls.getCACertificates('default'), intermediate] }
+          ? { ca: [...tls.getCACertificates('default'), ...intermediates] }
           : {}),
         headers: {
           'User-Agent': 'ManzanasMaracay/1.0 (public rates collector)',
