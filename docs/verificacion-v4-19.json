@@ -1,0 +1,83 @@
+{
+  "version": "V4.19",
+  "status": "ready_for_production_approval",
+  "candidateCommit": "90e4635ab80ca2db6d15e3a0a148a2a2e4f75075",
+  "initialStatisticsCandidate": "336f58cc26a669fdf740f4566df69a0ab8022b30",
+  "productionCommitUnchanged": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/20",
+  "scope": [
+    "private_box_equivalent_statistics",
+    "seller_product_client_sale_filters",
+    "verified_bcv_ov_intermediate"
+  ],
+  "schema": { "before": 20, "after": 20, "migrationRequired": false, "historyByteIdentical": true },
+  "validation": {
+    "typecheck": "passed",
+    "finalDockerBuild": "passed",
+    "unit": { "passed": 480, "failed": 0 },
+    "directedStatistics": { "passed": 8, "failed": 0, "runId": "f83f9dd601bd23ff89f07fe0" },
+    "fullE2E": {
+      "passed": 210,
+      "failed": 1,
+      "runId": "0a291bdd1320ac4c6b07a2fe",
+      "failure": "Legacy test submitted a manually supplied timestamp rejected as future on its second half-box sale."
+    },
+    "unchangedFollowup": {
+      "passed": 9,
+      "failed": 0,
+      "runId": "7c520521624df5a2c8518e78",
+      "codeOrTestsChanged": false
+    },
+    "isolatedProduction": {
+      "passed": 16,
+      "failed": 0,
+      "runId": "0917fd8652ccfc3be797994f",
+      "databaseCleaned": true,
+      "legacyLocalDatabasePreserved": true
+    },
+    "regressionApplicability": "UI, API and domain sources are identical between the initial and final candidates. Final changes affect only collector TLS intermediates, packaging, tests and documentation.",
+    "operatorGuards": { "passed": 6 },
+    "incidentRecoveryGuards": { "passed": 8 },
+    "viewports": [390, 800, 1440],
+    "axeViolations": 0,
+    "horizontalOverflow": false,
+    "designDetectorFindings": 0,
+    "independentVisualDisposition": "ship",
+    "designDocumentationComplete": true
+  },
+  "package": {
+    "archiveSha256": "939fb26a7811dc2b9756c457353aba33df08998317f1230a5285d3a017a07b0b",
+    "sameStagingAndProductionArchive": true,
+    "runtimeFilesOmitted": false
+  },
+  "bcvCertificate": {
+    "intermediateDerSha256": "6542d176bed50f193c0ce297ae44ecd8a0a86bec2ede682769344059b4e78530",
+    "signatureVerifiedAgainstExistingNodeRoot": true,
+    "realHttpsReadPassed": true,
+    "tlsVerificationDisabled": false
+  },
+  "productionBackup": {
+    "encryptedPcCopy": true,
+    "encryptedSameVpsCopy": true,
+    "isolatedRestorePassed": true,
+    "checkedAt": "2026-11-20T18:09:14.053241+00:00"
+  },
+  "staging": {
+    "status": "healthy",
+    "commit": "90e4635ab80ca2db6d15e3a0a148a2a2e4f75075",
+    "firstCollectorFailurePreserved": true,
+    "recoveryPreservedBusinessRowsAndSchema": true,
+    "allPriorRowsPreserved": true,
+    "schemaUnchanged": true,
+    "collectorResumed": true,
+    "bcvVerified": true,
+    "usdtVerified": true,
+    "peerAndHttpObservationsPreserved": true,
+    "authenticatedChecksPassed": 22,
+    "checkedAt": "2026-11-20T18:09:18.248225Z"
+  },
+  "productionIntervention": false,
+  "productionApprovalReceived": false,
+  "physicalDeviceValidationClaimed": false,
+  "hostMigrationPerformed": false
+}
