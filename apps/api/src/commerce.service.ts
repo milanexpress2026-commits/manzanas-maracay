@@ -62,6 +62,11 @@ import { applyPresentationPrices } from './commerce-prices';
 import { commandIsDemo } from './production-state';
 import { authConfig } from './auth/config';
 import type { HistoricalOfficialRate, HistoricalUsdtRate } from './bcv-rate';
+import {
+  statisticsFilterSchema,
+  type SalesStatistics,
+} from '../../../packages/domain/src/sales-statistics';
+import { statisticsPageSize, statisticsQuery } from './sales-statistics-query';
 
 const clientSelect = `select c.id,c.name,c.phone,c.tax_id as "taxId",c.address,c.notes,c.active,c.version,c.is_demo as "isDemo",
   coalesce((select sum(balance_usd) from receivables r where r.client_id=c.id),0)::numeric(18,2)::text as "balanceUsd",coalesce((select credit_usd from client_credit_balances b where b.client_id=c.id),0)::text as "creditUsd" from clients c`;
@@ -902,6 +907,13 @@ export class CommerceService implements OnModuleDestroy {
         key!,
       );
       return this.saleDetail(client, id);
+    });
+  }
+  async salesStatistics(query: unknown): Promise<SalesStatistics> {
+    const filter = statisticsFilterSchema.parse(query);
+    return this.read(async (client) => {
+      const result = (await client.query(statisticsQuery(filter))).rows[0];
+      return { ...result, filter, pageSize: statisticsPageSize };
     });
   }
   async sellerReport(query: unknown): Promise<SellerReport> {

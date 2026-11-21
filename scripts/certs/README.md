@@ -1,4 +1,6 @@
-# Certificado intermedio público de BCV
+# Certificados intermedios públicos de BCV
+
+V4.19 añade `sectigo-public-server-ov-r36.pem`, **Sectigo Public Server Authentication CA OV R36**, SHA-256 DER `6542d176bed50f193c0ce297ae44ecd8a0a86bec2ede682769344059b4e78530`. El 20/11/2026 se observó desde el VPS una hoja `*.bcv.org.ve` emitida por OV R36, válida desde el 13/11/2026, acompañada por un intermedio antiguo de otro emisor. Se obtuvo el intermedio de la [URL oficial de Sectigo](http://crt.sectigo.com/SectigoPublicServerAuthenticationCAOVR36.crt), publicada en su documentación HTTPS y en el AIA de la hoja. Se verificó su firma contra **Sectigo Public Server Authentication Root R46**, ya presente en las raíces de Node, huella `7bb647a62aeeac88bf257aa522d01ffea395e0ab45c73f93f65654ec38f25a06`. El intermedio es CA, no es raíz/hoja, y vence el 21/03/2036. Se conserva DV para servidores que todavía usan esa cadena; ambos tienen excepciones exactas en `.dockerignore` y huellas verificadas al cargar.
 
 `sectigo-public-server-dv-r36.pem` es el certificado público **Sectigo Public Server Authentication CA DV R36**. No contiene una clave privada ni es el certificado del negocio.
 

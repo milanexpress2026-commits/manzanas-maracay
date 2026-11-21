@@ -9,3 +9,4 @@ test-results/
 playwright-report/
 *.tsbuildinfo
 apps/web/next-env.d.ts
+apps/web/.impeccable/review/

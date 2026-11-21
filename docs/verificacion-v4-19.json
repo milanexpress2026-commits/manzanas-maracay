@@ -1,0 +1,156 @@
+{
+  "version": "V4.19",
+  "status": "published_verified",
+  "candidateCommit": "90e4635ab80ca2db6d15e3a0a148a2a2e4f75075",
+  "initialStatisticsCandidate": "336f58cc26a669fdf740f4566df69a0ab8022b30",
+  "pullRequest": "https://github.com/milanexpress2026-commits/manzanas-maracay/pull/20",
+  "scope": [
+    "private_box_equivalent_statistics",
+    "seller_product_client_sale_filters",
+    "verified_bcv_ov_intermediate"
+  ],
+  "schema": {
+    "before": 20,
+    "after": 20,
+    "migrationRequired": false,
+    "historyByteIdentical": true
+  },
+  "validation": {
+    "typecheck": "passed",
+    "finalDockerBuild": "passed",
+    "unit": {
+      "passed": 480,
+      "failed": 0
+    },
+    "directedStatistics": {
+      "passed": 8,
+      "failed": 0,
+      "runId": "f83f9dd601bd23ff89f07fe0"
+    },
+    "fullE2E": {
+      "passed": 210,
+      "failed": 1,
+      "runId": "0a291bdd1320ac4c6b07a2fe",
+      "failure": "Legacy test submitted a manually supplied timestamp rejected as future on its second half-box sale."
+    },
+    "unchangedFollowup": {
+      "passed": 9,
+      "failed": 0,
+      "runId": "7c520521624df5a2c8518e78",
+      "codeOrTestsChanged": false
+    },
+    "isolatedProduction": {
+      "passed": 16,
+      "failed": 0,
+      "runId": "0917fd8652ccfc3be797994f",
+      "databaseCleaned": true,
+      "legacyLocalDatabasePreserved": true
+    },
+    "regressionApplicability": "UI, API and domain sources are identical between the initial and final candidates. Final changes affect only collector TLS intermediates, packaging, tests and documentation.",
+    "operatorGuards": {
+      "passed": 6
+    },
+    "incidentRecoveryGuards": {
+      "passed": 8
+    },
+    "viewports": [390, 800, 1440],
+    "axeViolations": 0,
+    "horizontalOverflow": false,
+    "designDetectorFindings": 0,
+    "independentVisualDisposition": "ship",
+    "designDocumentationComplete": true
+  },
+  "package": {
+    "archiveSha256": "939fb26a7811dc2b9756c457353aba33df08998317f1230a5285d3a017a07b0b",
+    "sameStagingAndProductionArchive": true,
+    "runtimeFilesOmitted": false
+  },
+  "bcvCertificate": {
+    "intermediateDerSha256": "6542d176bed50f193c0ce297ae44ecd8a0a86bec2ede682769344059b4e78530",
+    "signatureVerifiedAgainstExistingNodeRoot": true,
+    "realHttpsReadPassed": true,
+    "tlsVerificationDisabled": false
+  },
+  "productionBackup": {
+    "encryptedPcCopy": true,
+    "encryptedSameVpsCopy": true,
+    "isolatedRestorePassed": true,
+    "checkedAt": "2026-11-20T18:09:14.053241+00:00"
+  },
+  "staging": {
+    "status": "healthy",
+    "commit": "90e4635ab80ca2db6d15e3a0a148a2a2e4f75075",
+    "firstCollectorFailurePreserved": true,
+    "recoveryPreservedBusinessRowsAndSchema": true,
+    "allPriorRowsPreserved": true,
+    "schemaUnchanged": true,
+    "collectorResumed": true,
+    "bcvVerified": true,
+    "usdtVerified": true,
+    "peerAndHttpObservationsPreserved": true,
+    "authenticatedChecksPassed": 22,
+    "checkedAt": "2026-11-20T18:09:18.248225Z"
+  },
+  "productionIntervention": true,
+  "productionApprovalReceived": true,
+  "physicalDeviceValidationClaimed": false,
+  "hostMigrationPerformed": false,
+  "previousProductionCommit": "de8bb83651b39c62ff8fcf149ca67249b4659a48",
+  "productionCommit": "90e4635ab80ca2db6d15e3a0a148a2a2e4f75075",
+  "approvalReference": "call_5954de3a1e85461fa813ae81c7c09687",
+  "ownerContinuation": "procede por favor, 2026-11-21",
+  "production": {
+    "commit": "90e4635ab80ca2db6d15e3a0a148a2a2e4f75075",
+    "healthy": true,
+    "migrationCount": 20,
+    "migrationExecuted": false,
+    "allOriginalRowsPreserved": true,
+    "accessAndRegisteredTabletPreserved": true,
+    "collectorResumed": true,
+    "bcvVerified": true,
+    "usdtVerified": true,
+    "httpsChecksPassed": 21,
+    "businessWritesDuringLiveChecks": false,
+    "statisticsSingleBoxTotal": true,
+    "statisticsSellerAndGroupTotalsConsistent": true,
+    "statisticsClientProductSaleViews": true,
+    "uiViewports": [390, 800, 1440],
+    "existingSaleUnchanged": true,
+    "documentsCartaA4Verified": true,
+    "postBackupRestoredAt": "2026-11-21T15:15:13.840922+00:00",
+    "dnsCaddyOrPeerProjectsModifiedByThisPublication": false
+  },
+  "postpublicationBackup": {
+    "commit": "90e4635ab80ca2db6d15e3a0a148a2a2e4f75075",
+    "externalCopyVerified": true,
+    "restoredFromExternalCopy": true,
+    "isolatedRestoreCleaned": true,
+    "remoteEncryptedCopyVerified": true,
+    "checkedAt": "2026-11-21T15:15:13.840922+00:00"
+  },
+  "officialRateGapRecovery": {
+    "originalFailurePreserved": true,
+    "reason": "Production had missed the official 20 November observation during the prior TLS outage; extending the 19 November rate to the new 24 November value date was correctly rejected.",
+    "sourceUrl": "https://www.bcv.org.ve/sites/default/files/EstadisticasGeneral/2_1_2d26_smc.xls",
+    "sourceSha256": "eab39cc9390222792aaef8e97f9ca8c56646af48dad526b5590fd440112536b4",
+    "twoOfficialValueDates": ["2026-11-20", "2026-11-24"],
+    "freshSourceVerifiedByCollectorRole": true,
+    "existingBusinessRowsAndRateHistoryPreserved": true,
+    "sameApprovedContainersResumed": true,
+    "schemaOrRuntimeChanged": false,
+    "passed": true
+  },
+  "concurrentExternalChanges": {
+    "independentContainerAndProxyChangeObserved": true,
+    "originalEvidencePreserved": true,
+    "ownProxyRouteIdenticalToHashVerifiedOriginalBackup": true,
+    "newPeerIdentityAndConfigurationPreserved": true,
+    "independentHostReturned502": true,
+    "independentProjectModifiedOrRepairedByUs": false,
+    "ownProductionHttpsReverified": true
+  },
+  "publicationContinuity": [
+    "Initial build session ended without a completion result; exact local/remote deployment state remained uploaded, V4.18 services stayed healthy, and no Compose build was running. The owner asked to proceed; a fresh encrypted backup/restore and a new bounded approval record were made before completing the same candidate build and activation.",
+    "First read-only build-status helper contained a command-encoding error after returning healthy V4.18 status; fixed locally and the follow-up read passed. It changed no services or data."
+  ]
+}

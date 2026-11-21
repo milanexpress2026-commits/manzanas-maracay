@@ -88,7 +88,8 @@ for (const width of [390, 800, 1440])
     expect(sale.lines).toHaveLength(2);
     await page.screenshot({ path: `../../work/v417-ui/detail-${width}.png`, fullPage: true });
     await page.goto('/ventas');
-    await page.getByRole('link', { name: 'Resumen por vendedor', exact: true }).click();
+    await page.locator('main').getByRole('link', { name: 'Estadísticas', exact: true }).click();
+    await page.getByRole('link', { name: 'Ver cobros y saldos por vendedor' }).click();
     await expect(page.getByRole('table', { name: 'Importes por vendedor' })).toContainText('Randy');
     await expect(page.getByRole('table', { name: 'Importes por vendedor' })).toContainText(
       'Sin vendedor asignado',

@@ -6,6 +6,7 @@ const INTERNAL_PAGES = new Set([
   '/inventario',
   '/recepciones',
   '/ventas',
+  '/estadisticas',
   '/ventas/nueva',
   '/clientes',
   '/cobranza',

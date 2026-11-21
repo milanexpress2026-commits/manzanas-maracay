@@ -215,3 +215,4 @@ export function paymentVesToUsd(amountVes: string, rate: VerifiedRate, at: Date)
     throw new Error('Monto o tasa inválidos.');
   return amount.div(value).toFixed(2, Decimal.ROUND_HALF_UP);
 }
+export * from './sales-statistics';
